@@ -89,12 +89,14 @@ export const AuthProvider = ({ children }) => {
 
   // Sign in with Supabase Auth or Demo Mode fallback
   const signIn = async (email, password) => {
+    const cleanEmail = (email || '').trim().toLowerCase();
+
     if (!isSupabaseConfigured) {
       // Demo authentication
       const demoProfile = {
         ...INITIAL_DEMO_DATA.profile,
-        email: email || INITIAL_DEMO_DATA.profile.email,
-        full_name: email.split('@')[0] || INITIAL_DEMO_DATA.profile.full_name,
+        email: cleanEmail || INITIAL_DEMO_DATA.profile.email,
+        full_name: cleanEmail.split('@')[0] || INITIAL_DEMO_DATA.profile.full_name,
       };
       localStorage.setItem('tipidlink_demo_user', JSON.stringify(demoProfile));
       setUser({ id: demoProfile.id, email: demoProfile.email });
@@ -105,27 +107,35 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: cleanEmail,
         password,
       });
       if (error) throw error;
       return { success: true, data };
     } catch (error) {
-      return { success: false, error: error.message };
+      let friendlyMessage = error.message;
+      if (error.message.includes('Invalid login credentials')) {
+        friendlyMessage = 'Maling email o password. Pakisuri kung tama ang spelling o mag-register muna kung bago pa ang account.';
+      } else if (error.message.includes('Email not confirmed')) {
+        friendlyMessage = 'Hindi pa confirmed ang iyong email. Pakitingnan ang verification link sa iyong inbox o spam folder.';
+      }
+      return { success: false, error: friendlyMessage };
     }
   };
 
   // Sign up with Supabase Auth or Demo Mode fallback
   const signUp = async (email, password, fullName) => {
+    const cleanEmail = (email || '').trim().toLowerCase();
+
     if (!isSupabaseConfigured) {
       const demoProfile = {
         id: `usr-${Date.now()}`,
-        email,
-        full_name: fullName || email.split('@')[0],
-        avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName || email)}`,
+        email: cleanEmail,
+        full_name: fullName || cleanEmail.split('@')[0],
+        avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName || cleanEmail)}`,
       };
       localStorage.setItem('tipidlink_demo_user', JSON.stringify(demoProfile));
-      setUser({ id: demoProfile.id, email });
+      setUser({ id: demoProfile.id, email: cleanEmail });
       setProfile(demoProfile);
       setIsDemoMode(true);
       return { success: true };
@@ -133,7 +143,7 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: cleanEmail,
         password,
         options: {
           data: {
@@ -144,7 +154,13 @@ export const AuthProvider = ({ children }) => {
       if (error) throw error;
       return { success: true, data };
     } catch (error) {
-      return { success: false, error: error.message };
+      let friendlyMessage = error.message;
+      if (error.message.includes('User already registered')) {
+        friendlyMessage = 'Mayroon nang account gamit ang email na ito. Subukang mag-log in na lamang.';
+      } else if (error.message.includes('Password should be')) {
+        friendlyMessage = 'Kailangan ay hindi bababa sa 6 characters ang iyong password.';
+      }
+      return { success: false, error: friendlyMessage };
     }
   };
 

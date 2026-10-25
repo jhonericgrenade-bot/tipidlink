@@ -117,12 +117,15 @@ export const RegisterPage = () => {
                 <input
                   type="email"
                   required
-                  placeholder="name@email.com"
+                  placeholder="Hal. maria.delacruz@gmail.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full rounded-xl border border-slate-200/80 bg-white/80 py-2.5 pl-9 pr-3 text-sm focus:border-emerald-500 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20"
                 />
               </div>
+              <p className="text-[10px] text-slate-500 mt-1">
+                Kahit anong personal email (Gmail, Yahoo, Outlook, atbp.) ay pwede.
+              </p>
             </div>
 
             <div>
