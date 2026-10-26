@@ -121,7 +121,7 @@ export const RegisterPage = () => {
                   type="text"
                   autoComplete="name"
                   required
-                  placeholder="e.g. Maria Santos"
+                  placeholder="e.g. Eric Granada"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   className="w-full rounded-2xl border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-hidden focus:ring-4 focus:ring-emerald-500/10 shadow-xs transition"
@@ -143,7 +143,7 @@ export const RegisterPage = () => {
                   autoCorrect="off"
                   spellCheck="false"
                   required
-                  placeholder="e.g. maria.santos@gmail.com"
+                  placeholder="e.g. ericgwapo@gmail.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full rounded-2xl border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-hidden focus:ring-4 focus:ring-emerald-500/10 shadow-xs transition"
