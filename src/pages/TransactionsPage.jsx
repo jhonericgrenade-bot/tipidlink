@@ -116,8 +116,13 @@ export const TransactionsPage = () => {
     if (!formData.amount || !formData.description) return;
     setFormLoading(true);
 
-    await addTransaction(formData);
+    const result = await addTransaction(formData);
     setFormLoading(false);
+    if (result && !result.success && result.error) {
+      alert(`Could not record transaction: ${result.error}`);
+      return;
+    }
+
     setIsAddOpen(false);
   };
 

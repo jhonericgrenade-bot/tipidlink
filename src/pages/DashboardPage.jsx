@@ -74,7 +74,7 @@ export const DashboardPage = () => {
     if (!txAmount || !txDescription) return;
     setTxLoading(true);
 
-    await addTransaction({
+    const result = await addTransaction({
       type: txType,
       amount: Number(txAmount),
       category_id: txCategory || null,
@@ -84,6 +84,11 @@ export const DashboardPage = () => {
     });
 
     setTxLoading(false);
+    if (result && !result.success && result.error) {
+      alert(`Could not record transaction: ${result.error}`);
+      return;
+    }
+
     setTxAmount('');
     setTxDescription('');
     setIsAddTxOpen(false);

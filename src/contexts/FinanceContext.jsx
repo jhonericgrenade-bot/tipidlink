@@ -227,12 +227,15 @@ export const FinanceProvider = ({ children }) => {
     }
 
     try {
+      const isUuid = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+      const safeCategoryId = isUuid(tx.category_id) ? tx.category_id : null;
+
       const { data, error } = await supabase
         .from('transactions')
         .insert({
           household_id: currentHousehold.id,
-          category_id: tx.category_id || null,
-          user_id: user.id,
+          category_id: safeCategoryId,
+          user_id: user?.id,
           type: tx.type,
           amount: Number(tx.amount),
           description: tx.description,
@@ -251,9 +254,9 @@ export const FinanceProvider = ({ children }) => {
 
       const formatted = {
         ...data,
-        category_name: data.categories?.name || 'General',
-        category_icon: data.categories?.icon || 'tag',
-        category_color: data.categories?.color || '#10B981',
+        category_name: data.categories?.name || categoryObj?.name || 'General',
+        category_icon: data.categories?.icon || categoryObj?.icon || 'tag',
+        category_color: data.categories?.color || categoryObj?.color || '#10B981',
         user_name: data.profiles?.full_name || profile?.full_name || 'Member',
       };
 
