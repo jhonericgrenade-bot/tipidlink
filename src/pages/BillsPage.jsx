@@ -172,7 +172,7 @@ export const BillsPage = () => {
   };
 
   return (
-    <div className="space-y-6 pb-20 lg:pb-12 animate-in fade-in duration-200">
+    <div className="space-y-6 pb-20 lg:pb-12 animate-page-enter">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -180,16 +180,16 @@ export const BillsPage = () => {
             Household Bills & Payments
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Keep track of utilities, dues, tuitions, and partial payments in one shared place.
+            Track utilities, rent, wifi, tuition, and shared household obligations.
           </p>
         </div>
 
         <button
           onClick={openAddModal}
-          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition"
+          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press hover-lift transition cursor-pointer"
         >
           <Plus className="h-4 w-4" />
-          Add Bill
+          Add Household Bill
         </button>
       </div>
 

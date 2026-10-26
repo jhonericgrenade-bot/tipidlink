@@ -46,7 +46,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
   };
 
   return (
-    <div className="space-y-6 pb-20 lg:pb-12 animate-in fade-in duration-200">
+    <div className="space-y-6 pb-20 lg:pb-12 animate-page-enter">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

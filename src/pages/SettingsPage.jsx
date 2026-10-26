@@ -32,7 +32,7 @@ export const SettingsPage = () => {
   };
 
   return (
-    <div className="space-y-6 pb-20 lg:pb-12 max-w-4xl mx-auto animate-in fade-in duration-200">
+    <div className="space-y-6 pb-20 lg:pb-12 max-w-4xl mx-auto animate-page-enter">
       <div>
         <h1 className="text-2xl font-black tracking-tight text-slate-900">
           Settings & Architecture

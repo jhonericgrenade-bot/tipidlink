@@ -118,13 +118,17 @@ export const DashboardPage = () => {
   const CHART_COLORS = ['#10B981', '#F59E0B', '#3B82F6', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#64748B'];
 
   return (
-    <div className="space-y-6 pb-20 lg:pb-12 animate-in fade-in duration-200">
+    <div className="space-y-6 pb-20 lg:pb-12 animate-page-enter">
       {/* Top Banner & Welcome */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-800 via-teal-800 to-slate-900 p-6 sm:p-8 text-white shadow-lg">
+        {/* Ambient background decorative glow */}
+        <div className="absolute -right-8 -bottom-8 h-48 w-48 rounded-full bg-emerald-400/20 blur-3xl animate-pulse-subtle pointer-events-none" />
+        <div className="absolute right-1/3 -top-10 h-40 w-40 rounded-full bg-teal-400/15 blur-2xl animate-float pointer-events-none" />
+
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-200 border border-emerald-400/20 mb-3">
-              <Sparkles className="h-3.5 w-3.5" />
+            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-200 border border-emerald-400/20 mb-3 animate-bounce-subtle">
+              <Sparkles className="h-3.5 w-3.5 text-emerald-300" />
               <span>Shared Family Budget • {currentHousehold?.name || 'Household'}</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
@@ -138,17 +142,17 @@ export const DashboardPage = () => {
           <div className="flex flex-wrap items-center gap-2.5">
             <button
               onClick={() => setIsAddTxOpen(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-950/20 hover:bg-emerald-400 transition"
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-950/20 hover:bg-emerald-400 active-press hover-lift transition cursor-pointer"
             >
               <PlusCircle className="h-4 w-4" />
               Add Transaction
             </button>
             <button
               onClick={resetToDemoData}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-2.5 text-xs font-semibold text-white backdrop-blur-xs hover:bg-white/20 transition border border-white/10"
+              className="group inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-2.5 text-xs font-semibold text-white backdrop-blur-xs hover:bg-white/20 active-press transition border border-white/10 cursor-pointer"
               title="Reload sample Filipino household data"
             >
-              <RefreshCw className="h-3.5 w-3.5" />
+              <RefreshCw className="h-3.5 w-3.5 transition-transform duration-500 group-hover:rotate-180" />
               Reload Demo Data
             </button>
           </div>

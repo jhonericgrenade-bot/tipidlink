@@ -29,7 +29,7 @@ export const MobileNav = () => {
               key={tab.path}
               to={tab.path}
               className={({ isActive }) =>
-                `flex flex-col items-center justify-center py-1 transition ${
+                `flex flex-col items-center justify-center py-1 transition-all duration-200 active-press ${
                   isActive
                     ? 'text-emerald-700 font-bold'
                     : 'text-slate-500 hover:text-slate-800 font-medium'
@@ -39,13 +39,15 @@ export const MobileNav = () => {
               {({ isActive }) => (
                 <>
                   <div
-                    className={`flex h-8 w-8 items-center justify-center rounded-xl transition ${
-                      isActive ? 'bg-emerald-100 text-emerald-700' : ''
+                    className={`flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-300 ${
+                      isActive ? 'bg-emerald-100 text-emerald-700 scale-110 shadow-xs' : 'hover:scale-105'
                     }`}
                   >
                     <Icon className="h-5 w-5" />
                   </div>
-                  <span className="text-[10px] tracking-tight">{tab.name}</span>
+                  <span className={`text-[10px] tracking-tight transition-all duration-200 ${isActive ? 'font-bold scale-105 text-emerald-800' : ''}`}>
+                    {tab.name}
+                  </span>
                 </>
               )}
             </NavLink>

@@ -47,14 +47,14 @@ export const StatCard = ({
 
   return (
     <div
-      className={`rounded-2xl bg-white p-5 shadow-xs border transition duration-200 hover:shadow-md ${
-        isAlert ? 'border-rose-300 ring-2 ring-rose-100' : 'border-slate-200/80'
+      className={`group rounded-2xl bg-white p-5 shadow-xs border transition-all duration-300 hover-lift ${
+        isAlert ? 'border-rose-300 ring-2 ring-rose-100' : 'border-slate-200/80 hover:border-slate-300'
       }`}
     >
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-slate-500">{title}</span>
         {Icon && (
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${style.iconBg}`}>
+          <div className={`flex h-10 w-10 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110 ${style.iconBg}`}>
             <Icon className="h-5 w-5" />
           </div>
         )}
@@ -65,7 +65,7 @@ export const StatCard = ({
           {value}
         </h4>
         {badgeText && (
-          <span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700">
+          <span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700 animate-pulse-subtle">
             {badgeText}
           </span>
         )}

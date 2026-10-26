@@ -117,7 +117,7 @@ export const BudgetsPage = () => {
   };
 
   return (
-    <div className="space-y-6 pb-20 lg:pb-12 animate-in fade-in duration-200">
+    <div className="space-y-6 pb-20 lg:pb-12 animate-page-enter">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -132,14 +132,14 @@ export const BudgetsPage = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsOverallModalOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 active-press hover-lift transition cursor-pointer"
           >
             <Target className="h-4 w-4 text-emerald-600" />
             Set Monthly Target
           </button>
           <button
             onClick={() => setIsCategoryModalOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition"
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press hover-lift transition cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             Add Category Budget
