@@ -156,6 +156,152 @@ export const SettingsPage = () => {
         </div>
       </div>
 
+      {/* College Presentation: Feature & Competitor Matrix (from TipidLink.pptx) */}
+      <div className="rounded-3xl bg-white p-6 shadow-xs border border-slate-200/80 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-4">
+          <div>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-bold text-emerald-800 mb-1">
+              <CheckCircle2 className="h-3 w-3" />
+              100% Aligned with Presentation Slides
+            </span>
+            <h3 className="text-base font-bold text-slate-900">
+              Presentation Defense Hub: Feature & Competitor Comparison
+            </h3>
+            <p className="text-xs text-slate-500">
+              Direct alignment with the official TipidLink presentation slides for panelist evaluation.
+            </p>
+          </div>
+        </div>
+
+        {/* Feature Comparison Table */}
+        <div className="space-y-2">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+            1. Feature Comparison Matrix
+          </h4>
+          <div className="overflow-x-auto rounded-2xl border border-slate-200">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-900 text-white font-bold">
+                <tr>
+                  <th className="p-3">Feature</th>
+                  <th className="p-3 text-center bg-emerald-700 text-white">Our App (TipidLink)</th>
+                  <th className="p-3 text-center text-slate-300">YNAB</th>
+                  <th className="p-3 text-center text-slate-300">Goodbudget</th>
+                  <th className="p-3 text-center text-slate-300">Honeydue</th>
+                  <th className="p-3">Our Advantage & Implementation</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                <tr className="hover:bg-slate-50/80">
+                  <td className="p-3 font-semibold text-slate-900">Family-focused</td>
+                  <td className="p-3 text-center text-emerald-600 font-bold bg-emerald-50/50">✓ Implemented</td>
+                  <td className="p-3 text-center text-slate-500">✓</td>
+                  <td className="p-3 text-center text-slate-500">✓</td>
+                  <td className="p-3 text-center text-amber-500">⚠️</td>
+                  <td className="p-3 text-slate-600">Designed around household use (Family Hub, Invite Codes, Roles)</td>
+                </tr>
+                <tr className="hover:bg-slate-50/80">
+                  <td className="p-3 font-semibold text-slate-900">Shared expenses</td>
+                  <td className="p-3 text-center text-emerald-600 font-bold bg-emerald-50/50">✓ Implemented</td>
+                  <td className="p-3 text-center text-slate-500">✓</td>
+                  <td className="p-3 text-center text-slate-500">✓</td>
+                  <td className="p-3 text-center text-slate-500">✓</td>
+                  <td className="p-3 text-slate-600">Built for shared family expenses (real-time sync across members)</td>
+                </tr>
+                <tr className="hover:bg-slate-50/80">
+                  <td className="p-3 font-semibold text-slate-900">Expense tracking</td>
+                  <td className="p-3 text-center text-emerald-600 font-bold bg-emerald-50/50">✓ Implemented</td>
+                  <td className="p-3 text-center text-slate-500">✓</td>
+                  <td className="p-3 text-center text-slate-500">✓</td>
+                  <td className="p-3 text-center text-slate-500">✓</td>
+                  <td className="p-3 text-slate-600">Simple daily expense recording with GCash/Cash/Maya support & CSV export</td>
+                </tr>
+                <tr className="hover:bg-slate-50/80">
+                  <td className="p-3 font-semibold text-slate-900">Bill/payment tracking</td>
+                  <td className="p-3 text-center text-emerald-600 font-bold bg-emerald-50/50">✓ Implemented</td>
+                  <td className="p-3 text-center text-amber-500">⚠️</td>
+                  <td className="p-3 text-center text-amber-500">⚠️</td>
+                  <td className="p-3 text-center text-slate-500">✓</td>
+                  <td className="p-3 text-slate-600">Keeps household payments visible with due date countdown & partial payment logs</td>
+                </tr>
+                <tr className="hover:bg-slate-50/80">
+                  <td className="p-3 font-semibold text-slate-900">Remaining budget</td>
+                  <td className="p-3 text-center text-emerald-600 font-bold bg-emerald-50/50">✓ Implemented</td>
+                  <td className="p-3 text-center text-slate-500">✓</td>
+                  <td className="p-3 text-center text-slate-500">✓</td>
+                  <td className="p-3 text-center text-amber-500">⚠️</td>
+                  <td className="p-3 text-slate-600">Clear view of available budget with % utilization bar & overspending warnings</td>
+                </tr>
+                <tr className="hover:bg-slate-50/80">
+                  <td className="p-3 font-semibold text-slate-900">Savings focus</td>
+                  <td className="p-3 text-center text-emerald-600 font-bold bg-emerald-50/50">✓ Implemented</td>
+                  <td className="p-3 text-center text-slate-500">✓</td>
+                  <td className="p-3 text-center text-amber-500">⚠️</td>
+                  <td className="p-3 text-center text-amber-500">⚠️</td>
+                  <td className="p-3 text-slate-600">Encourages better saving habits via Pondong Pang-ipit & goal milestones</td>
+                </tr>
+                <tr className="hover:bg-slate-50/80">
+                  <td className="p-3 font-semibold text-slate-900">Beginner-friendly</td>
+                  <td className="p-3 text-center text-emerald-600 font-bold bg-emerald-50/50">✓ Implemented</td>
+                  <td className="p-3 text-center text-amber-500">⚠️</td>
+                  <td className="p-3 text-center text-slate-500">✓</td>
+                  <td className="p-3 text-center text-slate-500">✓</td>
+                  <td className="p-3 text-slate-600">Simple and focused workflow without complex financial accounting jargon</td>
+                </tr>
+                <tr className="hover:bg-slate-50/80">
+                  <td className="p-3 font-semibold text-slate-900">Filipino household focus</td>
+                  <td className="p-3 text-center text-emerald-600 font-bold bg-emerald-50/50">✓ Implemented</td>
+                  <td className="p-3 text-center text-slate-400">—</td>
+                  <td className="p-3 text-center text-slate-400">—</td>
+                  <td className="p-3 text-center text-slate-400">—</td>
+                  <td className="p-3 text-slate-600">Localized in ₱, Palengke, Meralco, Maynilad, OFW Padala, and Sari-Sari Store</td>
+                </tr>
+                <tr className="hover:bg-slate-50/80">
+                  <td className="p-3 font-semibold text-slate-900">All-in-one family view</td>
+                  <td className="p-3 text-center text-emerald-600 font-bold bg-emerald-50/50">✓ Implemented</td>
+                  <td className="p-3 text-center text-slate-500">✓</td>
+                  <td className="p-3 text-center text-slate-500">✓</td>
+                  <td className="p-3 text-center text-amber-500">⚠️</td>
+                  <td className="p-3 text-slate-600">One shared dashboard consolidating Income, Expenses, Bills, and Ipon</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Competitor Overview Accordion / Summary */}
+        <div className="space-y-2 pt-2">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+            2. Competitor Advantage Summary
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+            <div className="rounded-xl border border-slate-200 p-3 bg-slate-50/50">
+              <span className="font-bold text-slate-900">Splitwise vs TipidLink</span>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Splitwise only splits bills between friends. TipidLink tracks the entire shared household budget, utility bills, and savings goals.
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-200 p-3 bg-slate-50/50">
+              <span className="font-bold text-slate-900">YNAB vs TipidLink</span>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                YNAB uses strict zero-based accounting with steep learning curve. TipidLink uses a simpler family-centered approach tailored for Filipino households.
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-200 p-3 bg-slate-50/50">
+              <span className="font-bold text-slate-900">Honeydue vs TipidLink</span>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Honeydue is strictly for couples. TipidLink is built for multi-member Filipino families (Nanay, Tatay, mga anak, at kamag-anak).
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-200 p-3 bg-slate-50/50">
+              <span className="font-bold text-slate-900">Goodbudget / Spendee vs TipidLink</span>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                TipidLink offers Filipino localization (Philippine Peso ₱, Meralco/Maynilad/GCash) and full partial bill payment tracking.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Presentation Project Credits */}
       <div className="rounded-3xl bg-slate-900 p-6 text-white shadow-md">
         <div className="flex items-center gap-2.5 mb-3">
