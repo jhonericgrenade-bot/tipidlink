@@ -65,7 +65,7 @@ export const LoginPage = () => {
               className="h-14 sm:h-16 w-auto object-contain drop-shadow-xs mb-1 hover:scale-105 transition-transform"
             />
             <p className="text-xs text-slate-500 font-medium">
-              Sama-samang pagtitipid para sa pamilyang Pilipino
+              Smart shared budgeting for your household
             </p>
           </div>
 
@@ -82,7 +82,7 @@ export const LoginPage = () => {
               to="/register"
               className="py-2 rounded-xl text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1.5 transition text-center"
             >
-              <span>Mag-Register</span>
+              <span>Register</span>
             </Link>
           </div>
 
@@ -110,7 +110,7 @@ export const LoginPage = () => {
                   autoCorrect="off"
                   spellCheck="false"
                   required
-                  placeholder="Halimbawa: juan@gmail.com"
+                  placeholder="e.g. juan@gmail.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full rounded-2xl border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-hidden focus:ring-4 focus:ring-emerald-500/10 shadow-xs transition"
@@ -118,7 +118,7 @@ export const LoginPage = () => {
               </div>
               <p className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
                 <ShieldCheck className="h-3 w-3 text-emerald-600 shrink-0" />
-                <span>Kahit anong email (Gmail, Yahoo, iCloud, atbp.)</span>
+                <span>Accepts any email provider (Gmail, Yahoo, iCloud, etc.)</span>
               </p>
             </div>
 
@@ -137,7 +137,7 @@ export const LoginPage = () => {
                   autoCorrect="off"
                   spellCheck="false"
                   required
-                  placeholder="Ilagay ang iyong password"
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full rounded-2xl border border-slate-200 bg-white py-2.5 pl-10 pr-11 text-sm text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-hidden focus:ring-4 focus:ring-emerald-500/10 shadow-xs transition"
@@ -146,7 +146,7 @@ export const LoginPage = () => {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-2.5 p-1 text-slate-400 hover:text-slate-600 rounded-lg transition"
-                  title={showPassword ? 'Itago ang password' : 'Ipakita ang password'}
+                  title={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -161,7 +161,7 @@ export const LoginPage = () => {
               {loading ? (
                 <div className="flex items-center gap-2">
                   <div className="h-4 w-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  <span>Pumapasok...</span>
+                  <span>Signing in...</span>
                 </div>
               ) : (
                 <>
@@ -221,16 +221,6 @@ export const LoginPage = () => {
                 </div>
               </button>
             </div>
-          </div>
-
-          {/* Presentation Tagline */}
-          <div className="mt-3.5 pt-2.5 border-t border-slate-100 text-center">
-            <p className="text-[11px] font-bold italic text-emerald-800">
-              &ldquo;Habang nagtitipid, gumiginhawa ang buhay.&rdquo;
-            </p>
-            <p className="text-[9px] text-slate-400 mt-0.5">
-              As you save, life becomes more comfortable.
-            </p>
           </div>
         </div>
       </div>

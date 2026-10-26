@@ -19,15 +19,15 @@ export const RegisterPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!fullName.trim() || !email.trim() || !password) {
-      setError('Pakilagay ang lahat ng kailangang impormasyon.');
+      setError('Please fill in all required fields.');
       return;
     }
     if (password.length < 6) {
-      setError('Kailangang hindi bababa sa 6 characters ang iyong password.');
+      setError('Password must be at least 6 characters long.');
       return;
     }
     if (password !== confirmPassword) {
-      setError('Hindi magkatugma ang dalawang password.');
+      setError('Passwords do not match.');
       return;
     }
 
@@ -38,10 +38,10 @@ export const RegisterPage = () => {
     setLoading(false);
 
     if (res.success) {
-      setSuccessMsg('Matagumpay na nagawa ang account! Pagpasok sa dashboard...');
+      setSuccessMsg('Account created successfully! Redirecting to dashboard...');
       setTimeout(() => navigate('/'), 1200);
     } else {
-      setError(res.error || 'Hindi nagtagumpay ang registration. Pakisubukang muli.');
+      setError(res.error || 'Registration failed. Please try again.');
     }
   };
 
@@ -73,7 +73,7 @@ export const RegisterPage = () => {
               className="h-14 sm:h-16 w-auto object-contain drop-shadow-xs mb-1 hover:scale-105 transition-transform"
             />
             <p className="text-xs text-slate-500 font-medium">
-              Gumawa ng account para sa iyong sambahayan
+              Create an account for your household
             </p>
           </div>
 
@@ -90,7 +90,7 @@ export const RegisterPage = () => {
               className="py-2 rounded-xl bg-white text-emerald-800 shadow-xs border border-slate-200/50 flex items-center justify-center gap-1.5"
             >
               <UserPlus className="h-3.5 w-3.5 text-emerald-600" />
-              <span>Mag-Register</span>
+              <span>Register</span>
             </button>
           </div>
 
@@ -113,7 +113,7 @@ export const RegisterPage = () => {
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                Buong Pangalan (Full Name) *
+                Full Name *
               </label>
               <div className="relative">
                 <User className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
@@ -121,7 +121,7 @@ export const RegisterPage = () => {
                   type="text"
                   autoComplete="name"
                   required
-                  placeholder="Halimbawa: Maria Santos"
+                  placeholder="e.g. Maria Santos"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   className="w-full rounded-2xl border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-hidden focus:ring-4 focus:ring-emerald-500/10 shadow-xs transition"
@@ -143,7 +143,7 @@ export const RegisterPage = () => {
                   autoCorrect="off"
                   spellCheck="false"
                   required
-                  placeholder="Halimbawa: maria.santos@gmail.com"
+                  placeholder="e.g. maria.santos@gmail.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full rounded-2xl border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-hidden focus:ring-4 focus:ring-emerald-500/10 shadow-xs transition"
@@ -151,7 +151,7 @@ export const RegisterPage = () => {
               </div>
               <p className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
                 <ShieldCheck className="h-3 w-3 text-emerald-600 shrink-0" />
-                <span>Kahit anong personal email (Gmail, Yahoo, Outlook, atbp.)</span>
+                <span>Accepts any personal email (Gmail, Yahoo, Outlook, etc.)</span>
               </p>
             </div>
 
@@ -178,7 +178,7 @@ export const RegisterPage = () => {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-2.5 top-2.5 p-1 text-slate-400 hover:text-slate-600 rounded-lg transition"
-                    title={showPassword ? 'Itago ang password' : 'Ipakita ang password'}
+                    title={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                   </button>
@@ -187,7 +187,7 @@ export const RegisterPage = () => {
 
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                  Kumpirmahin *
+                  Confirm Password *
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
@@ -198,7 +198,7 @@ export const RegisterPage = () => {
                     autoCorrect="off"
                     spellCheck="false"
                     required
-                    placeholder="Ulitin password"
+                    placeholder="Re-enter password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="w-full rounded-2xl border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-hidden focus:ring-4 focus:ring-emerald-500/10 shadow-xs transition"
@@ -215,26 +215,16 @@ export const RegisterPage = () => {
               {loading ? (
                 <div className="flex items-center gap-2">
                   <div className="h-4 w-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  <span>Ginagawa ang account...</span>
+                  <span>Creating account...</span>
                 </div>
               ) : (
                 <>
-                  <span>Kumpletuhin ang Pag-Register</span>
+                  <span>Create Account</span>
                   <ArrowRight className="h-4 w-4" />
                 </>
               )}
             </button>
           </form>
-
-          {/* Presentation Tagline */}
-          <div className="mt-4 pt-3 border-t border-slate-100 text-center">
-            <p className="text-[11px] font-bold italic text-emerald-800">
-              &ldquo;Habang nagtitipid, gumiginhawa ang buhay.&rdquo;
-            </p>
-            <p className="text-[9px] text-slate-400 mt-0.5">
-              As you save, life becomes more comfortable.
-            </p>
-          </div>
         </div>
       </div>
     </div>
