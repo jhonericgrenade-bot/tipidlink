@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useHousehold } from '../contexts/HouseholdContext';
 import { useAuth } from '../contexts/AuthContext';
+import { usePremium } from '../contexts/PremiumContext';
 import { StatusBadge } from '../components/StatusBadge';
 import { Modal } from '../components/Modal';
 import { formatPHP } from '../lib/formatters';
@@ -13,11 +14,14 @@ import {
   Edit,
   Sparkles,
   Info,
+  Crown,
+  Lock,
 } from 'lucide-react';
 
 export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
   const { currentHousehold, members, isOwnerOrAdmin, updateHousehold, updateMemberRole, removeMember } = useHousehold();
   const { user } = useAuth();
+  const { isPremium, openUpgradeModal } = usePremium();
 
   const [copied, setCopied] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -149,13 +153,32 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
                 {currentHousehold?.invite_code || 'SANTOS2026'}
               </span>
               <button
-                onClick={handleCopyCode}
-                className="flex items-center gap-1 rounded-xl bg-white px-3 py-1.5 text-xs font-bold text-emerald-900 hover:bg-emerald-50 transition"
+                onClick={() => {
+                  if (!isPremium && members.length >= 3) {
+                    openUpgradeModal();
+                    return;
+                  }
+                  handleCopyCode();
+                }}
+                className="flex items-center gap-1 rounded-xl bg-white px-3 py-1.5 text-xs font-bold text-emerald-900 hover:bg-emerald-50 transition cursor-pointer"
               >
                 {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
                 {copied ? 'Copied!' : 'Copy'}
               </button>
             </div>
+
+            {!isPremium && members.length >= 3 && (
+              <div
+                onClick={openUpgradeModal}
+                className="mt-3 flex items-center justify-between rounded-xl bg-amber-400/20 border border-amber-300/40 p-2.5 text-[11px] text-amber-200 cursor-pointer hover:bg-amber-400/30 transition"
+              >
+                <span className="flex items-center gap-1.5 font-semibold">
+                  <Crown className="h-3.5 w-3.5 text-amber-300 fill-amber-300" />
+                  Free limit: 3 members reached
+                </span>
+                <span className="font-black underline text-white">Unlock ₱30 Pro &rarr;</span>
+              </div>
+            )}
           </div>
 
           <div className="mt-4 flex items-center gap-2 text-[11px] text-emerald-200">

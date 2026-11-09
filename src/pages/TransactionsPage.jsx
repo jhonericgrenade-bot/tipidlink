@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useFinance } from '../contexts/FinanceContext';
+import { usePremium } from '../contexts/PremiumContext';
 import { formatPHP, formatDate } from '../lib/formatters';
 import { Modal } from '../components/Modal';
 import { EmptyState } from '../components/EmptyState';
@@ -13,10 +14,12 @@ import {
   Download,
   AlertCircle,
   Tag,
+  Crown,
 } from 'lucide-react';
 
 export const TransactionsPage = () => {
   const { transactions, categories, addTransaction, updateTransaction, deleteTransaction } = useFinance();
+  const { isPremium, openUpgradeModal } = usePremium();
 
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -182,12 +185,32 @@ export const TransactionsPage = () => {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={exportCSV}
+            onClick={() => {
+              if (!isPremium) {
+                openUpgradeModal();
+                return;
+              }
+              exportCSV();
+            }}
             disabled={filteredTransactions.length === 0}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 active-press hover-lift transition cursor-pointer disabled:opacity-50"
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold shadow-xs active-press hover-lift transition cursor-pointer disabled:opacity-50 ${
+              isPremium
+                ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                : 'border-amber-300 bg-amber-50/60 text-amber-900 hover:bg-amber-100/80'
+            }`}
+            title={isPremium ? 'Download CSV file' : 'Unlock Financial Statement Export with Premium'}
           >
-            <Download className="h-4 w-4" />
-            Export CSV
+            {isPremium ? (
+              <Download className="h-4 w-4" />
+            ) : (
+              <Crown className="h-3.5 w-3.5 text-amber-600 fill-amber-500" />
+            )}
+            <span>Export CSV</span>
+            {!isPremium && (
+              <span className="text-[9px] font-extrabold uppercase bg-amber-200 text-amber-900 px-1.5 py-0.2 rounded-md">
+                PRO
+              </span>
+            )}
           </button>
 
           <button
