@@ -3,9 +3,11 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { HouseholdProvider } from './contexts/HouseholdContext';
 import { FinanceProvider } from './contexts/FinanceContext';
+import { PremiumProvider, usePremium } from './contexts/PremiumContext';
 import { Navbar } from './components/Navbar';
 import { MobileNav } from './components/MobileNav';
 import { CreateHouseholdModal, JoinHouseholdModal } from './components/HouseholdModals';
+import { PremiumUpgradeModal } from './components/PremiumUpgradeModal';
 import { LoadingSpinner } from './components/LoadingSpinner';
 
 // Pages
@@ -22,6 +24,7 @@ import { RegisterPage } from './pages/RegisterPage';
 // Protected Route Guard
 const ProtectedLayout = () => {
   const { user, loading: authLoading } = useAuth();
+  const { isUpgradeModalOpen, closeUpgradeModal } = usePremium();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isJoinOpen, setIsJoinOpen] = useState(false);
 
@@ -77,6 +80,12 @@ const ProtectedLayout = () => {
           isOpen={isJoinOpen}
           onClose={() => setIsJoinOpen(false)}
         />
+
+        {/* PPT Business Model: PHP 30 Premium & Sponsored Access Modal */}
+        <PremiumUpgradeModal
+          isOpen={isUpgradeModalOpen}
+          onClose={closeUpgradeModal}
+        />
       </div>
     </FinanceProvider>
   );
@@ -87,14 +96,16 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <HouseholdProvider>
-          <Routes>
-            {/* Public Auth Routes */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
+          <PremiumProvider>
+            <Routes>
+              {/* Public Auth Routes */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
 
-            {/* Protected App Routes */}
-            <Route path="/*" element={<ProtectedLayout />} />
-          </Routes>
+              {/* Protected App Routes */}
+              <Route path="/*" element={<ProtectedLayout />} />
+            </Routes>
+          </PremiumProvider>
         </HouseholdProvider>
       </AuthProvider>
     </BrowserRouter>

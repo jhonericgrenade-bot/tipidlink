@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useFinance } from '../contexts/FinanceContext';
+import { usePremium } from '../contexts/PremiumContext';
 import { isSupabaseConfigured, getSupabaseConfig } from '../lib/supabase';
 import {
   Database,
@@ -10,10 +11,14 @@ import {
   CheckCircle2,
   Info,
   Users,
+  Crown,
+  Building2,
+  Sparkles,
 } from 'lucide-react';
 
 export const SettingsPage = () => {
   const { resetToDemoData } = useFinance();
+  const { isPremium, premiumPlan, sponsorDetails, openUpgradeModal } = usePremium();
   const [resetMessage, setResetMessage] = useState('');
 
   const config = getSupabaseConfig();
@@ -153,6 +158,71 @@ export const SettingsPage = () => {
             <Trash2 className="h-4 w-4" />
             Clear All Local Storage
           </button>
+        </div>
+      </div>
+
+      {/* Presentation Defense Hub: Business Model (Slide 06) */}
+      <div className="rounded-3xl bg-white p-6 shadow-xs border border-slate-200/80 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-4">
+          <div>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-bold text-emerald-800 mb-1">
+              <Crown className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
+              Presentation Slide 06: Business Model
+            </span>
+            <h3 className="text-base font-bold text-slate-900">
+              Our Competitive Advantage &amp; Pricing Structure
+            </h3>
+            <p className="text-xs text-slate-500">
+              &ldquo;Unlike most personal finance apps, TipidLink makes budgeting a shared family activity.&rdquo;
+            </p>
+          </div>
+
+          <button
+            onClick={openUpgradeModal}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition cursor-pointer self-start sm:self-auto shrink-0"
+          >
+            <Crown className="h-4 w-4 text-amber-300 fill-amber-300" />
+            <span>Open Interactive Subscription Modal</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          {/* Pillar 1 */}
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-2">
+            <div className="flex items-center gap-2 text-emerald-700 font-bold">
+              <span className="h-7 w-7 rounded-lg bg-emerald-100 flex items-center justify-center text-sm">📊</span>
+              <span>Shared Household View</span>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-relaxed">
+              One shared dashboard for the family&apos;s income, expenses, bills, and remaining budget in Philippine Peso (₱).
+            </p>
+          </div>
+
+          {/* Pillar 2 */}
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-2">
+            <div className="flex items-center gap-2 text-emerald-700 font-bold">
+              <span className="h-7 w-7 rounded-lg bg-emerald-100 flex items-center justify-center text-sm">👨‍👩‍👧‍👦</span>
+              <span>Built for Family Collaboration</span>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-relaxed">
+              Parents, breadwinners, students, and family members can contribute and stay updated in real-time with role-based access.
+            </p>
+          </div>
+
+          {/* Pillar 3 */}
+          <div className="rounded-2xl border-2 border-emerald-400 bg-emerald-50/30 p-4 space-y-2">
+            <div className="flex items-center gap-2 text-emerald-800 font-bold">
+              <span className="h-7 w-7 rounded-lg bg-emerald-200 flex items-center justify-center text-sm">🤝</span>
+              <span>Affordable &amp; Community-Based</span>
+            </div>
+            <p className="text-[11px] text-emerald-900 leading-relaxed">
+              <strong>PHP 30 premium plan</strong> plus sponsored access through cooperatives, schools, barangays, LGUs, and NGOs.
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-slate-900 p-3 text-center text-xs font-semibold text-emerald-300">
+          Tagline: &ldquo;One household. One shared budget. Better money habits.&rdquo;
         </div>
       </div>
 

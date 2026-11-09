@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { usePremium } from '../contexts/PremiumContext';
 import { HouseholdSelector } from './HouseholdSelector';
 import {
   LayoutDashboard,
@@ -14,10 +15,12 @@ import {
   Database,
   ChevronDown,
   Settings,
+  Crown,
 } from 'lucide-react';
 
 export const Navbar = ({ onOpenCreateHousehold, onOpenJoinHousehold }) => {
   const { user, profile, isDemoMode, signOut, loginAsDemo } = useAuth();
+  const { isPremium, openUpgradeModal } = usePremium();
   const [profileOpen, setProfileOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -73,8 +76,22 @@ export const Navbar = ({ onOpenCreateHousehold, onOpenJoinHousehold }) => {
           })}
         </nav>
 
-        {/* Right side: Mode Pill + Profile */}
+        {/* Right side: Mode Pill + Premium + Profile */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* PHP 30 Premium Plan Button / Active Badge */}
+          <button
+            onClick={openUpgradeModal}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition shadow-xs cursor-pointer ${
+              isPremium
+                ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:from-amber-600 hover:to-amber-700'
+                : 'bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100'
+            }`}
+            title="TipidLink Business Model: ₱30 Premium Plan & Community Access"
+          >
+            <Crown className={`h-3.5 w-3.5 ${isPremium ? 'fill-white text-white' : 'text-amber-500 fill-amber-500'}`} />
+            <span>{isPremium ? 'Premium Active' : '₱30 Premium'}</span>
+          </button>
+
           {/* Supabase or Demo Mode badge */}
           {isDemoMode ? (
             <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 border border-amber-200">
@@ -169,9 +186,19 @@ export const Navbar = ({ onOpenCreateHousehold, onOpenJoinHousehold }) => {
                   <button
                     onClick={() => {
                       setProfileOpen(false);
+                      openUpgradeModal();
+                    }}
+                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50 transition cursor-pointer"
+                  >
+                    <Crown className="h-4 w-4 text-amber-500 fill-amber-500" />
+                    <span>Business Model (₱30 Plan)</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setProfileOpen(false);
                       navigate('/settings');
                     }}
-                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
                   >
                     <Settings className="h-4 w-4 text-slate-500" />
                     Supabase & App Settings
