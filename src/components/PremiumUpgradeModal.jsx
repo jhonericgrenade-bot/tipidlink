@@ -179,8 +179,8 @@ export const PremiumUpgradeModal = ({ isOpen, onClose }) => {
 
           {/* Premium Tier */}
           <div className="rounded-xl border-2 border-emerald-500 bg-emerald-50/20 p-4 space-y-3 relative shadow-xs">
-            <div className="absolute -top-2.5 right-4 bg-emerald-600 text-white font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full tracking-wider shadow-xs">
-              Recommended in PPT
+            <div className="absolute -top-2.5 right-4 bg-emerald-600 text-white font-extrabold text-[9px] uppercase px-2.5 py-0.5 rounded-full tracking-wider shadow-xs">
+              Recommended
             </div>
             <div className="flex items-center justify-between">
               <h4 className="font-bold text-emerald-950 text-sm flex items-center gap-1.5">
@@ -400,9 +400,9 @@ export const PremiumUpgradeModal = ({ isOpen, onClose }) => {
 
         {/* Modal Footer */}
         <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
-          <span className="text-[11px] flex items-center gap-1">
+          <span className="text-[11px] flex items-center gap-1 text-slate-500">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-            100% Aligned with Presentation Slide 06
+            Empowering Filipino households &amp; communities
           </span>
           <button
             type="button"
