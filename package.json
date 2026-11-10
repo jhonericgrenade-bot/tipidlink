@@ -9,9 +9,16 @@
     "lint": "oxlint",
     "test": "node --test",
     "deploy": "vercel",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cap:sync": "cap sync",
+    "cap:open:android": "cap open android",
+    "build:mobile": "vite build && cap sync"
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/cli": "^8.6.0",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/ios": "^8.6.0",
     "@supabase/supabase-js": "^2.118.0",
     "autoprefixer": "^10.6.1",
     "lucide-react": "^1.61.0",
