@@ -52,7 +52,10 @@ jobs:
 
       - name: Prepare APK File
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk TipidLink.apk
+          APK_PATH=$(find android/app/build/outputs -name "*.apk" | head -n 1)
+          echo "Found APK at: $APK_PATH"
+          cp "$APK_PATH" TipidLink.apk
+          ls -lh TipidLink.apk
 
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
