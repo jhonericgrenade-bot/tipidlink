@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build Debug APK
@@ -29,11 +32,8 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
-          java-version: '17'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+          distribution: 'temurin'
+          java-version: '21'
 
       - name: Sync Capacitor
         run: npx cap sync android
@@ -42,10 +42,32 @@ jobs:
         working-directory: android
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Prepare APK File
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk TipidLink.apk
 
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: TipidLink-Android-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: TipidLink.apk
+
+      - name: Release APK
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main'
+        with:
+          tag_name: v1.0.0-apk
+          name: TipidLink Mobile App v1.0.0 (Android APK)
+          body: |
+            ### 🇵🇭 TipidLink Mobile App (Android APK)
+            
+            - **App Name:** TipidLink
+            - **Package:** com.tipidlink.app
+            - **Platform:** Android 7.0+ & iOS (PWA)
+            
+            **Download:** I-download ang `TipidLink.apk` sa ibaba at i-install sa iyong Android phone.
+          files: TipidLink.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
