@@ -48,16 +48,25 @@ jobs:
       - name: Build Android Debug APK
         working-directory: android
         run: |
-          ./gradlew :app:assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleDebug --no-daemon
 
-      - name: Prepare APK File
+      - name: Find and Prepare APK File
         run: |
-          echo "All generated APK files:"
-          find . -name "*.apk"
-          APK_PATH=$(find . -name "*.apk" | head -n 1)
-          echo "Selected APK: $APK_PATH"
-          cp "$APK_PATH" TipidLink.apk
-          ls -lh TipidLink.apk
+          echo "=== CURRENT DIRECTORY ==="
+          pwd
+          echo "=== FINDING ALL APK FILES ==="
+          find . -name "*.apk" -ls
+          APK_FILE=$(find . -name "*.apk" | head -n 1)
+          if [ -n "$APK_FILE" ]; then
+            echo "Copying $APK_FILE to TipidLink.apk"
+            cp "$APK_FILE" TipidLink.apk
+            ls -lh TipidLink.apk
+          else
+            echo "Listing android/app/build/outputs:"
+            ls -la android/app/build/outputs/ || true
+            find android/app/build/ -type f || true
+            exit 1
+          fi
 
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
