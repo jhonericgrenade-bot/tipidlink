@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Lock, Mail, User, AlertCircle, ArrowRight, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { Lock, Mail, User, AlertCircle, ArrowRight, CheckCircle2, Circle, Eye, EyeOff } from 'lucide-react';
 
 export const RegisterPage = () => {
   const { signUp } = useAuth();
@@ -16,18 +16,42 @@ export const RegisterPage = () => {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  // Password requirement tests based on teacher's specifications:
+  // - Uppercase (A-Z)
+  // - Lowercase (a-z)
+  // - Special symbols
+  // - Numbers allowed / encouraged
+  // - Minimum length 8 characters
+  const hasMinLength = password.length >= 8;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasLowercase = /[a-z]/.test(password);
+  const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!fullName.trim() || !email.trim() || !password) {
-      setError('Please fill in all fields.');
+      setError('Pakilagay ang lahat ng kinakailangang impormasyon.');
       return;
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (!hasMinLength) {
+      setError('Kailangang hindi bababa sa 8 characters ang iyong password.');
+      return;
+    }
+    if (!hasUppercase) {
+      setError('Dapat may kahit isang UPPERCASE letter (A-Z) ang password.');
+      return;
+    }
+    if (!hasLowercase) {
+      setError('Dapat may kahit isang lowercase letter (a-z) ang password.');
+      return;
+    }
+    if (!hasSpecial) {
+      setError('Dapat may kahit isang special symbol (hal. @, #, $, %, !, &) ang password.');
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError('Hindi magkatugma ang password at confirm password.');
       return;
     }
 
@@ -38,10 +62,10 @@ export const RegisterPage = () => {
     setLoading(false);
 
     if (res.success) {
-      setSuccessMsg('Account created successfully! Redirecting...');
+      setSuccessMsg('Matagumpay na nagawa ang account! Paglilipat sa dashboard...');
       setTimeout(() => navigate('/'), 1200);
     } else {
-      setError(res.error || 'Registration failed. Please try again.');
+      setError(res.error || 'Hindi matagumpay ang pag-register. Pakisubukan muli.');
     }
   };
 
@@ -54,7 +78,7 @@ export const RegisterPage = () => {
       <div className="absolute inset-0 bg-slate-900/35 backdrop-blur-[2px]" />
 
       {/* Clean, De-cluttered Card */}
-      <div className="relative z-10 w-full max-w-[390px] my-auto animate-modal-pop">
+      <div className="relative z-10 w-full max-w-[400px] my-auto animate-modal-pop">
         <div className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 sm:p-8 shadow-2xl border border-white/60">
           {/* Brand Header */}
           <div className="flex flex-col items-center text-center mb-6">
@@ -132,7 +156,7 @@ export const RegisterPage = () => {
                   autoCorrect="off"
                   spellCheck="false"
                   required
-                  placeholder="Password (min. 6 characters)"
+                  placeholder="Password (e.g. Tipid@2026)"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-10 pr-11 text-sm text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-emerald-500 focus:outline-hidden focus:ring-4 focus:ring-emerald-500/10 transition"
@@ -145,6 +169,57 @@ export const RegisterPage = () => {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+
+              {/* Real-time Password Requirements Checklist */}
+              {password.length > 0 && (
+                <div className="mt-2 rounded-2xl bg-slate-50/90 p-3 border border-slate-200/80 space-y-2 animate-fadeIn">
+                  <p className="text-[11px] font-bold text-slate-700">Pamantayan sa Password:</p>
+                  <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                    <div className={`flex items-center gap-1.5 font-medium transition-colors ${hasMinLength ? 'text-emerald-700 font-bold' : 'text-slate-400'}`}>
+                      {hasMinLength ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                      ) : (
+                        <Circle className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+                      )}
+                      <span>8+ characters</span>
+                    </div>
+
+                    <div className={`flex items-center gap-1.5 font-medium transition-colors ${hasUppercase ? 'text-emerald-700 font-bold' : 'text-slate-400'}`}>
+                      {hasUppercase ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                      ) : (
+                        <Circle className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+                      )}
+                      <span>Uppercase (A-Z)</span>
+                    </div>
+
+                    <div className={`flex items-center gap-1.5 font-medium transition-colors ${hasLowercase ? 'text-emerald-700 font-bold' : 'text-slate-400'}`}>
+                      {hasLowercase ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                      ) : (
+                        <Circle className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+                      )}
+                      <span>Lowercase (a-z)</span>
+                    </div>
+
+                    <div className={`flex items-center gap-1.5 font-medium transition-colors ${hasSpecial ? 'text-emerald-700 font-bold' : 'text-slate-400'}`}>
+                      {hasSpecial ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                      ) : (
+                        <Circle className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+                      )}
+                      <span>Symbol (!@#$...)</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-1.5 border-t border-slate-200/60 flex items-center justify-between text-[10px]">
+                    <span className="text-slate-500">Numero (0-9):</span>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold ${hasNumber ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>
+                      {hasNumber ? '✓ May kasamang Numero' : 'Allowed / Pwede'}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>

@@ -256,8 +256,8 @@ export const AuthProvider = ({ children }) => {
       let friendlyMessage = error.message;
       if (error.message.includes('User already registered')) {
         friendlyMessage = 'Mayroon nang account gamit ang email na ito. Subukang mag-log in na lamang.';
-      } else if (error.message.includes('Password should be')) {
-        friendlyMessage = 'Kailangan ay hindi bababa sa 6 characters ang iyong password.';
+      } else if (error.message.includes('Password should be') || error.message.toLowerCase().includes('password')) {
+        friendlyMessage = 'Kailangan ay may uppercase (A-Z), lowercase (a-z), special symbol (!@#$), at hindi bababa sa 8 characters ang iyong password (pinapayagan din ang numero).';
       }
       return { success: false, error: friendlyMessage };
     }
