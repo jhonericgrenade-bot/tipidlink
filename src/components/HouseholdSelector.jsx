@@ -3,7 +3,7 @@ import { useHousehold } from '../contexts/HouseholdContext';
 import { Home, ChevronDown, Plus, KeyRound, Check, Copy } from 'lucide-react';
 
 export const HouseholdSelector = ({ onOpenCreateModal, onOpenJoinModal }) => {
-  const { households, currentHousehold, switchHousehold } = useHousehold();
+  const { households, currentHousehold, switchHousehold, shareCode } = useHousehold();
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const dropdownRef = useRef(null);
@@ -51,7 +51,7 @@ export const HouseholdSelector = ({ onOpenCreateModal, onOpenJoinModal }) => {
             {currentHousehold.name}
           </p>
           <p className="truncate text-[10px] text-slate-500 font-medium">
-            Code: {currentHousehold.invite_code}
+            Code: {shareCode || currentHousehold.invite_code}
           </p>
         </div>
         <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -64,8 +64,8 @@ export const HouseholdSelector = ({ onOpenCreateModal, onOpenJoinModal }) => {
               Your Households
             </span>
             <button
-              onClick={(e) => handleCopyCode(e, currentHousehold.invite_code)}
-              className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:text-emerald-700"
+              onClick={(e) => handleCopyCode(e, shareCode || currentHousehold.invite_code)}
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 cursor-pointer"
               title="Copy current invite code"
             >
               {copied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}

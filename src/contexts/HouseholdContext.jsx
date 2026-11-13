@@ -3,6 +3,52 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { INITIAL_DEMO_DATA } from '../lib/mockData';
 
+// Safe Base64URL encoder/decoder for household share codes
+export const encodeHouseholdCode = (uuid) => {
+  if (!uuid) return '';
+  try {
+    const hex = uuid.replace(/-/g, '');
+    const bytes = new Uint8Array(hex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+    let binary = '';
+    bytes.forEach(b => binary += String.fromCharCode(b));
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  } catch {
+    return uuid;
+  }
+};
+
+export const decodeHouseholdCode = (code) => {
+  if (!code) return null;
+  const clean = code.trim();
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clean)) {
+    return clean.toLowerCase();
+  }
+  if (/^[0-9a-f]{32}$/i.test(clean)) {
+    const h = clean.toLowerCase();
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+  }
+  try {
+    let b64 = clean.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    const binary = atob(b64);
+    let hex = '';
+    for (let i = 0; i < binary.length; i++) {
+      const h = binary.charCodeAt(i).toString(16).padStart(2, '0');
+      hex += h;
+    }
+    if (hex.length !== 32) return null;
+    return [
+      hex.slice(0, 8),
+      hex.slice(8, 12),
+      hex.slice(12, 16),
+      hex.slice(16, 20),
+      hex.slice(20)
+    ].join('-');
+  } catch {
+    return null;
+  }
+};
+
 const HouseholdContext = createContext(null);
 
 export const HouseholdProvider = ({ children }) => {
@@ -364,11 +410,15 @@ export const HouseholdProvider = ({ children }) => {
   };
 
   const joinHouseholdByCode = async (inviteCode) => {
-    const cleanCode = inviteCode.trim().toUpperCase();
+    const rawCode = (inviteCode || '').trim();
+    if (!rawCode) {
+      return { success: false, error: 'Pakilagay ang household invite code.' };
+    }
 
     if (isDemoMode) {
-      if (cleanCode === 'SANTOS2026' || cleanCode.startsWith('TIPID')) {
-        const target = households.find(h => h.invite_code === cleanCode) || INITIAL_DEMO_DATA.household;
+      const cleanUpper = rawCode.toUpperCase();
+      if (cleanUpper === 'SANTOS2026' || cleanUpper.startsWith('TIPID')) {
+        const target = households.find(h => h.invite_code === cleanUpper) || INITIAL_DEMO_DATA.household;
         const alreadyIn = members.some(m => m.user_id === user.id && m.household_id === target.id);
         if (alreadyIn) {
           return { success: false, error: 'Kasapi ka na sa household na ito!' };
@@ -377,10 +427,10 @@ export const HouseholdProvider = ({ children }) => {
           id: `mem-${Date.now()}`,
           household_id: target.id,
           user_id: user.id,
-          full_name: profile?.full_name || 'New Member',
+          full_name: user?.user_metadata?.full_name || profile?.full_name || 'New Member',
           email: profile?.email || user.email,
           role: 'member',
-          nickname: profile?.full_name || 'Member',
+          nickname: user?.user_metadata?.full_name || profile?.full_name || 'Member',
           joined_at: new Date().toISOString(),
         };
         const updatedMembers = [...members, newMember];
@@ -397,42 +447,55 @@ export const HouseholdProvider = ({ children }) => {
     }
 
     try {
-      const { data: hh, error: lookupErr } = await supabase
-        .from('households')
-        .select('*')
-        .ilike('invite_code', cleanCode)
-        .single();
+      let targetHouseholdId = decodeHouseholdCode(rawCode);
 
-      if (lookupErr || !hh) {
-        return { success: false, error: 'Hindi natagpuan ang household gamit ang code na ito. Pakisuri muli.' };
+      // If not resolved from base64/uuid, attempt lookup by invite_code in households table
+      if (!targetHouseholdId) {
+        const { data: hh } = await supabase
+          .from('households')
+          .select('id, name, invite_code')
+          .ilike('invite_code', rawCode)
+          .maybeSingle();
+
+        if (hh?.id) {
+          targetHouseholdId = hh.id;
+        }
       }
 
+      if (!targetHouseholdId) {
+        return { success: false, error: 'Hindi natagpuan ang household gamit ang code na ito. Pakisuri kung tama ang code.' };
+      }
+
+      // Check if already joined
       const { data: existing } = await supabase
         .from('household_members')
         .select('id')
-        .eq('household_id', hh.id)
+        .eq('household_id', targetHouseholdId)
         .eq('user_id', user.id)
         .maybeSingle();
 
       if (existing) {
-        setCurrentHousehold(hh);
+        await loadHouseholds();
+        switchHousehold(targetHouseholdId);
         return { success: true, message: 'Kasapi ka na sa household na ito.' };
       }
 
+      // Insert membership
+      const memberNickname = user?.user_metadata?.full_name || profile?.full_name || user?.email?.split('@')[0] || 'Member';
       const { error: joinErr } = await supabase
         .from('household_members')
         .insert({
-          household_id: hh.id,
+          household_id: targetHouseholdId,
           user_id: user.id,
           role: 'member',
-          nickname: profile?.full_name || 'Member',
+          nickname: memberNickname,
         });
 
       if (joinErr) throw joinErr;
 
       await loadHouseholds();
-      setCurrentHousehold(hh);
-      return { success: true, household: hh };
+      switchHousehold(targetHouseholdId);
+      return { success: true };
     } catch (err) {
       console.error('Join household failed:', err);
       return { success: false, error: err.message };
@@ -511,6 +574,10 @@ export const HouseholdProvider = ({ children }) => {
   const currentUserRole = currentMember?.role || 'owner';
   const isOwnerOrAdmin = currentUserRole === 'owner' || currentUserRole === 'admin';
 
+  const shareCode = isDemoMode
+    ? (currentHousehold?.invite_code || 'SANTOS2026')
+    : (encodeHouseholdCode(currentHousehold?.id) || currentHousehold?.invite_code || '');
+
   return (
     <HouseholdContext.Provider
       value={{
@@ -520,6 +587,7 @@ export const HouseholdProvider = ({ children }) => {
         loading,
         currentUserRole,
         isOwnerOrAdmin,
+        shareCode,
         switchHousehold,
         createHousehold,
         joinHouseholdByCode,

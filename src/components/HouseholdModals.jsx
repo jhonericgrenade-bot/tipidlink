@@ -165,14 +165,14 @@ export const JoinHouseholdModal = ({ isOpen, onClose }) => {
             <input
               type="text"
               required
-              placeholder="e.g. SANTOS2026"
+              placeholder="e.g. Paste Household Code or SANTOS2026"
               value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-              className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm uppercase tracking-wider font-mono font-bold focus:border-indigo-500 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
+              onChange={(e) => setInviteCode(e.target.value.trim())}
+              className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm tracking-wider font-mono font-bold focus:border-indigo-500 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
             />
           </div>
           <p className="mt-1 text-[11px] text-slate-400">
-            Tip: Demo code is <span className="font-mono font-semibold text-emerald-600">SANTOS2026</span>
+            I-paste dito ang kinopyang shared code mula sa Household page. Demo code: <span className="font-mono font-semibold text-emerald-600">SANTOS2026</span>
           </p>
         </div>
 

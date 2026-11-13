@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
-  const { currentHousehold, members, isOwnerOrAdmin, updateHousehold, updateMemberRole, removeMember } = useHousehold();
+  const { currentHousehold, members, isOwnerOrAdmin, updateHousehold, updateMemberRole, removeMember, shareCode } = useHousehold();
   const { user } = useAuth();
   const { isPremium, openUpgradeModal } = usePremium();
 
@@ -31,8 +31,9 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
   const [loading, setLoading] = useState(false);
 
   const handleCopyCode = () => {
-    if (!currentHousehold?.invite_code) return;
-    navigator.clipboard.writeText(currentHousehold.invite_code);
+    const codeToCopy = shareCode || currentHousehold?.invite_code;
+    if (!codeToCopy) return;
+    navigator.clipboard.writeText(codeToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -149,8 +150,8 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
             </p>
 
             <div className="mt-4 flex items-center justify-between rounded-2xl bg-white/10 backdrop-blur-md px-4 py-3 border border-white/20">
-              <span className="font-mono text-xl font-black tracking-widest text-white">
-                {currentHousehold?.invite_code || 'SANTOS2026'}
+              <span className="font-mono text-xl font-black tracking-widest text-white truncate max-w-[260px]" title={shareCode || currentHousehold?.invite_code}>
+                {shareCode || currentHousehold?.invite_code || 'SANTOS2026'}
               </span>
               <button
                 onClick={() => {
