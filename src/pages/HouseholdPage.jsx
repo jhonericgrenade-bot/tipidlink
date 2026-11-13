@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useHousehold } from '../contexts/HouseholdContext';
+import React, { useState, useEffect } from 'react';
+import { useHousehold, encodeHouseholdCode } from '../contexts/HouseholdContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usePremium } from '../contexts/PremiumContext';
 import { StatusBadge } from '../components/StatusBadge';
@@ -16,39 +16,94 @@ import {
   Info,
   Crown,
   Lock,
+  ShieldCheck,
 } from 'lucide-react';
 
 export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
-  const { currentHousehold, members, isOwnerOrAdmin, updateHousehold, updateMemberRole, removeMember, shareCode } = useHousehold();
-  const { user } = useAuth();
+  const { currentHousehold, members, isOwnerOrAdmin, updateHousehold, updateMemberRole, removeMember, shareCode, loading } = useHousehold();
+  const { user, isDemoMode } = useAuth();
   const { isPremium, openUpgradeModal } = usePremium();
 
   const [copied, setCopied] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
-  const [editName, setEditName] = useState(currentHousehold?.name || '');
-  const [editDesc, setEditDesc] = useState(currentHousehold?.description || '');
-  const [editBudget, setEditBudget] = useState(String(currentHousehold?.monthly_budget_target || 65000));
-  const [loading, setLoading] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editBudget, setEditBudget] = useState('0');
+  const [formLoading, setFormLoading] = useState(false);
 
-  const handleCopyCode = () => {
-    const codeToCopy = shareCode || currentHousehold?.invite_code;
-    if (!codeToCopy) return;
-    navigator.clipboard.writeText(codeToCopy);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  useEffect(() => {
+    if (currentHousehold) {
+      setEditName(currentHousehold.name || '');
+      setEditDesc(currentHousehold.description || '');
+      setEditBudget(String(currentHousehold.monthly_budget_target || 0));
+    }
+  }, [currentHousehold]);
+
+  const displayCode = isDemoMode
+    ? 'SANTOS2026'
+    : (shareCode || (currentHousehold?.id ? encodeHouseholdCode(currentHousehold.id) : ''));
+
+  const handleCopyCode = async () => {
+    if (!isPremium) {
+      openUpgradeModal();
+      return;
+    }
+
+    if (!displayCode) return;
+
+    let success = false;
+    if (navigator?.clipboard?.writeText && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(displayCode);
+        success = true;
+      } catch (err) {
+        console.warn('Navigator clipboard error, trying fallback:', err);
+      }
+    }
+
+    if (!success) {
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = displayCode;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        success = document.execCommand('copy');
+        document.body.removeChild(textArea);
+      } catch (e) {
+        console.error('Fallback clipboard error:', e);
+      }
+    }
+
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setFormLoading(true);
     await updateHousehold({
       name: editName.trim(),
       description: editDesc.trim(),
       monthly_budget_target: Number(editBudget),
     });
-    setLoading(false);
+    setFormLoading(false);
     setIsEditProfileOpen(false);
   };
+
+  if (loading && !currentHousehold) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center animate-page-enter">
+        <div className="h-10 w-10 animate-spin rounded-full border-3 border-emerald-600 border-t-transparent mb-3" />
+        <p className="text-xs font-semibold text-slate-500">Inihahanda ang impormasyon ng iyong household...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-20 lg:pb-12 animate-page-enter">
@@ -137,47 +192,80 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
         </div>
 
         {/* Family Invite Code Box */}
-        <div className="rounded-3xl bg-gradient-to-br from-emerald-800 to-teal-900 p-6 text-white shadow-md flex flex-col justify-between">
+        <div className="rounded-3xl bg-gradient-to-br from-emerald-800 to-teal-900 p-6 text-white shadow-md flex flex-col justify-between hover-lift-subtle card-interactive">
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="h-4 w-4 text-emerald-300" />
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-200">
-                Household Invite Code
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-emerald-300" />
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-200">
+                  Household Invite Code
+                </span>
+              </div>
+              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${
+                isPremium ? 'bg-amber-400 text-slate-900' : 'bg-white/20 text-emerald-100 border border-white/20'
+              }`}>
+                <Crown className="h-3 w-3 fill-current" />
+                {isPremium ? 'Pro Active' : '₱30 Pro Feature'}
               </span>
             </div>
             <p className="text-xs text-emerald-100/90 leading-relaxed">
               Share this code with your parents, spouse, or working siblings so they can connect to this shared budget.
             </p>
 
-            <div className="mt-4 flex items-center justify-between rounded-2xl bg-white/10 backdrop-blur-md px-4 py-3 border border-white/20">
-              <span className="font-mono text-xl font-black tracking-widest text-white truncate max-w-[260px]" title={shareCode || currentHousehold?.invite_code}>
-                {shareCode || currentHousehold?.invite_code || 'SANTOS2026'}
-              </span>
+            <div className="mt-4 flex items-center justify-between rounded-2xl bg-white/10 backdrop-blur-md px-4 py-3 border border-white/20 gap-2">
+              {isPremium ? (
+                <span className="font-mono text-lg sm:text-xl font-black tracking-widest text-white truncate max-w-[230px]" title={displayCode}>
+                  {displayCode || 'Loading code...'}
+                </span>
+              ) : (
+                <div className="flex items-center gap-2 text-emerald-200/80">
+                  <Lock className="h-4 w-4 text-amber-300 shrink-0" />
+                  <span className="font-mono text-sm sm:text-base font-bold tracking-widest">
+                    •••••••••••••••
+                  </span>
+                </div>
+              )}
+
               <button
-                onClick={() => {
-                  if (!isPremium && members.length >= 3) {
-                    openUpgradeModal();
-                    return;
-                  }
-                  handleCopyCode();
-                }}
-                className="flex items-center gap-1 rounded-xl bg-white px-3 py-1.5 text-xs font-bold text-emerald-900 hover:bg-emerald-50 transition cursor-pointer"
+                onClick={handleCopyCode}
+                className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer active-press hover-lift shrink-0 ${
+                  isPremium
+                    ? 'bg-white text-emerald-900 hover:bg-emerald-50 shadow-xs'
+                    : 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 hover:from-amber-300 hover:to-amber-400 shadow-md'
+                }`}
+                title={isPremium ? 'Copy Invite Code' : 'Unlock code with ₱30 Pro'}
               >
-                {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-                {copied ? 'Copied!' : 'Copy'}
+                {isPremium ? (
+                  <>
+                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                    <span>{copied ? 'Copied!' : 'Copy'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Crown className="h-3.5 w-3.5 fill-slate-900 text-slate-900" />
+                    <span>Unlock (₱30)</span>
+                  </>
+                )}
               </button>
             </div>
 
-            {!isPremium && members.length >= 3 && (
+            {!isPremium ? (
               <div
                 onClick={openUpgradeModal}
-                className="mt-3 flex items-center justify-between rounded-xl bg-amber-400/20 border border-amber-300/40 p-2.5 text-[11px] text-amber-200 cursor-pointer hover:bg-amber-400/30 transition"
+                className="mt-3 flex items-center justify-between rounded-xl bg-amber-400/20 border border-amber-300/40 p-2.5 text-[11px] text-amber-200 cursor-pointer hover:bg-amber-400/30 active-press transition group"
               >
                 <span className="flex items-center gap-1.5 font-semibold">
                   <Crown className="h-3.5 w-3.5 text-amber-300 fill-amber-300" />
-                  Free limit: 3 members reached
+                  Kailangan ng ₱30 Pro para ma-share ang code
                 </span>
-                <span className="font-black underline text-white">Unlock ₱30 Pro &rarr;</span>
+                <span className="font-black underline text-white group-hover:translate-x-0.5 transition-transform">
+                  Upgrade &rarr;
+                </span>
+              </div>
+            ) : (
+              <div className="mt-3 flex items-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-400/30 p-2 text-[11px] text-emerald-200">
+                <Check className="h-3.5 w-3.5 text-emerald-300 shrink-0" />
+                <span>Unlimited family members can join using this code</span>
               </div>
             )}
           </div>

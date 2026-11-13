@@ -205,6 +205,9 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('tipidlink_demo_user');
     localStorage.removeItem('tipidlink_demo_active');
     localStorage.removeItem('tipidlink_active_household_id');
+    localStorage.removeItem('tipidlink_is_premium');
+    localStorage.removeItem('tipidlink_premium_plan');
+    localStorage.removeItem('tipidlink_premium_sponsor');
     setIsDemoMode(false);
 
     if (!isSupabaseConfigured) {
@@ -295,6 +298,9 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('tipidlink_demo_active');
     localStorage.removeItem('tipidlink_demo_user');
     localStorage.removeItem('tipidlink_active_household_id');
+    localStorage.removeItem('tipidlink_is_premium');
+    localStorage.removeItem('tipidlink_premium_plan');
+    localStorage.removeItem('tipidlink_premium_sponsor');
     setUser(null);
     setProfile(null);
     setIsDemoMode(false);

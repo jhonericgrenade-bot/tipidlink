@@ -1,37 +1,63 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
 
 const PremiumContext = createContext();
 
 export const PremiumProvider = ({ children }) => {
-  const [isPremium, setIsPremium] = useState(() => {
-    return localStorage.getItem('tipidlink_is_premium') === 'true';
-  });
+  const { user, isDemoMode } = useAuth();
+  const userKey = isDemoMode ? 'demo' : (user?.id || 'guest');
 
-  const [premiumPlan, setPremiumPlan] = useState(() => {
-    return localStorage.getItem('tipidlink_premium_plan') || 'Free Household Plan';
-  });
-
-  const [sponsorDetails, setSponsorDetails] = useState(() => {
-    return localStorage.getItem('tipidlink_premium_sponsor') || null;
-  });
-
+  const [isPremium, setIsPremium] = useState(false);
+  const [premiumPlan, setPremiumPlan] = useState('Free Household Plan');
+  const [sponsorDetails, setSponsorDetails] = useState(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
+  // Sync premium status per authenticated user
   useEffect(() => {
-    localStorage.setItem('tipidlink_is_premium', isPremium ? 'true' : 'false');
-    localStorage.setItem('tipidlink_premium_plan', premiumPlan);
-    if (sponsorDetails) {
-      localStorage.setItem('tipidlink_premium_sponsor', sponsorDetails);
-    } else {
-      localStorage.removeItem('tipidlink_premium_sponsor');
+    if (!user) {
+      setIsPremium(false);
+      setPremiumPlan('Free Household Plan');
+      setSponsorDetails(null);
+      return;
     }
-  }, [isPremium, premiumPlan, sponsorDetails]);
+
+    const saved = localStorage.getItem(`tipidlink_premium_${userKey}`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setIsPremium(Boolean(parsed.isPremium));
+        setPremiumPlan(parsed.premiumPlan || 'Free Household Plan');
+        setSponsorDetails(parsed.sponsorDetails || null);
+        return;
+      } catch (e) {
+        console.error('Failed to parse user premium state:', e);
+      }
+    }
+
+    // Default: Every new user starts on the clean Free Household Plan
+    setIsPremium(false);
+    setPremiumPlan('Free Household Plan');
+    setSponsorDetails(null);
+  }, [user?.id, isDemoMode]);
+
+  const saveUserState = (newIsPremium, newPlan, newSponsor) => {
+    if (!user) return;
+    localStorage.setItem(
+      `tipidlink_premium_${userKey}`,
+      JSON.stringify({
+        isPremium: newIsPremium,
+        premiumPlan: newPlan,
+        sponsorDetails: newSponsor,
+      })
+    );
+  };
 
   // Activate ₱30 Direct Plan
   const activatePremium = (planName = 'TipidLink Premium Plan (₱30/mo)') => {
     setIsPremium(true);
     setPremiumPlan(planName);
     setSponsorDetails(null);
+    saveUserState(true, planName, null);
   };
 
   // Activate Community / Sponsored Access (Cooperatives, Schools, Barangays, LGUs, NGOs)
@@ -39,6 +65,7 @@ export const PremiumProvider = ({ children }) => {
     setIsPremium(true);
     setPremiumPlan('Sponsored Community Access');
     setSponsorDetails(sponsorName);
+    saveUserState(true, 'Sponsored Community Access', sponsorName);
   };
 
   // Reset back to Free
@@ -46,6 +73,9 @@ export const PremiumProvider = ({ children }) => {
     setIsPremium(false);
     setPremiumPlan('Free Household Plan');
     setSponsorDetails(null);
+    if (user) {
+      localStorage.removeItem(`tipidlink_premium_${userKey}`);
+    }
   };
 
   return (
