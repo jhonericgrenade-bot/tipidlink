@@ -26,27 +26,27 @@ export const RegisterPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!fullName.trim() || !email.trim() || !password) {
-      setError('Pakilagay ang lahat ng kinakailangang impormasyon.');
+      setError('Please fill in all required fields.');
       return;
     }
     if (!hasMinLength) {
-      setError('Kailangang hindi bababa sa 8 characters ang iyong password.');
+      setError('Password must be at least 8 characters long.');
       return;
     }
     if (!hasUppercase) {
-      setError('Dapat may kahit isang UPPERCASE letter (A-Z) ang password.');
+      setError('Password must contain at least one uppercase letter (A-Z).');
       return;
     }
     if (!hasLowercase) {
-      setError('Dapat may kahit isang lowercase letter (a-z) ang password.');
+      setError('Password must contain at least one lowercase letter (a-z).');
       return;
     }
     if (!hasSpecial) {
-      setError('Dapat may kahit isang special symbol (hal. @, #, $, %, !, &) ang password.');
+      setError('Password must contain at least one special symbol (e.g. @, #, $, %, !, &).');
       return;
     }
     if (password !== confirmPassword) {
-      setError('Hindi magkatugma ang password at confirm password.');
+      setError('Passwords do not match.');
       return;
     }
 
@@ -57,10 +57,10 @@ export const RegisterPage = () => {
     setLoading(false);
 
     if (res.success) {
-      setSuccessMsg('Matagumpay na nagawa ang account! Paglilipat sa dashboard...');
+      setSuccessMsg('Account created successfully! Redirecting to dashboard...');
       setTimeout(() => navigate('/'), 1200);
     } else {
-      setError(res.error || 'Hindi matagumpay ang pag-register. Pakisubukan muli.');
+      setError(res.error || 'Failed to create account. Please try again.');
     }
   };
 
@@ -91,7 +91,7 @@ export const RegisterPage = () => {
           <div className="relative flex flex-col items-center text-center mb-6">
             <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-[11px] font-bold tracking-wide shadow-xs mb-3 backdrop-blur-md animate-bounce-subtle">
               <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Simulan ang Pag-asenso</span>
+              <span>Smart Family Finances</span>
             </div>
 
             <img
@@ -102,10 +102,9 @@ export const RegisterPage = () => {
             
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center justify-center gap-2">
               <span>Create Account</span>
-              <span>📝✨</span>
             </h1>
             <p className="text-xs text-emerald-100/75 mt-1 font-medium">
-              Sumali sa TipidLink at pamahalaan ang pampamilyang badyet
+              Join TipidLink and manage your shared family budget
             </p>
           </div>
 
@@ -133,7 +132,7 @@ export const RegisterPage = () => {
                   type="text"
                   autoComplete="name"
                   required
-                  placeholder="Buong pangalan (Full name)"
+                  placeholder="Full name"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   className="w-full rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl py-3 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 focus:bg-white/15 focus:border-emerald-400 focus:outline-hidden focus:ring-4 focus:ring-emerald-400/20 shadow-inner transition"
@@ -170,7 +169,7 @@ export const RegisterPage = () => {
                   autoCorrect="off"
                   spellCheck="false"
                   required
-                  placeholder="Password (hal. Tipid@2026)"
+                  placeholder="Password (e.g. Tipid@2026)"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl py-3 pl-10 pr-11 text-sm text-white placeholder:text-slate-400 focus:bg-white/15 focus:border-emerald-400 focus:outline-hidden focus:ring-4 focus:ring-emerald-400/20 shadow-inner transition"
@@ -187,7 +186,7 @@ export const RegisterPage = () => {
               {/* Real-time Password Requirements Checklist */}
               {password.length > 0 && (
                 <div className="mt-2 rounded-2xl bg-white/10 backdrop-blur-xl p-3 border border-white/15 space-y-2 animate-fade-in shadow-inner">
-                  <p className="text-[11px] font-bold text-emerald-200">Pamantayan sa Password:</p>
+                  <p className="text-[11px] font-bold text-emerald-200">Password Requirements:</p>
                   <div className="grid grid-cols-2 gap-1.5 text-[11px]">
                     <div className={`flex items-center gap-1.5 font-medium transition-colors ${hasMinLength ? 'text-emerald-300 font-bold' : 'text-slate-400'}`}>
                       {hasMinLength ? (
@@ -227,9 +226,9 @@ export const RegisterPage = () => {
                   </div>
 
                   <div className="pt-1.5 border-t border-white/10 flex items-center justify-between text-[10px]">
-                    <span className="text-slate-300">Numero (0-9):</span>
+                    <span className="text-slate-300">Numbers (0-9):</span>
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold ${hasNumber ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30' : 'bg-white/10 text-slate-400'}`}>
-                      {hasNumber ? '✓ May kasamang Numero' : 'Allowed / Pwede'}
+                      {hasNumber ? '✓ Number included' : 'Allowed / Optional'}
                     </span>
                   </div>
                 </div>
@@ -246,7 +245,7 @@ export const RegisterPage = () => {
                   autoCorrect="off"
                   spellCheck="false"
                   required
-                  placeholder="Kumpirmahin ang password"
+                  placeholder="Confirm password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl py-3 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 focus:bg-white/15 focus:border-emerald-400 focus:outline-hidden focus:ring-4 focus:ring-emerald-400/20 shadow-inner transition"
@@ -263,7 +262,7 @@ export const RegisterPage = () => {
                 <div className="h-4 w-4 border-2 border-slate-900/40 border-t-slate-900 rounded-full animate-spin" />
               ) : (
                 <>
-                  <span>Gumawa ng Account</span>
+                  <span>Create Account</span>
                   <ArrowRight className="h-4 w-4" />
                 </>
               )}
@@ -272,9 +271,9 @@ export const RegisterPage = () => {
 
           {/* Switch to Login */}
           <div className="mt-5 text-center text-xs text-slate-300">
-            May account ka na?{' '}
+            Already have an account?{' '}
             <Link to="/login" className="font-extrabold text-emerald-400 hover:text-emerald-300 underline underline-offset-4">
-              Mag-sign In
+              Sign In
             </Link>
           </div>
         </div>

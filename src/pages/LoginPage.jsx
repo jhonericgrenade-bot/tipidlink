@@ -16,7 +16,7 @@ export const LoginPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) {
-      setError('Pakilagay ang iyong email at password.');
+      setError('Please enter your email and password.');
       return;
     }
     setError('');
@@ -28,7 +28,7 @@ export const LoginPage = () => {
     if (res.success) {
       navigate('/');
     } else {
-      setError(res.error || 'Maling email o password.');
+      setError(res.error || 'Invalid email or password.');
     }
   };
 
@@ -154,9 +154,9 @@ export const LoginPage = () => {
 
           {/* Sign Up Link */}
           <div className="mt-5 text-center text-xs text-slate-300">
-            Wala ka pang account?{' '}
+            Don&apos;t have an account?{' '}
             <Link to="/register" className="font-extrabold text-emerald-400 hover:text-emerald-300 underline underline-offset-4">
-              Gumawa ng Libreng Account
+              Create a Free Account
             </Link>
           </div>
 
