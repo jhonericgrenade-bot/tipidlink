@@ -73,12 +73,11 @@ export const LoginPage = () => {
               className="h-16 w-auto object-contain mb-2 filter drop-shadow-[0_10px_20px_rgba(16,185,129,0.35)] hover:scale-105 transition-transform duration-300 animate-float"
             />
             
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center justify-center gap-2">
-              <span>Welcome!</span>
-              <span className="animate-wiggle inline-block">👋✨</span>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+              Welcome
             </h1>
-            <p className="text-xs text-emerald-100/75 mt-1 font-medium">
-              Mag-sign in upang pamahalaan ang pampamilyang badyet
+            <p className="text-xs text-emerald-100/80 mt-1 font-medium">
+              A shared family budget management platform
             </p>
           </div>
 
