@@ -8,6 +8,7 @@ import { Navbar } from './components/Navbar';
 import { MobileNav } from './components/MobileNav';
 import { CreateHouseholdModal, JoinHouseholdModal } from './components/HouseholdModals';
 import { PremiumUpgradeModal } from './components/PremiumUpgradeModal';
+import { InstallPwaPrompt } from './components/InstallPwaPrompt';
 import { LoadingSpinner } from './components/LoadingSpinner';
 
 // Pages
@@ -105,6 +106,7 @@ export default function App() {
               {/* Protected App Routes */}
               <Route path="/*" element={<ProtectedLayout />} />
             </Routes>
+            <InstallPwaPrompt />
           </PremiumProvider>
         </HouseholdProvider>
       </AuthProvider>
