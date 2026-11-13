@@ -181,6 +181,18 @@ export const HouseholdProvider = ({ children }) => {
 
       if (memErr) throw memErr;
 
+      // 3. Register invite_code in profile for universal public lookup by other joining family members
+      try {
+        await supabase
+          .from('profiles')
+          .update({
+            phone: `INVITE:${invite_code.toUpperCase()}:${newId}`,
+          })
+          .eq('id', user.id);
+      } catch (pErr) {
+        console.warn('Profile code sync notice:', pErr);
+      }
+
       localStorage.setItem('tipidlink_active_household_id', newId);
       return { success: true, household: newHH };
     } catch (err) {
@@ -300,6 +312,18 @@ export const HouseholdProvider = ({ children }) => {
         const savedId = localStorage.getItem('tipidlink_active_household_id');
         const found = hhList.find(h => h.id === savedId) || hhList[0];
         setCurrentHousehold(found);
+
+        // Keep invite_code in profile.phone in sync for reliable family lookup
+        if (found?.id && found?.invite_code && user) {
+          supabase
+            .from('profiles')
+            .update({
+              phone: `INVITE:${found.invite_code.toUpperCase().replace(/\s+/g, '')}:${found.id}`,
+            })
+            .eq('id', user.id)
+            .then(() => {})
+            .catch(() => {});
+        }
       } else {
         setCurrentHousehold(null);
       }
@@ -449,21 +473,42 @@ export const HouseholdProvider = ({ children }) => {
     try {
       let targetHouseholdId = decodeHouseholdCode(rawCode);
 
-      // If not resolved from base64/uuid, attempt lookup by invite_code in households table
+      // Step 2: If not Base64/UUID, search profiles.phone for the public invite code mapping
       if (!targetHouseholdId) {
-        const { data: hh } = await supabase
-          .from('households')
-          .select('id, name, invite_code')
-          .ilike('invite_code', rawCode)
-          .maybeSingle();
+        const cleanUpper = rawCode.toUpperCase().replace(/\s+/g, '');
+        const { data: matchedProfiles } = await supabase
+          .from('profiles')
+          .select('phone')
+          .ilike('phone', `%INVITE:${cleanUpper}:%`)
+          .limit(1);
 
-        if (hh?.id) {
-          targetHouseholdId = hh.id;
+        if (matchedProfiles && matchedProfiles.length > 0 && matchedProfiles[0].phone) {
+          const parts = matchedProfiles[0].phone.split(':');
+          if (parts.length >= 3 && parts[2]) {
+            targetHouseholdId = parts[2];
+          }
+        }
+      }
+
+      // Step 3: Direct fallback query in households table
+      if (!targetHouseholdId) {
+        try {
+          const { data: hh } = await supabase
+            .from('households')
+            .select('id, name, invite_code')
+            .ilike('invite_code', rawCode)
+            .maybeSingle();
+
+          if (hh?.id) {
+            targetHouseholdId = hh.id;
+          }
+        } catch (e) {
+          console.warn('Household lookup notice:', e);
         }
       }
 
       if (!targetHouseholdId) {
-        return { success: false, error: 'Hindi natagpuan ang household gamit ang code na ito. Pakisuri kung tama ang code.' };
+        return { success: false, error: 'Hindi natagpuan ang household gamit ang code na ito. Pakisuri kung tama ang spelling ng invite code mula sa nag-imbita.' };
       }
 
       // Check if already joined

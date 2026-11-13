@@ -41,10 +41,10 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
 
   const displayCode = isDemoMode
     ? 'SANTOS2026'
-    : (shareCode || (currentHousehold?.id ? encodeHouseholdCode(currentHousehold.id) : ''));
+    : (currentHousehold?.invite_code || shareCode || 'TIPID-2026');
 
   const handleCopyCode = async () => {
-    if (!isPremium) {
+    if (!isPremium && members.length >= 3) {
       openUpgradeModal();
       return;
     }
@@ -213,39 +213,17 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
             </p>
 
             <div className="mt-4 flex items-center justify-between rounded-2xl bg-white/10 backdrop-blur-md px-4 py-3 border border-white/20 gap-2">
-              {isPremium ? (
-                <span className="font-mono text-lg sm:text-xl font-black tracking-widest text-white truncate max-w-[230px]" title={displayCode}>
-                  {displayCode || 'Loading code...'}
-                </span>
-              ) : (
-                <div className="flex items-center gap-2 text-emerald-200/80">
-                  <Lock className="h-4 w-4 text-amber-300 shrink-0" />
-                  <span className="font-mono text-sm sm:text-base font-bold tracking-widest">
-                    •••••••••••••••
-                  </span>
-                </div>
-              )}
+              <span className="font-mono text-xl sm:text-2xl font-black tracking-widest text-white truncate max-w-[240px]" title={displayCode}>
+                {displayCode || 'Generating code...'}
+              </span>
 
               <button
                 onClick={handleCopyCode}
-                className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer active-press hover-lift shrink-0 ${
-                  isPremium
-                    ? 'bg-white text-emerald-900 hover:bg-emerald-50 shadow-xs'
-                    : 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 hover:from-amber-300 hover:to-amber-400 shadow-md'
-                }`}
-                title={isPremium ? 'Copy Invite Code' : 'Unlock code with ₱30 Pro'}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-bold text-emerald-900 hover:bg-emerald-50 active-press hover-lift transition cursor-pointer shadow-xs shrink-0"
+                title="Copy Invite Code"
               >
-                {isPremium ? (
-                  <>
-                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-                    <span>{copied ? 'Copied!' : 'Copy'}</span>
-                  </>
-                ) : (
-                  <>
-                    <Crown className="h-3.5 w-3.5 fill-slate-900 text-slate-900" />
-                    <span>Unlock (₱30)</span>
-                  </>
-                )}
+                {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                <span>{copied ? 'Copied!' : 'Copy Code'}</span>
               </button>
             </div>
 
@@ -256,16 +234,16 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
               >
                 <span className="flex items-center gap-1.5 font-semibold">
                   <Crown className="h-3.5 w-3.5 text-amber-300 fill-amber-300" />
-                  Kailangan ng ₱30 Pro para ma-share ang code
+                  Free Plan: Hanggang 3 kapamilya ({members.length}/3)
                 </span>
                 <span className="font-black underline text-white group-hover:translate-x-0.5 transition-transform">
-                  Upgrade &rarr;
+                  ₱30 Unlimited Pro &rarr;
                 </span>
               </div>
             ) : (
-              <div className="mt-3 flex items-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-400/30 p-2 text-[11px] text-emerald-200">
-                <Check className="h-3.5 w-3.5 text-emerald-300 shrink-0" />
-                <span>Unlimited family members can join using this code</span>
+              <div className="mt-3 flex items-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-400/30 p-2.5 text-[11px] text-emerald-200">
+                <Crown className="h-3.5 w-3.5 text-amber-300 fill-amber-300 shrink-0" />
+                <span>₱30 Premium Active • Walang limitasyon sa bilang ng kapamilya</span>
               </div>
             )}
           </div>
