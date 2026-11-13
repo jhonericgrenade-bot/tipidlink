@@ -69,53 +69,57 @@ export const RegisterPage = () => {
       className="min-h-screen w-full bg-cover bg-center bg-no-repeat flex flex-col justify-center items-center px-4 py-8 relative overflow-hidden"
       style={{ backgroundImage: `url('/family_hero_bg.png')` }}
     >
-      {/* Dynamic Ambient Gradient Glass Backdrop */}
-      <div className="absolute inset-0 bg-gradient-to-tr from-slate-950/70 via-emerald-950/40 to-slate-900/60 backdrop-blur-[3px]" />
+      {/* Deep Atmospheric Glass Gradient Backdrop */}
+      <div className="absolute inset-0 bg-gradient-to-tr from-slate-950/85 via-emerald-950/60 to-slate-900/80 backdrop-blur-[4px]" />
 
-      {/* Floating Glowing Neon Orbs for Glass Light Reflection */}
-      <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-emerald-500/25 blur-3xl animate-pulse-subtle pointer-events-none" />
-      <div className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-teal-400/20 blur-3xl animate-float pointer-events-none" />
-      <div className="absolute top-1/4 right-10 w-64 h-64 rounded-full bg-amber-400/15 blur-3xl animate-float-reverse pointer-events-none" />
+      {/* Floating Glowing Neon Spheres for Translucent Glass Refraction */}
+      <div className="absolute -top-20 -left-20 w-88 h-88 rounded-full bg-emerald-500/30 blur-3xl animate-pulse-subtle pointer-events-none" />
+      <div className="absolute -bottom-24 -right-20 w-96 h-96 rounded-full bg-teal-400/25 blur-3xl animate-float pointer-events-none" />
+      <div className="absolute top-1/3 right-1/4 w-72 h-72 rounded-full bg-emerald-400/20 blur-3xl animate-float-reverse pointer-events-none" />
 
-      {/* Main Glass Card */}
+      {/* Main Ultra Glass Card */}
       <div className="relative z-10 w-full max-w-[420px] my-auto animate-modal-pop">
-        <div className="relative overflow-hidden rounded-[2.25rem] bg-white/80 backdrop-blur-2xl p-7 sm:p-9 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.35)] border border-white/70 ring-1 ring-white/50">
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-slate-900/55 backdrop-blur-3xl p-7 sm:p-9 shadow-[0_30px_70px_-15px_rgba(0,0,0,0.65)] border border-white/20 ring-1 ring-white/10 text-white">
           
-          {/* Top Edge Specular Reflection */}
-          <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white to-transparent opacity-90" />
+          {/* Top Specular Edge Highlight */}
+          <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-emerald-300/80 to-transparent" />
+          
+          {/* Subtle Inner Glass Glow */}
+          <div className="absolute -right-12 -top-12 w-44 h-44 rounded-full bg-emerald-500/20 blur-2xl pointer-events-none" />
 
           {/* Brand Header */}
           <div className="relative flex flex-col items-center text-center mb-6">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 text-[11px] font-bold tracking-wide shadow-2xs mb-3 backdrop-blur-md animate-bounce-subtle">
-              <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-[11px] font-bold tracking-wide shadow-xs mb-3 backdrop-blur-md animate-bounce-subtle">
+              <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
               <span>Simulan ang Pag-asenso</span>
             </div>
 
             <img
               src="/tipidlink-logo.png"
               alt="TipidLink"
-              className="h-16 w-auto object-contain mb-2 filter drop-shadow-[0_8px_16px_rgba(16,185,129,0.25)] hover:scale-105 transition-transform duration-300 animate-float"
+              className="h-16 w-auto object-contain mb-2 filter drop-shadow-[0_10px_20px_rgba(16,185,129,0.35)] hover:scale-105 transition-transform duration-300 animate-float"
             />
             
-            <h1 className="text-2xl font-black tracking-tight text-slate-900">
-              Create Account
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center justify-center gap-2">
+              <span>Create Account</span>
+              <span>📝✨</span>
             </h1>
-            <p className="text-xs text-slate-500 mt-1 font-medium">
+            <p className="text-xs text-emerald-100/75 mt-1 font-medium">
               Sumali sa TipidLink at pamahalaan ang pampamilyang badyet
             </p>
           </div>
 
           {/* Feedback Notices */}
           {error && (
-            <div className="mb-4 flex items-center gap-2 rounded-2xl bg-rose-50/90 backdrop-blur-md p-3 text-xs text-rose-700 border border-rose-200 shadow-2xs animate-fade-in">
-              <AlertCircle className="h-4 w-4 shrink-0 text-rose-500" />
+            <div className="mb-4 flex items-center gap-2.5 rounded-2xl bg-rose-500/20 backdrop-blur-md p-3 text-xs text-rose-200 border border-rose-500/40 shadow-xs animate-fade-in">
+              <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
               <span className="font-semibold">{error}</span>
             </div>
           )}
 
           {successMsg && (
-            <div className="mb-4 flex items-center gap-2 rounded-2xl bg-emerald-50/90 backdrop-blur-md p-3 text-xs text-emerald-800 border border-emerald-200 shadow-2xs animate-fade-in">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+            <div className="mb-4 flex items-center gap-2.5 rounded-2xl bg-emerald-500/20 backdrop-blur-md p-3 text-xs text-emerald-200 border border-emerald-400/40 shadow-xs animate-fade-in">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
               <span className="font-bold">{successMsg}</span>
             </div>
           )}
@@ -124,7 +128,7 @@ export const RegisterPage = () => {
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
               <div className="relative group">
-                <User className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400 group-focus-within:text-emerald-600 transition-colors" />
+                <User className="absolute left-3.5 top-3.5 h-4 w-4 text-emerald-400/70 group-focus-within:text-emerald-300 transition-colors" />
                 <input
                   type="text"
                   autoComplete="name"
@@ -132,14 +136,14 @@ export const RegisterPage = () => {
                   placeholder="Buong pangalan (Full name)"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-md py-3 pl-10 pr-3.5 text-sm text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-emerald-500 focus:outline-hidden focus:ring-4 focus:ring-emerald-500/15 shadow-2xs transition"
+                  className="w-full rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl py-3 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 focus:bg-white/15 focus:border-emerald-400 focus:outline-hidden focus:ring-4 focus:ring-emerald-400/20 shadow-inner transition"
                 />
               </div>
             </div>
 
             <div>
               <div className="relative group">
-                <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400 group-focus-within:text-emerald-600 transition-colors" />
+                <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-emerald-400/70 group-focus-within:text-emerald-300 transition-colors" />
                 <input
                   type="email"
                   inputMode="email"
@@ -151,14 +155,14 @@ export const RegisterPage = () => {
                   placeholder="Email address"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-md py-3 pl-10 pr-3.5 text-sm text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-emerald-500 focus:outline-hidden focus:ring-4 focus:ring-emerald-500/15 shadow-2xs transition"
+                  className="w-full rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl py-3 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 focus:bg-white/15 focus:border-emerald-400 focus:outline-hidden focus:ring-4 focus:ring-emerald-400/20 shadow-inner transition"
                 />
               </div>
             </div>
 
             <div>
               <div className="relative group">
-                <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400 group-focus-within:text-emerald-600 transition-colors" />
+                <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-emerald-400/70 group-focus-within:text-emerald-300 transition-colors" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
@@ -169,12 +173,12 @@ export const RegisterPage = () => {
                   placeholder="Password (hal. Tipid@2026)"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-md py-3 pl-10 pr-11 text-sm text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-emerald-500 focus:outline-hidden focus:ring-4 focus:ring-emerald-500/15 shadow-2xs transition"
+                  className="w-full rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl py-3 pl-10 pr-11 text-sm text-white placeholder:text-slate-400 focus:bg-white/15 focus:border-emerald-400 focus:outline-hidden focus:ring-4 focus:ring-emerald-400/20 shadow-inner transition"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-2.5 p-1 text-slate-400 hover:text-slate-600 rounded-lg transition"
+                  className="absolute right-3 top-2.5 p-1 text-slate-400 hover:text-emerald-300 rounded-lg transition"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -182,49 +186,49 @@ export const RegisterPage = () => {
 
               {/* Real-time Password Requirements Checklist */}
               {password.length > 0 && (
-                <div className="mt-2 rounded-2xl bg-white/60 backdrop-blur-md p-3 border border-slate-200/80 space-y-2 animate-fade-in shadow-2xs">
-                  <p className="text-[11px] font-bold text-slate-700">Pamantayan sa Password:</p>
+                <div className="mt-2 rounded-2xl bg-white/10 backdrop-blur-xl p-3 border border-white/15 space-y-2 animate-fade-in shadow-inner">
+                  <p className="text-[11px] font-bold text-emerald-200">Pamantayan sa Password:</p>
                   <div className="grid grid-cols-2 gap-1.5 text-[11px]">
-                    <div className={`flex items-center gap-1.5 font-medium transition-colors ${hasMinLength ? 'text-emerald-700 font-bold' : 'text-slate-400'}`}>
+                    <div className={`flex items-center gap-1.5 font-medium transition-colors ${hasMinLength ? 'text-emerald-300 font-bold' : 'text-slate-400'}`}>
                       {hasMinLength ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
                       ) : (
-                        <Circle className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+                        <Circle className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                       )}
                       <span>8+ characters</span>
                     </div>
 
-                    <div className={`flex items-center gap-1.5 font-medium transition-colors ${hasUppercase ? 'text-emerald-700 font-bold' : 'text-slate-400'}`}>
+                    <div className={`flex items-center gap-1.5 font-medium transition-colors ${hasUppercase ? 'text-emerald-300 font-bold' : 'text-slate-400'}`}>
                       {hasUppercase ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
                       ) : (
-                        <Circle className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+                        <Circle className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                       )}
                       <span>Uppercase (A-Z)</span>
                     </div>
 
-                    <div className={`flex items-center gap-1.5 font-medium transition-colors ${hasLowercase ? 'text-emerald-700 font-bold' : 'text-slate-400'}`}>
+                    <div className={`flex items-center gap-1.5 font-medium transition-colors ${hasLowercase ? 'text-emerald-300 font-bold' : 'text-slate-400'}`}>
                       {hasLowercase ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
                       ) : (
-                        <Circle className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+                        <Circle className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                       )}
                       <span>Lowercase (a-z)</span>
                     </div>
 
-                    <div className={`flex items-center gap-1.5 font-medium transition-colors ${hasSpecial ? 'text-emerald-700 font-bold' : 'text-slate-400'}`}>
+                    <div className={`flex items-center gap-1.5 font-medium transition-colors ${hasSpecial ? 'text-emerald-300 font-bold' : 'text-slate-400'}`}>
                       {hasSpecial ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
                       ) : (
-                        <Circle className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+                        <Circle className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                       )}
                       <span>Symbol (!@#$...)</span>
                     </div>
                   </div>
 
-                  <div className="pt-1.5 border-t border-slate-200/60 flex items-center justify-between text-[10px]">
-                    <span className="text-slate-500">Numero (0-9):</span>
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold ${hasNumber ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
+                  <div className="pt-1.5 border-t border-white/10 flex items-center justify-between text-[10px]">
+                    <span className="text-slate-300">Numero (0-9):</span>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold ${hasNumber ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30' : 'bg-white/10 text-slate-400'}`}>
                       {hasNumber ? '✓ May kasamang Numero' : 'Allowed / Pwede'}
                     </span>
                   </div>
@@ -234,7 +238,7 @@ export const RegisterPage = () => {
 
             <div>
               <div className="relative group">
-                <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400 group-focus-within:text-emerald-600 transition-colors" />
+                <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-emerald-400/70 group-focus-within:text-emerald-300 transition-colors" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
@@ -245,7 +249,7 @@ export const RegisterPage = () => {
                   placeholder="Kumpirmahin ang password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-md py-3 pl-10 pr-3.5 text-sm text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-emerald-500 focus:outline-hidden focus:ring-4 focus:ring-emerald-500/15 shadow-2xs transition"
+                  className="w-full rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl py-3 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 focus:bg-white/15 focus:border-emerald-400 focus:outline-hidden focus:ring-4 focus:ring-emerald-400/20 shadow-inner transition"
                 />
               </div>
             </div>
@@ -253,10 +257,10 @@ export const RegisterPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full relative overflow-hidden flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-emerald-600/30 hover:shadow-emerald-600/45 hover:from-emerald-500 hover:to-teal-500 active:scale-[0.98] transition-all disabled:opacity-50 mt-2 cursor-pointer"
+              className="w-full relative overflow-hidden flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 py-3.5 text-sm font-black text-slate-950 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 mt-2 cursor-pointer"
             >
               {loading ? (
-                <div className="h-4 w-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                <div className="h-4 w-4 border-2 border-slate-900/40 border-t-slate-900 rounded-full animate-spin" />
               ) : (
                 <>
                   <span>Gumawa ng Account</span>
@@ -267,9 +271,9 @@ export const RegisterPage = () => {
           </form>
 
           {/* Switch to Login */}
-          <div className="mt-5 text-center text-xs text-slate-600">
+          <div className="mt-5 text-center text-xs text-slate-300">
             May account ka na?{' '}
-            <Link to="/login" className="font-extrabold text-emerald-700 hover:text-emerald-800 underline underline-offset-2">
+            <Link to="/login" className="font-extrabold text-emerald-400 hover:text-emerald-300 underline underline-offset-4">
               Mag-sign In
             </Link>
           </div>
