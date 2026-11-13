@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 export const BudgetsPage = () => {
-  const { currentHousehold, updateHousehold } = useHousehold();
+  const { currentHousehold, updateHousehold, isOwnerOrAdmin } = useHousehold();
   const {
     budgets,
     categories,
@@ -129,22 +129,24 @@ export const BudgetsPage = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsOverallModalOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 active-press hover-lift transition cursor-pointer"
-          >
-            <Target className="h-4 w-4 text-emerald-600" />
-            Set Monthly Target
-          </button>
-          <button
-            onClick={() => setIsCategoryModalOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press hover-lift transition cursor-pointer"
-          >
-            <Plus className="h-4 w-4" />
-            Add Category Budget
-          </button>
-        </div>
+        {isOwnerOrAdmin && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsOverallModalOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 active-press hover-lift transition cursor-pointer"
+            >
+              <Target className="h-4 w-4 text-emerald-600" />
+              Set Monthly Target
+            </button>
+            <button
+              onClick={() => setIsCategoryModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press hover-lift transition cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              Add Category Budget
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Month Filter Selector */}
@@ -276,13 +278,19 @@ export const BudgetsPage = () => {
             <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
               Setting budgets for groceries, electricity, water, and dining helps prevent surprises at the end of the month!
             </p>
-            <button
-              onClick={() => setIsCategoryModalOpen(true)}
-              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press hover-lift transition cursor-pointer"
-            >
-              <Plus className="h-4 w-4" />
-              Set Category Budget
-            </button>
+            {isOwnerOrAdmin ? (
+              <button
+                onClick={() => setIsCategoryModalOpen(true)}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press hover-lift transition cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                Set Category Budget
+              </button>
+            ) : (
+              <p className="mt-3 text-[11px] text-slate-400 font-medium italic">
+                Only household owners and admins can configure budget limits.
+              </p>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -321,13 +329,15 @@ export const BudgetsPage = () => {
                       </span>
                     )}
 
-                    <button
-                      onClick={() => deleteBudget(b.id)}
-                      className="rounded-lg p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 active-press transition cursor-pointer"
-                      title="Remove budget"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    {isOwnerOrAdmin && (
+                      <button
+                        onClick={() => deleteBudget(b.id)}
+                        className="rounded-lg p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 active-press transition cursor-pointer"
+                        title="Remove budget"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
 

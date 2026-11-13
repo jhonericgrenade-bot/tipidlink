@@ -336,7 +336,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
                 <div className="flex items-center gap-3 self-end sm:self-auto">
                   <StatusBadge status={member.role} type="role" />
 
-                  {isOwnerOrAdmin && !isSelf && (
+                  {!isSelf && (currentUserRole === 'owner' || (currentUserRole === 'admin' && member.role === 'member')) && (
                     <div className="flex items-center gap-2">
                       <select
                         value={member.role}
@@ -345,7 +345,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
                       >
                         <option value="member">Member</option>
                         <option value="admin">Admin</option>
-                        <option value="owner">Owner</option>
+                        {currentUserRole === 'owner' && <option value="owner">Owner</option>}
                       </select>
 
                       <button

@@ -8,7 +8,7 @@ const FinanceContext = createContext(null);
 
 export const FinanceProvider = ({ children }) => {
   const { user, profile, isDemoMode } = useAuth();
-  const { currentHousehold } = useHousehold();
+  const { currentHousehold, isOwnerOrAdmin } = useHousehold();
 
   const [transactions, setTransactions] = useState([]);
   const [budgets, setBudgets] = useState([]);
@@ -373,6 +373,7 @@ export const FinanceProvider = ({ children }) => {
   // ----------------------------------------------------------------------------
   const setCategoryBudget = async ({ category_id, month, year, amount }) => {
     if (!currentHousehold) return { success: false, error: 'No active household' };
+    if (!isOwnerOrAdmin) return { success: false, error: 'Only owners and admins can set category budgets.' };
 
     const numAmount = Number(amount);
 
@@ -426,6 +427,8 @@ export const FinanceProvider = ({ children }) => {
   };
 
   const deleteBudget = async (id) => {
+    if (!isOwnerOrAdmin) return { success: false, error: 'Only owners and admins can delete category budgets.' };
+
     if (isDemoMode || !isSupabaseConfigured) {
       const updated = budgets.filter(b => b.id !== id);
       setBudgets(updated);

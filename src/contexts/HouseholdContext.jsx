@@ -614,6 +614,7 @@ export const HouseholdProvider = ({ children }) => {
 
   const updateHousehold = async (updates) => {
     if (!currentHousehold) return { success: false, error: 'No active household' };
+    if (!isOwnerOrAdmin) return { success: false, error: 'Only owners and admins can update household settings.' };
 
     if (isDemoMode || !isSupabaseConfigured) {
       const updated = { ...currentHousehold, ...updates, updated_at: new Date().toISOString() };
@@ -639,6 +640,21 @@ export const HouseholdProvider = ({ children }) => {
   };
 
   const updateMemberRole = async (memberId, newRole) => {
+    if (!isOwnerOrAdmin) {
+      return { success: false, error: 'Only owners and admins can update member roles.' };
+    }
+    const targetMember = members.find(m => m.id === memberId);
+    if (!targetMember) return { success: false, error: 'Member not found.' };
+
+    if (currentUserRole === 'admin') {
+      if (targetMember.role === 'owner') {
+        return { success: false, error: 'Admins cannot change the household owner.' };
+      }
+      if (newRole === 'owner') {
+        return { success: false, error: 'Only owners can assign the owner role.' };
+      }
+    }
+
     if (isDemoMode || !isSupabaseConfigured) {
       const updated = members.map(m => m.id === memberId ? { ...m, role: newRole } : m);
       setMembers(updated);
@@ -660,6 +676,17 @@ export const HouseholdProvider = ({ children }) => {
   };
 
   const removeMember = async (memberId) => {
+    if (!isOwnerOrAdmin) {
+      return { success: false, error: 'Only owners and admins can remove members.' };
+    }
+    const targetMember = members.find(m => m.id === memberId);
+    if (targetMember?.role === 'owner') {
+      return { success: false, error: 'The household owner cannot be removed.' };
+    }
+    if (currentUserRole === 'admin' && targetMember?.role === 'admin') {
+      return { success: false, error: 'Admins cannot remove other admins. Only the owner can.' };
+    }
+
     if (isDemoMode || !isSupabaseConfigured) {
       const updated = members.filter(m => m.id !== memberId);
       setMembers(updated);
@@ -682,6 +709,9 @@ export const HouseholdProvider = ({ children }) => {
 
   const deleteHousehold = async (householdId) => {
     if (!householdId) return { success: false, error: 'No household ID provided' };
+    if (currentUserRole !== 'owner') {
+      return { success: false, error: 'Only the household owner can delete the household.' };
+    }
 
     if (isDemoMode || !isSupabaseConfigured) {
       const remaining = households.filter(h => h.id !== householdId);
@@ -774,7 +804,10 @@ export const HouseholdProvider = ({ children }) => {
   }, [currentHousehold?.id, user?.id]);
 
   const currentMember = members.find(m => m.user_id === user?.id);
-  const currentUserRole = currentMember?.role || 'owner';
+  const currentUserRole = currentMember?.role || (currentHousehold?.created_by === user?.id ? 'owner' : 'member');
+  const isOwner = currentUserRole === 'owner';
+  const isAdmin = currentUserRole === 'admin';
+  const isMember = currentUserRole === 'member';
   const isOwnerOrAdmin = currentUserRole === 'owner' || currentUserRole === 'admin';
 
   const shareCode = isDemoMode
@@ -789,6 +822,9 @@ export const HouseholdProvider = ({ children }) => {
         members,
         loading,
         currentUserRole,
+        isOwner,
+        isAdmin,
+        isMember,
         isOwnerOrAdmin,
         shareCode,
         switchHousehold,
