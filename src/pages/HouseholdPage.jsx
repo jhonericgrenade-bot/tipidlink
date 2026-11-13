@@ -44,7 +44,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
     : (currentHousehold?.invite_code || shareCode || 'TIPID-2026');
 
   const handleCopyCode = async () => {
-    if (!isPremium && members.length >= 3) {
+    if (!isPremium) {
       openUpgradeModal();
       return;
     }
@@ -213,17 +213,39 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
             </p>
 
             <div className="mt-4 flex items-center justify-between rounded-2xl bg-white/10 backdrop-blur-md px-4 py-3 border border-white/20 gap-2">
-              <span className="font-mono text-xl sm:text-2xl font-black tracking-widest text-white truncate max-w-[240px]" title={displayCode}>
-                {displayCode || 'Generating code...'}
-              </span>
+              {isPremium ? (
+                <span className="font-mono text-xl sm:text-2xl font-black tracking-widest text-white truncate max-w-[240px]" title={displayCode}>
+                  {displayCode || 'Generating code...'}
+                </span>
+              ) : (
+                <div className="flex items-center gap-2 text-emerald-200">
+                  <Lock className="h-4 w-4 text-amber-300 shrink-0" />
+                  <span className="font-mono text-sm sm:text-base font-bold tracking-widest text-amber-200">
+                    LOCKED (₱30 PRO ONLY)
+                  </span>
+                </div>
+              )}
 
               <button
                 onClick={handleCopyCode}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-bold text-emerald-900 hover:bg-emerald-50 active-press hover-lift transition cursor-pointer shadow-xs shrink-0"
-                title="Copy Invite Code"
+                className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition cursor-pointer active-press hover-lift shrink-0 ${
+                  isPremium
+                    ? 'bg-white text-emerald-900 hover:bg-emerald-50 shadow-xs'
+                    : 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 hover:from-amber-300 hover:to-amber-400 shadow-md ring-2 ring-amber-300/50'
+                }`}
+                title={isPremium ? 'Copy Invite Code' : 'Mag-upgrade sa ₱30 Pro para ma-unlock at ma-copy ang code'}
               >
-                {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-                <span>{copied ? 'Copied!' : 'Copy Code'}</span>
+                {isPremium ? (
+                  <>
+                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                    <span>{copied ? 'Copied!' : 'Copy Code'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Crown className="h-3.5 w-3.5 fill-slate-900 text-slate-900" />
+                    <span>Unlock (₱30 Pro)</span>
+                  </>
+                )}
               </button>
             </div>
 
@@ -234,16 +256,16 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
               >
                 <span className="flex items-center gap-1.5 font-semibold">
                   <Crown className="h-3.5 w-3.5 text-amber-300 fill-amber-300" />
-                  Free Plan: Hanggang 3 kapamilya ({members.length}/3)
+                  Kailangan ng ₱30 Pro para ma-copy at ma-share ang code
                 </span>
                 <span className="font-black underline text-white group-hover:translate-x-0.5 transition-transform">
-                  ₱30 Unlimited Pro &rarr;
+                  Upgrade &rarr;
                 </span>
               </div>
             ) : (
               <div className="mt-3 flex items-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-400/30 p-2.5 text-[11px] text-emerald-200">
                 <Crown className="h-3.5 w-3.5 text-amber-300 fill-amber-300 shrink-0" />
-                <span>₱30 Premium Active • Walang limitasyon sa bilang ng kapamilya</span>
+                <span>₱30 Premium Active • Pwedeng i-share ang code sa lahat ng kapamilya</span>
               </div>
             )}
           </div>
