@@ -165,15 +165,12 @@ export const JoinHouseholdModal = ({ isOpen, onClose }) => {
             <input
               type="text"
               required
-              placeholder="e.g. GRANADA-7207 o i-paste ang code"
+              placeholder="e.g. KALAB-4211 o i-paste ang code"
               value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value.trim().toUpperCase())}
-              className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm tracking-wider font-mono font-bold uppercase focus:border-indigo-500 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
+              onChange={(e) => setInviteCode(e.target.value.trim())}
+              className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm tracking-wider font-mono font-bold focus:border-indigo-500 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
             />
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">
-            I-type o i-paste ang code mula sa Household page ng kapamilyang nag-imbita sa iyo. Demo: <span className="font-mono font-semibold text-emerald-600">SANTOS2026</span>
-          </p>
         </div>
 
         <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">

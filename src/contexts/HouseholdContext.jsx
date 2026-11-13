@@ -471,32 +471,58 @@ export const HouseholdProvider = ({ children }) => {
     }
 
     try {
-      let targetHouseholdId = decodeHouseholdCode(rawCode);
+      const cleanInput = rawCode.trim();
+      const cleanUpper = cleanInput.toUpperCase().replace(/\s+/g, '');
+      let targetHouseholdId = null;
 
-      // Step 2: If not Base64/UUID, search profiles.phone for the public invite code mapping
-      if (!targetHouseholdId) {
-        const cleanUpper = rawCode.toUpperCase().replace(/\s+/g, '');
-        const { data: matchedProfiles } = await supabase
-          .from('profiles')
-          .select('phone')
-          .ilike('phone', `%INVITE:${cleanUpper}:%`)
-          .limit(1);
+      // Step 1: Universal lookup in profiles.phone (INVITE:<CODE>:<UUID>)
+      // This is accessible to all authenticated users and handles both invite_codes and encoded UUIDs
+      const { data: matchedProfiles } = await supabase
+        .from('profiles')
+        .select('phone')
+        .ilike('phone', 'INVITE:%');
 
-        if (matchedProfiles && matchedProfiles.length > 0 && matchedProfiles[0].phone) {
-          const parts = matchedProfiles[0].phone.split(':');
-          if (parts.length >= 3 && parts[2]) {
-            targetHouseholdId = parts[2];
+      for (const p of (matchedProfiles || [])) {
+        if (!p.phone) continue;
+        const parts = p.phone.split(':');
+        if (parts.length >= 3) {
+          const registeredCode = parts[1].toUpperCase();
+          const uuid = parts[2];
+
+          // Match exact invite code (e.g. "KALAB-4211") or without dash ("KALAB4211")
+          if (
+            registeredCode === cleanUpper ||
+            registeredCode.replace(/-/g, '') === cleanUpper.replace(/-/g, '')
+          ) {
+            targetHouseholdId = uuid;
+            break;
+          }
+
+          // Match direct UUID
+          if (uuid.toLowerCase() === cleanInput.toLowerCase()) {
+            targetHouseholdId = uuid;
+            break;
+          }
+
+          // Match Base64 encoded UUID (handles both original case and uppercase like "4THSTVWYRXIOWTNYFPKCIA")
+          const encoded = encodeHouseholdCode(uuid);
+          if (
+            encoded === cleanInput ||
+            encoded.toUpperCase() === cleanUpper
+          ) {
+            targetHouseholdId = uuid;
+            break;
           }
         }
       }
 
-      // Step 3: Direct fallback query in households table
+      // Step 2: Direct fallback query in households table
       if (!targetHouseholdId) {
         try {
           const { data: hh } = await supabase
             .from('households')
             .select('id, name, invite_code')
-            .ilike('invite_code', rawCode)
+            .ilike('invite_code', cleanInput)
             .maybeSingle();
 
           if (hh?.id) {
@@ -505,6 +531,11 @@ export const HouseholdProvider = ({ children }) => {
         } catch (e) {
           console.warn('Household lookup notice:', e);
         }
+      }
+
+      // Step 3: Fallback decodeHouseholdCode only if still not resolved
+      if (!targetHouseholdId) {
+        targetHouseholdId = decodeHouseholdCode(cleanInput);
       }
 
       if (!targetHouseholdId) {
@@ -536,7 +567,15 @@ export const HouseholdProvider = ({ children }) => {
           nickname: memberNickname,
         });
 
-      if (joinErr) throw joinErr;
+      if (joinErr) {
+        if (joinErr.code === '23503' || joinErr.message?.includes('foreign key')) {
+          return {
+            success: false,
+            error: 'Hindi natagpuan o hindi na aktibo ang household gamit ang code na ito. Pakisuri ang tamang invite code mula sa nag-imbita.'
+          };
+        }
+        throw joinErr;
+      }
 
       await loadHouseholds();
       switchHousehold(targetHouseholdId);
@@ -621,7 +660,7 @@ export const HouseholdProvider = ({ children }) => {
 
   const shareCode = isDemoMode
     ? (currentHousehold?.invite_code || 'SANTOS2026')
-    : (encodeHouseholdCode(currentHousehold?.id) || currentHousehold?.invite_code || '');
+    : (currentHousehold?.invite_code || encodeHouseholdCode(currentHousehold?.id) || '');
 
   return (
     <HouseholdContext.Provider
