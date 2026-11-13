@@ -58,7 +58,7 @@ export const HouseholdSelector = ({ onOpenCreateModal, onOpenJoinModal }) => {
             {currentHousehold.name}
           </p>
           <p className="truncate text-[10px] text-slate-500 font-medium">
-            {isPremium ? `Code: ${shareCode || currentHousehold.invite_code}` : 'Code: •••••••• (₱30 Pro)'}
+            {isPremium ? `Code: ${currentHousehold.invite_code || shareCode}` : 'Code: •••••••• (₱30 Pro)'}
           </p>
         </div>
         <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -72,7 +72,7 @@ export const HouseholdSelector = ({ onOpenCreateModal, onOpenJoinModal }) => {
             </span>
             {isPremium ? (
               <button
-                onClick={(e) => handleCopyCode(e, shareCode || currentHousehold.invite_code)}
+                onClick={(e) => handleCopyCode(e, currentHousehold.invite_code || shareCode)}
                 className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 cursor-pointer"
                 title="Copy current invite code"
               >

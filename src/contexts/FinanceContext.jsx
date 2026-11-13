@@ -36,6 +36,21 @@ export const FinanceProvider = ({ children }) => {
     loadHouseholdData(currentHousehold.id);
   }, [currentHousehold, isDemoMode]);
 
+  // Real-time refresh when tab or mobile browser gains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible' && currentHousehold?.id) {
+        loadHouseholdData(currentHousehold.id);
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
+  }, [currentHousehold?.id]);
+
   const loadHouseholdData = async (householdId) => {
     setLoading(true);
 

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const PremiumContext = createContext();
 
@@ -21,6 +22,17 @@ export const PremiumProvider = ({ children }) => {
       return;
     }
 
+    // Check cloud user_metadata first for cross-device synchronization
+    const cloudPremium = user?.user_metadata?.is_premium;
+    const cloudPlan = user?.user_metadata?.premium_plan;
+    const cloudSponsor = user?.user_metadata?.sponsor_details;
+    if (cloudPremium) {
+      setIsPremium(true);
+      setPremiumPlan(cloudPlan || 'TipidLink Premium Plan (₱30/mo)');
+      setSponsorDetails(cloudSponsor || null);
+      return;
+    }
+
     const saved = localStorage.getItem(`tipidlink_premium_${userKey}`);
     if (saved) {
       try {
@@ -38,7 +50,7 @@ export const PremiumProvider = ({ children }) => {
     setIsPremium(false);
     setPremiumPlan('Free Household Plan');
     setSponsorDetails(null);
-  }, [user?.id, isDemoMode]);
+  }, [user?.id, user?.user_metadata?.is_premium, isDemoMode]);
 
   const saveUserState = (newIsPremium, newPlan, newSponsor) => {
     if (!user) return;
@@ -50,6 +62,17 @@ export const PremiumProvider = ({ children }) => {
         sponsorDetails: newSponsor,
       })
     );
+
+    // Persist to Supabase Auth cloud so other devices immediately recognize Pro
+    if (!isDemoMode && isSupabaseConfigured && supabase?.auth?.updateUser) {
+      supabase.auth.updateUser({
+        data: {
+          is_premium: newIsPremium,
+          premium_plan: newPlan,
+          sponsor_details: newSponsor,
+        },
+      }).catch(err => console.warn('Cloud premium metadata sync note:', err));
+    }
   };
 
   // Activate ₱30 Direct Plan

@@ -201,7 +201,7 @@ export const HouseholdProvider = ({ children }) => {
     }
   };
 
-  const loadHouseholds = async () => {
+  const loadHouseholds = async (forceSelectId = null) => {
     setLoading(true);
 
     if (isDemoMode) {
@@ -220,11 +220,14 @@ export const HouseholdProvider = ({ children }) => {
       }
 
       setHouseholds(hhList);
-      const activeId = localStorage.getItem('tipidlink_active_household_id');
+      const activeId = forceSelectId || localStorage.getItem('tipidlink_active_household_id');
       const active = hhList.find(h => h.id === activeId) || hhList[0];
       setCurrentHousehold(active || null);
+      if (active?.id) {
+        localStorage.setItem('tipidlink_active_household_id', active.id);
+      }
       setLoading(false);
-      return;
+      return hhList;
     }
 
     if (!isSupabaseConfigured) {
@@ -256,9 +259,14 @@ export const HouseholdProvider = ({ children }) => {
         localStorage.setItem(storageKey, JSON.stringify(hhList));
       }
       setHouseholds(hhList);
-      setCurrentHousehold(hhList[0] || null);
+      const activeId = forceSelectId || localStorage.getItem('tipidlink_active_household_id');
+      const active = hhList.find(h => h.id === activeId) || hhList[0];
+      setCurrentHousehold(active || null);
+      if (active?.id) {
+        localStorage.setItem('tipidlink_active_household_id', active.id);
+      }
       setLoading(false);
-      return;
+      return hhList;
     }
 
     try {
@@ -309,26 +317,36 @@ export const HouseholdProvider = ({ children }) => {
       setHouseholds(hhList);
 
       if (hhList.length > 0) {
-        const savedId = localStorage.getItem('tipidlink_active_household_id');
-        const found = hhList.find(h => h.id === savedId) || hhList[0];
+        const activeId = forceSelectId || localStorage.getItem('tipidlink_active_household_id');
+        const found = hhList.find(h => h.id === activeId) || hhList[0];
         setCurrentHousehold(found);
+        if (found?.id) {
+          localStorage.setItem('tipidlink_active_household_id', found.id);
+        }
 
-        // Keep invite_code in profile.phone in sync for reliable family lookup
-        if (found?.id && found?.invite_code && user) {
-          supabase
-            .from('profiles')
-            .update({
-              phone: `INVITE:${found.invite_code.toUpperCase().replace(/\s+/g, '')}:${found.id}`,
-            })
-            .eq('id', user.id)
-            .then(() => {})
-            .catch(() => {});
+        // Keep ALL invite_codes in profile.phone in sync for reliable family lookup
+        if (user) {
+          const syncEntries = hhList
+            .filter(h => h.id && h.invite_code)
+            .map(h => `${h.invite_code.toUpperCase().replace(/\s+/g, '')}:${h.id}`);
+          if (syncEntries.length > 0) {
+            supabase
+              .from('profiles')
+              .update({
+                phone: `INVITES:${syncEntries.join('|')}`,
+              })
+              .eq('id', user.id)
+              .then(() => {})
+              .catch(() => {});
+          }
         }
       } else {
         setCurrentHousehold(null);
       }
+      return hhList;
     } catch (err) {
       console.error('Error fetching households:', err);
+      return [];
     } finally {
       setLoading(false);
     }
@@ -551,8 +569,12 @@ export const HouseholdProvider = ({ children }) => {
         .maybeSingle();
 
       if (existing) {
-        await loadHouseholds();
-        switchHousehold(targetHouseholdId);
+        localStorage.setItem('tipidlink_active_household_id', targetHouseholdId);
+        const freshList = await loadHouseholds(targetHouseholdId);
+        const joinedHH = freshList.find(h => h.id === targetHouseholdId);
+        if (joinedHH) {
+          setCurrentHousehold(joinedHH);
+        }
         return { success: true, message: 'Kasapi ka na sa household na ito.' };
       }
 
@@ -577,8 +599,12 @@ export const HouseholdProvider = ({ children }) => {
         throw joinErr;
       }
 
-      await loadHouseholds();
-      switchHousehold(targetHouseholdId);
+      localStorage.setItem('tipidlink_active_household_id', targetHouseholdId);
+      const freshList = await loadHouseholds(targetHouseholdId);
+      const joinedHH = freshList.find(h => h.id === targetHouseholdId);
+      if (joinedHH) {
+        setCurrentHousehold(joinedHH);
+      }
       return { success: true };
     } catch (err) {
       console.error('Join household failed:', err);
@@ -654,6 +680,99 @@ export const HouseholdProvider = ({ children }) => {
     }
   };
 
+  const deleteHousehold = async (householdId) => {
+    if (!householdId) return { success: false, error: 'No household ID provided' };
+
+    if (isDemoMode || !isSupabaseConfigured) {
+      const remaining = households.filter(h => h.id !== householdId);
+      setHouseholds(remaining);
+      const nextActive = remaining[0] || null;
+      setCurrentHousehold(nextActive);
+      if (nextActive) {
+        localStorage.setItem('tipidlink_active_household_id', nextActive.id);
+      } else {
+        localStorage.removeItem('tipidlink_active_household_id');
+      }
+      return { success: true };
+    }
+
+    try {
+      const { error } = await supabase
+        .from('households')
+        .delete()
+        .eq('id', householdId);
+
+      if (error) throw error;
+
+      const remaining = households.filter(h => h.id !== householdId);
+      setHouseholds(remaining);
+      const nextActive = remaining[0] || null;
+      setCurrentHousehold(nextActive);
+      if (nextActive) {
+        localStorage.setItem('tipidlink_active_household_id', nextActive.id);
+      } else {
+        localStorage.removeItem('tipidlink_active_household_id');
+      }
+
+      await loadHouseholds();
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const leaveHousehold = async (householdId) => {
+    if (!householdId || !user) return { success: false, error: 'No household ID or user' };
+
+    if (isDemoMode || !isSupabaseConfigured) {
+      const remaining = households.filter(h => h.id !== householdId);
+      setHouseholds(remaining);
+      const nextActive = remaining[0] || null;
+      setCurrentHousehold(nextActive);
+      return { success: true };
+    }
+
+    try {
+      const { error } = await supabase
+        .from('household_members')
+        .delete()
+        .eq('household_id', householdId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      const remaining = households.filter(h => h.id !== householdId);
+      setHouseholds(remaining);
+      const nextActive = remaining[0] || null;
+      setCurrentHousehold(nextActive);
+      if (nextActive) {
+        localStorage.setItem('tipidlink_active_household_id', nextActive.id);
+      } else {
+        localStorage.removeItem('tipidlink_active_household_id');
+      }
+
+      await loadHouseholds();
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  // Auto-refresh when tab/app regains focus (e.g. switching back on mobile)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible' && currentHousehold?.id && user) {
+        loadMembers(currentHousehold.id);
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
+  }, [currentHousehold?.id, user?.id]);
+
   const currentMember = members.find(m => m.user_id === user?.id);
   const currentUserRole = currentMember?.role || 'owner';
   const isOwnerOrAdmin = currentUserRole === 'owner' || currentUserRole === 'admin';
@@ -678,6 +797,8 @@ export const HouseholdProvider = ({ children }) => {
         updateHousehold,
         updateMemberRole,
         removeMember,
+        deleteHousehold,
+        leaveHousehold,
         refreshHouseholds: loadHouseholds,
         refreshMembers: () => currentHousehold && loadMembers(currentHousehold.id),
       }}

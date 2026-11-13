@@ -20,7 +20,19 @@ import {
 } from 'lucide-react';
 
 export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
-  const { currentHousehold, members, isOwnerOrAdmin, updateHousehold, updateMemberRole, removeMember, shareCode, loading } = useHousehold();
+  const {
+    currentHousehold,
+    households,
+    members,
+    isOwnerOrAdmin,
+    currentUserRole,
+    updateHousehold,
+    updateMemberRole,
+    removeMember,
+    deleteHousehold,
+    leaveHousehold,
+    loading,
+  } = useHousehold();
   const { user, isDemoMode } = useAuth();
   const { isPremium, openUpgradeModal } = usePremium();
 
@@ -41,7 +53,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
 
   const displayCode = isDemoMode
     ? 'SANTOS2026'
-    : (currentHousehold?.invite_code || shareCode || 'TIPID-2026');
+    : (currentHousehold?.invite_code || 'TIPID-2026');
 
   const handleCopyCode = async () => {
     if (!isPremium) {
@@ -351,6 +363,70 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
           })}
         </div>
       </div>
+
+      {/* 3-Step Sharing Guide */}
+      <div className="rounded-3xl bg-emerald-50/70 border border-emerald-200/80 p-6">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-2 mb-3">
+          <Sparkles className="h-4 w-4 text-emerald-600" />
+          Paano Mag-share ng Account sa Pamilya (3 Simpleng Hakbang):
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-slate-700">
+          <div className="bg-white p-4 rounded-2xl border border-emerald-100 shadow-2xs">
+            <span className="font-black text-emerald-700 text-sm">1. I-share ang Code</span>
+            <p className="mt-1 text-slate-500">I-copy ang <strong>Household Code</strong> ({displayCode}) at ibigay sa iyong kapamilya (asawa, anak, magulang).</p>
+          </div>
+          <div className="bg-white p-4 rounded-2xl border border-emerald-100 shadow-2xs">
+            <span className="font-black text-indigo-700 text-sm">2. Mag-sign up Sila</span>
+            <p className="mt-1 text-slate-500">Buksan nila ang TipidLink sa kanilang cellphone at gumawa ng sariling account gamit ang kanilang email.</p>
+          </div>
+          <div className="bg-white p-4 rounded-2xl border border-emerald-100 shadow-2xs">
+            <span className="font-black text-amber-700 text-sm">3. I-click ang Join</span>
+            <p className="mt-1 text-slate-500">Sa menu sa itaas, i-click ang <strong>"Join Household with Code"</strong> at i-paste ang code. Sabay na kayong makakapag-record!</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Household Management */}
+      {currentHousehold && (
+        <div className="rounded-3xl bg-white p-6 shadow-xs border border-slate-200/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h4 className="text-sm font-bold text-slate-900">Household Management</h4>
+            <p className="text-xs text-slate-500">
+              {currentUserRole === 'owner'
+                ? 'Bilang may-ari, maaari mong burahin ang household na ito kung hindi na kailangan.'
+                : 'Maaari kang umalis sa household na ito anumang oras.'}
+            </p>
+          </div>
+          <div>
+            {currentUserRole === 'owner' ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  if (window.confirm(`Sigurado ka bang nais mong burahin ang "${currentHousehold.name}"? Mabubura ang lahat ng pampamilyang transaksyon at badyet nito.`)) {
+                    await deleteHousehold(currentHousehold.id);
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition cursor-pointer"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete This Household
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={async () => {
+                  if (window.confirm(`Sigurado ka bang nais mong umalis sa "${currentHousehold.name}"?`)) {
+                    await leaveHousehold(currentHousehold.id);
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+              >
+                Leave Household
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Edit Household Modal */}
       <Modal
