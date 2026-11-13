@@ -71,14 +71,15 @@ export const HouseholdProvider = ({ children }) => {
       localStorage.setItem(storageKey, JSON.stringify(updatedList));
       localStorage.setItem('tipidlink_active_household_id', newHH.id);
 
+      const currentOwnerName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || profile?.full_name || 'House Owner';
       const ownerMember = {
         id: `mem-${Date.now()}`,
         household_id: newHH.id,
         user_id: user.id,
-        full_name: profile?.full_name || 'House Owner',
+        full_name: currentOwnerName,
         email: profile?.email || user.email,
         role: 'owner',
-        nickname: profile?.full_name || 'Owner',
+        nickname: currentOwnerName,
         joined_at: new Date().toISOString(),
       };
       setMembers([ownerMember]);
@@ -122,13 +123,14 @@ export const HouseholdProvider = ({ children }) => {
       if (hhErr) throw hhErr;
 
       // 2. Add creator as owner
+      const currentUserName = user?.user_metadata?.full_name || profile?.full_name || user?.email?.split('@')[0] || 'Owner';
       const { error: memErr } = await supabase
         .from('household_members')
         .insert({
           household_id: newId,
           user_id: user.id,
           role: 'owner',
-          nickname: profile?.full_name || 'Owner',
+          nickname: currentUserName,
         });
 
       if (memErr) throw memErr;
@@ -180,7 +182,8 @@ export const HouseholdProvider = ({ children }) => {
         }
       }
       if (hhList.length === 0 && user) {
-        const familyLastName = (profile?.full_name || user?.email?.split('@')[0] || 'My').trim().split(' ').slice(-1)[0];
+        const currentFullName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'My';
+        const familyLastName = currentFullName.trim().split(' ').slice(-1)[0] || 'Family';
         const defaultHH = {
           id: `hh-${Date.now()}`,
           name: `${familyLastName} Household`,
@@ -228,7 +231,9 @@ export const HouseholdProvider = ({ children }) => {
 
       // If a real registered user has 0 households, auto-create a clean household for them
       if (hhList.length === 0 && user) {
-        const familyLastName = (profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'My').trim().split(' ').slice(-1)[0];
+        // ALWAYS use user metadata from the current authenticated user to prevent stale profile leaks
+        const currentFullName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'My';
+        const familyLastName = currentFullName.trim().split(' ').slice(-1)[0] || 'Family';
         const familyName = `${familyLastName} Household`;
 
         const autoCreated = await createHouseholdInternal({
@@ -328,7 +333,9 @@ export const HouseholdProvider = ({ children }) => {
         role: m.role,
         nickname: m.nickname,
         joined_at: m.joined_at,
-        full_name: m.profiles?.full_name || (m.user_id === user?.id ? (profile?.full_name || 'You') : 'Family Member'),
+        full_name: m.user_id === user?.id 
+          ? (user?.user_metadata?.full_name || profile?.full_name || m.profiles?.full_name || 'You')
+          : (m.profiles?.full_name || m.nickname || 'Family Member'),
         email: m.profiles?.email || '',
         avatar_url: m.profiles?.avatar_url || '',
       }));

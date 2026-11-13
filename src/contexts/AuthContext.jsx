@@ -199,7 +199,9 @@ export const AuthProvider = ({ children }) => {
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanName = (fullName || '').trim() || cleanEmail.split('@')[0];
 
-    // Clear any previous demo state
+    // Immediately clear state and any previous demo/user session
+    setUser(null);
+    setProfile(null);
     localStorage.removeItem('tipidlink_demo_user');
     localStorage.removeItem('tipidlink_demo_active');
     localStorage.removeItem('tipidlink_active_household_id');
@@ -218,6 +220,9 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
+      // Ensure any previous session is completely signed out so stale profiles never leak
+      await supabase.auth.signOut();
+
       const { data, error } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
@@ -230,13 +235,13 @@ export const AuthProvider = ({ children }) => {
       if (error) throw error;
 
       if (data?.user) {
-        setUser(data.user);
         const newProfile = {
           id: data.user.id,
           email: cleanEmail,
           full_name: cleanName,
           avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanName)}`,
         };
+        setUser(data.user);
         setProfile(newProfile);
 
         try {
