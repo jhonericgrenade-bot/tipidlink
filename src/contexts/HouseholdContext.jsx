@@ -12,7 +12,7 @@ export const HouseholdProvider = ({ children }) => {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Load households whenever user changes
+  // Load households whenever user or demo status changes
   useEffect(() => {
     if (!user) {
       setHouseholds([]);
@@ -34,11 +34,118 @@ export const HouseholdProvider = ({ children }) => {
     }
   }, [currentHousehold]);
 
+  const generateInviteCode = (name = 'TIPID') => {
+    const clean = name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6) || 'TIPID';
+    const random = Math.floor(1000 + Math.random() * 9000);
+    return `${clean}-${random}`;
+  };
+
+  const createHouseholdInternal = async ({ name, description = '', monthly_budget_target = 0, currency = 'PHP' }) => {
+    const invite_code = generateInviteCode(name);
+
+    if (isDemoMode || !isSupabaseConfigured) {
+      const newHH = {
+        id: `hh-${Date.now()}`,
+        name,
+        description,
+        monthly_budget_target: Number(monthly_budget_target),
+        currency,
+        invite_code,
+        created_by: user.id,
+        created_at: new Date().toISOString(),
+      };
+
+      const storageKey = isDemoMode
+        ? 'tipidlink_demo_households'
+        : `tipidlink_user_households_${user.id}`;
+
+      let currentList = [];
+      try {
+        const saved = localStorage.getItem(storageKey);
+        if (saved) currentList = JSON.parse(saved);
+      } catch (e) {
+        currentList = [];
+      }
+
+      const updatedList = [...currentList, newHH];
+      localStorage.setItem(storageKey, JSON.stringify(updatedList));
+      localStorage.setItem('tipidlink_active_household_id', newHH.id);
+
+      const ownerMember = {
+        id: `mem-${Date.now()}`,
+        household_id: newHH.id,
+        user_id: user.id,
+        full_name: profile?.full_name || 'House Owner',
+        email: profile?.email || user.email,
+        role: 'owner',
+        nickname: profile?.full_name || 'Owner',
+        joined_at: new Date().toISOString(),
+      };
+      setMembers([ownerMember]);
+      localStorage.setItem(`tipidlink_members_${newHH.id}`, JSON.stringify([ownerMember]));
+
+      return { success: true, household: newHH };
+    }
+
+    try {
+      const newId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+          });
+
+      const newHH = {
+        id: newId,
+        name,
+        description,
+        monthly_budget_target: Number(monthly_budget_target),
+        currency,
+        invite_code,
+        created_by: user.id,
+        created_at: new Date().toISOString(),
+      };
+
+      // 1. Insert household without select() to pass Supabase RLS
+      const { error: hhErr } = await supabase
+        .from('households')
+        .insert({
+          id: newId,
+          name,
+          description,
+          monthly_budget_target: Number(monthly_budget_target),
+          currency,
+          invite_code,
+          created_by: user.id,
+        });
+
+      if (hhErr) throw hhErr;
+
+      // 2. Add creator as owner
+      const { error: memErr } = await supabase
+        .from('household_members')
+        .insert({
+          household_id: newId,
+          user_id: user.id,
+          role: 'owner',
+          nickname: profile?.full_name || 'Owner',
+        });
+
+      if (memErr) throw memErr;
+
+      localStorage.setItem('tipidlink_active_household_id', newId);
+      return { success: true, household: newHH };
+    } catch (err) {
+      console.error('Failed to create household:', err);
+      return { success: false, error: err.message };
+    }
+  };
+
   const loadHouseholds = async () => {
     setLoading(true);
 
-    if (isDemoMode || !isSupabaseConfigured) {
-      // Load from localStorage or mockData
+    if (isDemoMode) {
+      // Load Santos demo household
       const savedHH = localStorage.getItem('tipidlink_demo_households');
       let hhList = [];
       if (savedHH) {
@@ -60,8 +167,41 @@ export const HouseholdProvider = ({ children }) => {
       return;
     }
 
+    if (!isSupabaseConfigured) {
+      // Offline fallback for real registered users: do NOT show Santos family
+      const storageKey = `tipidlink_user_households_${user?.id}`;
+      const savedHH = localStorage.getItem(storageKey);
+      let hhList = [];
+      if (savedHH) {
+        try {
+          hhList = JSON.parse(savedHH);
+        } catch {
+          hhList = [];
+        }
+      }
+      if (hhList.length === 0 && user) {
+        const familyLastName = (profile?.full_name || user?.email?.split('@')[0] || 'My').trim().split(' ').slice(-1)[0];
+        const defaultHH = {
+          id: `hh-${Date.now()}`,
+          name: `${familyLastName} Household`,
+          description: 'Aming pampamilyang budget',
+          monthly_budget_target: 0,
+          currency: 'PHP',
+          invite_code: generateInviteCode(familyLastName),
+          created_by: user.id,
+          created_at: new Date().toISOString(),
+        };
+        hhList = [defaultHH];
+        localStorage.setItem(storageKey, JSON.stringify(hhList));
+      }
+      setHouseholds(hhList);
+      setCurrentHousehold(hhList[0] || null);
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Fetch households user is a member of via Supabase
+      // Supabase query for real user's households
       const { data: memberRows, error: memberErr } = await supabase
         .from('household_members')
         .select(`
@@ -82,9 +222,26 @@ export const HouseholdProvider = ({ children }) => {
 
       if (memberErr) throw memberErr;
 
-      const hhList = (memberRows || [])
+      let hhList = (memberRows || [])
         .map(row => row.households)
         .filter(Boolean);
+
+      // If a real registered user has 0 households, auto-create a clean household for them
+      if (hhList.length === 0 && user) {
+        const familyLastName = (profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'My').trim().split(' ').slice(-1)[0];
+        const familyName = `${familyLastName} Household`;
+
+        const autoCreated = await createHouseholdInternal({
+          name: familyName,
+          description: 'Shared family household',
+          monthly_budget_target: 0,
+          currency: 'PHP',
+        });
+
+        if (autoCreated.success && autoCreated.household) {
+          hhList = [autoCreated.household];
+        }
+      }
 
       setHouseholds(hhList);
 
@@ -103,7 +260,7 @@ export const HouseholdProvider = ({ children }) => {
   };
 
   const loadMembers = async (householdId) => {
-    if (isDemoMode || !isSupabaseConfigured) {
+    if (isDemoMode) {
       const savedMembers = localStorage.getItem(`tipidlink_demo_members_${householdId}`);
       if (savedMembers) {
         try {
@@ -114,6 +271,31 @@ export const HouseholdProvider = ({ children }) => {
         }
       }
       setMembers(INITIAL_DEMO_DATA.members);
+      return;
+    }
+
+    if (!isSupabaseConfigured) {
+      const savedMembers = localStorage.getItem(`tipidlink_members_${householdId}`);
+      if (savedMembers) {
+        try {
+          setMembers(JSON.parse(savedMembers));
+          return;
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      const singleMember = [{
+        id: `mem-${user?.id}`,
+        household_id: householdId,
+        user_id: user?.id,
+        role: 'owner',
+        nickname: profile?.full_name || 'Owner',
+        joined_at: new Date().toISOString(),
+        full_name: profile?.full_name || 'Account Owner',
+        email: user?.email || '',
+        avatar_url: profile?.avatar_url || '',
+      }];
+      setMembers(singleMember);
       return;
     }
 
@@ -146,7 +328,7 @@ export const HouseholdProvider = ({ children }) => {
         role: m.role,
         nickname: m.nickname,
         joined_at: m.joined_at,
-        full_name: m.profiles?.full_name || 'Family Member',
+        full_name: m.profiles?.full_name || (m.user_id === user?.id ? (profile?.full_name || 'You') : 'Family Member'),
         email: m.profiles?.email || '',
         avatar_url: m.profiles?.avatar_url || '',
       }));
@@ -165,100 +347,24 @@ export const HouseholdProvider = ({ children }) => {
     }
   };
 
-  const generateInviteCode = (name = 'TIPID') => {
-    const clean = name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6) || 'TIPID';
-    const random = Math.floor(1000 + Math.random() * 9000);
-    return `${clean}-${random}`;
-  };
-
-  const createHousehold = async ({ name, description = '', monthly_budget_target = 50000, currency = 'PHP' }) => {
-    const invite_code = generateInviteCode(name);
-
-    if (isDemoMode || !isSupabaseConfigured) {
-      const newHH = {
-        id: `hh-${Date.now()}`,
-        name,
-        description,
-        monthly_budget_target: Number(monthly_budget_target),
-        currency,
-        invite_code,
-        created_by: user.id,
-        created_at: new Date().toISOString(),
-      };
-
-      const updatedList = [...households, newHH];
-      setHouseholds(updatedList);
-      setCurrentHousehold(newHH);
-      localStorage.setItem('tipidlink_demo_households', JSON.stringify(updatedList));
-      localStorage.setItem('tipidlink_active_household_id', newHH.id);
-
-      const ownerMember = {
-        id: `mem-${Date.now()}`,
-        household_id: newHH.id,
-        user_id: user.id,
-        full_name: profile?.full_name || 'House Owner',
-        email: profile?.email || user.email,
-        role: 'owner',
-        nickname: profile?.full_name || 'Owner',
-        joined_at: new Date().toISOString(),
-      };
-      setMembers([ownerMember]);
-      localStorage.setItem(`tipidlink_demo_members_${newHH.id}`, JSON.stringify([ownerMember]));
-
-      return { success: true, household: newHH };
+  const createHousehold = async ({ name, description = '', monthly_budget_target = 0, currency = 'PHP' }) => {
+    const res = await createHouseholdInternal({ name, description, monthly_budget_target, currency });
+    if (res.success && res.household) {
+      setHouseholds(prev => [...prev, res.household]);
+      setCurrentHousehold(res.household);
     }
-
-    try {
-      // 1. Insert household
-      const { data: hhData, error: hhErr } = await supabase
-        .from('households')
-        .insert({
-          name,
-          description,
-          monthly_budget_target: Number(monthly_budget_target),
-          currency,
-          invite_code,
-          created_by: user.id,
-        })
-        .select()
-        .single();
-
-      if (hhErr) throw hhErr;
-
-      // 2. Add creator as owner
-      const { error: memErr } = await supabase
-        .from('household_members')
-        .insert({
-          household_id: hhData.id,
-          user_id: user.id,
-          role: 'owner',
-          nickname: profile?.full_name || 'Owner',
-        });
-
-      if (memErr) throw memErr;
-
-      const updatedList = [...households, hhData];
-      setHouseholds(updatedList);
-      setCurrentHousehold(hhData);
-      localStorage.setItem('tipidlink_active_household_id', hhData.id);
-
-      return { success: true, household: hhData };
-    } catch (err) {
-      console.error('Create household failed:', err);
-      return { success: false, error: err.message };
-    }
+    return res;
   };
 
   const joinHouseholdByCode = async (inviteCode) => {
     const cleanCode = inviteCode.trim().toUpperCase();
 
-    if (isDemoMode || !isSupabaseConfigured) {
-      // Check if code matches Santos or mock
+    if (isDemoMode) {
       if (cleanCode === 'SANTOS2026' || cleanCode.startsWith('TIPID')) {
         const target = households.find(h => h.invite_code === cleanCode) || INITIAL_DEMO_DATA.household;
         const alreadyIn = members.some(m => m.user_id === user.id && m.household_id === target.id);
         if (alreadyIn) {
-          return { success: false, error: 'You are already a member of this household!' };
+          return { success: false, error: 'Kasapi ka na sa household na ito!' };
         }
         const newMember = {
           id: `mem-${Date.now()}`,
@@ -276,11 +382,14 @@ export const HouseholdProvider = ({ children }) => {
         setCurrentHousehold(target);
         return { success: true, household: target };
       }
-      return { success: false, error: 'Invalid invite code. Try "SANTOS2026" or create a new household.' };
+      return { success: false, error: 'Invalid invite code.' };
+    }
+
+    if (!isSupabaseConfigured) {
+      return { success: false, error: 'Household join requires an active connection.' };
     }
 
     try {
-      // 1. Look up household by invite_code
       const { data: hh, error: lookupErr } = await supabase
         .from('households')
         .select('*')
@@ -288,10 +397,9 @@ export const HouseholdProvider = ({ children }) => {
         .single();
 
       if (lookupErr || !hh) {
-        return { success: false, error: 'Invalid invite code. Please check and try again.' };
+        return { success: false, error: 'Hindi natagpuan ang household gamit ang code na ito. Pakisuri muli.' };
       }
 
-      // 2. Check if already joined
       const { data: existing } = await supabase
         .from('household_members')
         .select('id')
@@ -301,10 +409,9 @@ export const HouseholdProvider = ({ children }) => {
 
       if (existing) {
         setCurrentHousehold(hh);
-        return { success: true, message: 'You are already a member of this household.' };
+        return { success: true, message: 'Kasapi ka na sa household na ito.' };
       }
 
-      // 3. Join
       const { error: joinErr } = await supabase
         .from('household_members')
         .insert({
@@ -333,7 +440,6 @@ export const HouseholdProvider = ({ children }) => {
       setCurrentHousehold(updated);
       const list = households.map(h => h.id === updated.id ? updated : h);
       setHouseholds(list);
-      localStorage.setItem('tipidlink_demo_households', JSON.stringify(list));
       return { success: true };
     }
 
@@ -356,7 +462,6 @@ export const HouseholdProvider = ({ children }) => {
     if (isDemoMode || !isSupabaseConfigured) {
       const updated = members.map(m => m.id === memberId ? { ...m, role: newRole } : m);
       setMembers(updated);
-      localStorage.setItem(`tipidlink_demo_members_${currentHousehold.id}`, JSON.stringify(updated));
       return { success: true };
     }
 
@@ -378,7 +483,6 @@ export const HouseholdProvider = ({ children }) => {
     if (isDemoMode || !isSupabaseConfigured) {
       const updated = members.filter(m => m.id !== memberId);
       setMembers(updated);
-      localStorage.setItem(`tipidlink_demo_members_${currentHousehold.id}`, JSON.stringify(updated));
       return { success: true };
     }
 
@@ -396,9 +500,8 @@ export const HouseholdProvider = ({ children }) => {
     }
   };
 
-  // Find user's role in current household
   const currentMember = members.find(m => m.user_id === user?.id);
-  const currentUserRole = currentMember?.role || 'member';
+  const currentUserRole = currentMember?.role || 'owner';
   const isOwnerOrAdmin = currentUserRole === 'owner' || currentUserRole === 'admin';
 
   return (

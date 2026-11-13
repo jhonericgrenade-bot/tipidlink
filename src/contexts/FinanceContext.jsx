@@ -39,8 +39,8 @@ export const FinanceProvider = ({ children }) => {
   const loadHouseholdData = async (householdId) => {
     setLoading(true);
 
-    if (isDemoMode || !isSupabaseConfigured) {
-      // Load from localStorage or mockData
+    if (isDemoMode) {
+      // Load from localStorage or mockData for demo mode
       const storageKey = `tipidlink_finance_${householdId}`;
       const savedData = localStorage.getItem(storageKey);
 
@@ -59,7 +59,7 @@ export const FinanceProvider = ({ children }) => {
         }
       }
 
-      // Default mock data for Santos Family
+      // Default mock data for Santos Family in demo mode
       setTransactions(INITIAL_DEMO_DATA.transactions);
       setBudgets(INITIAL_DEMO_DATA.budgets);
       setBills(INITIAL_DEMO_DATA.bills);
@@ -75,6 +75,34 @@ export const FinanceProvider = ({ children }) => {
         categories: INITIAL_DEMO_DATA.categories,
       }));
 
+      setLoading(false);
+      return;
+    }
+
+    if (!isSupabaseConfigured) {
+      // Non-demo offline fallback for real registered accounts: MUST start empty!
+      const storageKey = `tipidlink_user_finance_${householdId}`;
+      const savedData = localStorage.getItem(storageKey);
+      if (savedData) {
+        try {
+          const parsed = JSON.parse(savedData);
+          setTransactions(parsed.transactions || []);
+          setBudgets(parsed.budgets || []);
+          setBills(parsed.bills || []);
+          setSavingsGoals(parsed.savingsGoals || []);
+          setCategories(parsed.categories || INITIAL_DEMO_DATA.categories);
+          setLoading(false);
+          return;
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      setTransactions([]);
+      setBudgets([]);
+      setBills([]);
+      setSavingsGoals([]);
+      setCategories(INITIAL_DEMO_DATA.categories);
       setLoading(false);
       return;
     }
@@ -711,9 +739,9 @@ export const FinanceProvider = ({ children }) => {
     }
   };
 
-  // Seed sample Filipino family data button action
+  // Seed sample Filipino family data button action (only permitted in demo mode)
   const resetToDemoData = () => {
-    if (!currentHousehold) return;
+    if (!isDemoMode || !currentHousehold) return;
     setTransactions(INITIAL_DEMO_DATA.transactions);
     setBudgets(INITIAL_DEMO_DATA.budgets);
     setBills(INITIAL_DEMO_DATA.bills);

@@ -32,7 +32,7 @@ import {
 
 export const DashboardPage = () => {
   const { currentHousehold } = useHousehold();
-  const { profile } = useAuth();
+  const { user, profile, isDemoMode } = useAuth();
   const {
     calculations,
     selectedMonth,
@@ -137,7 +137,7 @@ export const DashboardPage = () => {
               <span>Shared Family Budget • {currentHousehold?.name || 'Household'}</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-              Mabuhay, {profile?.full_name?.split(' ')[0] || 'Pamilya'}! 👋
+              Mabuhay, {profile?.full_name?.split(' ')[0] || user?.user_metadata?.full_name?.split(' ')[0] || 'Pamilya'}! 👋
             </h1>
             <p className="mt-1 text-sm text-emerald-100/80 max-w-xl">
               &ldquo;Habang nagtitipid, gumiginhawa ang buhay.&rdquo; Here is your shared family finances and budget status for this month.
@@ -152,14 +152,16 @@ export const DashboardPage = () => {
               <PlusCircle className="h-4 w-4" />
               Add Transaction
             </button>
-            <button
-              onClick={resetToDemoData}
-              className="group inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-2.5 text-xs font-semibold text-white backdrop-blur-xs hover:bg-white/20 active-press transition border border-white/10 cursor-pointer"
-              title="Reload sample Filipino household data"
-            >
-              <RefreshCw className="h-3.5 w-3.5 transition-transform duration-500 group-hover:rotate-180" />
-              Reload Demo Data
-            </button>
+            {isDemoMode && (
+              <button
+                onClick={resetToDemoData}
+                className="group inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-2.5 text-xs font-semibold text-white backdrop-blur-xs hover:bg-white/20 active-press transition border border-white/10 cursor-pointer"
+                title="Reload sample Filipino household data"
+              >
+                <RefreshCw className="h-3.5 w-3.5 transition-transform duration-500 group-hover:rotate-180" />
+                Reload Demo Data
+              </button>
+            )}
           </div>
         </div>
       </div>
