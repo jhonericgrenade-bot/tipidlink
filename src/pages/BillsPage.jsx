@@ -270,9 +270,9 @@ export const BillsPage = () => {
             return (
               <div
                 key={bill.id}
-                className={`rounded-2xl bg-white p-5 shadow-xs border transition flex flex-col justify-between ${
+                className={`rounded-2xl bg-white p-5 shadow-xs border transition-all duration-300 hover-lift flex flex-col justify-between ${
                   bill.computedStatus === 'overdue'
-                    ? 'border-rose-300 ring-2 ring-rose-100'
+                    ? 'border-rose-300 ring-2 ring-rose-100 bg-rose-50/20'
                     : 'border-slate-200/80 hover:border-slate-300'
                 }`}
               >
@@ -306,11 +306,13 @@ export const BillsPage = () => {
 
                   {/* Payment Progress bar */}
                   <div className="mt-3">
-                    <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                    <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden p-0.5">
                       <div
-                        className="h-full rounded-full bg-emerald-500 transition-all duration-300"
+                        className="relative h-full rounded-full bg-emerald-500 overflow-hidden transition-all duration-500"
                         style={{ width: `${Math.min(100, percentPaid)}%` }}
-                      />
+                      >
+                        <div className="absolute inset-0 animate-shimmer" />
+                      </div>
                     </div>
                   </div>
 
@@ -340,14 +342,14 @@ export const BillsPage = () => {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => openHistoryModal(bill)}
-                      className="rounded-lg p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                      className="rounded-lg p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 active-press transition cursor-pointer"
                       title="Payment history"
                     >
                       <History className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => openDeleteModal(bill)}
-                      className="rounded-lg p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                      className="rounded-lg p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 active-press transition cursor-pointer"
                       title="Delete bill"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -357,7 +359,7 @@ export const BillsPage = () => {
                   {bill.computedStatus !== 'paid' ? (
                     <button
                       onClick={() => openPayModal(bill)}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-xs"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 active-press hover-lift transition shadow-xs cursor-pointer"
                     >
                       <CreditCard className="h-3.5 w-3.5" />
                       Pay Bill

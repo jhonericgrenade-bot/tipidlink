@@ -66,14 +66,14 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
         <div className="flex items-center gap-2">
           <button
             onClick={onOpenJoin}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 active-press hover-lift transition cursor-pointer"
           >
             <KeyRound className="h-4 w-4 text-indigo-600" />
             Join with Code
           </button>
           <button
             onClick={onOpenCreate}
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition"
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press hover-lift transition cursor-pointer"
           >
             <Home className="h-4 w-4" />
             New Household
@@ -84,10 +84,10 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
       {/* Household Profile & Invite Code Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Household Profile Card */}
-        <div className="md:col-span-2 rounded-3xl bg-white p-6 shadow-xs border border-slate-200/80">
+        <div className="md:col-span-2 rounded-3xl bg-white p-6 shadow-xs border border-slate-200/80 hover-lift-subtle card-interactive">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-800">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-800 shadow-xs">
                 <Home className="h-6 w-6" />
               </div>
               <div>
@@ -106,7 +106,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
                   setEditBudget(String(currentHousehold.monthly_budget_target || 65000));
                   setIsEditProfileOpen(true);
                 }}
-                className="rounded-xl border border-slate-200 p-2 text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition"
+                className="rounded-xl border border-slate-200 p-2 text-slate-500 hover:bg-slate-50 hover:text-slate-900 active-press transition cursor-pointer"
                 title="Edit Household Info"
               >
                 <Edit className="h-4 w-4" />

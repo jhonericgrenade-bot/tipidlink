@@ -361,11 +361,11 @@ export const TransactionsPage = () => {
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
                 {filteredTransactions.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-slate-50/80 transition">
+                  <tr key={tx.id} className="group hover:bg-slate-50/90 transition-colors">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
                         <div
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg shadow-xs transition-transform duration-200 group-hover:scale-110 ${
                             tx.type === 'income'
                               ? 'bg-emerald-100 text-emerald-700'
                               : 'bg-rose-100 text-rose-700'
@@ -378,7 +378,7 @@ export const TransactionsPage = () => {
                           )}
                         </div>
                         <div>
-                          <p className="font-bold text-slate-900 leading-tight">{tx.description}</p>
+                          <p className="font-bold text-slate-900 leading-tight group-hover:text-emerald-950 transition-colors">{tx.description}</p>
                           <p className="text-[10px] text-slate-400">
                             Logged by: <span className="font-medium text-slate-600">{tx.user_name || 'Member'}</span>
                             {tx.notes && ` • "${tx.notes}"`}
@@ -411,14 +411,14 @@ export const TransactionsPage = () => {
                       <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={() => openEditModal(tx)}
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+                          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 active-press transition cursor-pointer"
                           title="Edit"
                         >
                           <Edit2 className="h-3.5 w-3.5" />
                         </button>
                         <button
                           onClick={() => openDeleteModal(tx)}
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition"
+                          className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 active-press transition cursor-pointer"
                           title="Delete"
                         >
                           <Trash2 className="h-3.5 w-3.5" />

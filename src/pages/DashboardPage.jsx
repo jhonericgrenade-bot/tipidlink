@@ -206,6 +206,7 @@ export const DashboardPage = () => {
           subtitle={`${months[selectedMonth - 1]} ${selectedYear}`}
           icon={TrendingUp}
           colorScheme="emerald"
+          className="animate-slide-up stagger-1"
         />
 
         <StatCard
@@ -214,6 +215,7 @@ export const DashboardPage = () => {
           subtitle={`${calculations.monthlyTransactions.filter(t => t.type === 'expense').length} transactions recorded`}
           icon={TrendingDown}
           colorScheme="rose"
+          className="animate-slide-up stagger-2"
         />
 
         <StatCard
@@ -228,6 +230,7 @@ export const DashboardPage = () => {
           colorScheme={calculations.isOverspent ? 'rose' : 'sky'}
           isAlert={calculations.isOverspent}
           badgeText={calculations.isOverspent ? 'OVERSPENT' : undefined}
+          className="animate-slide-up stagger-3"
         />
 
         <StatCard
@@ -238,11 +241,12 @@ export const DashboardPage = () => {
           colorScheme={calculations.overdueBills.length > 0 ? 'amber' : 'purple'}
           isAlert={calculations.overdueBills.length > 0}
           badgeText={calculations.overdueBills.length > 0 ? `${calculations.overdueBills.length} Overdue` : undefined}
+          className="animate-slide-up stagger-4"
         />
       </div>
 
       {/* Budget Meter Bar */}
-      <div className="rounded-2xl bg-white p-6 shadow-xs border border-slate-200/80">
+      <div className="rounded-2xl bg-white p-6 shadow-xs border border-slate-200/80 hover-lift-subtle card-interactive">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
           <div>
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">
@@ -270,7 +274,7 @@ export const DashboardPage = () => {
         {/* Meter progress bar */}
         <div className="h-4 w-full rounded-full bg-slate-100 overflow-hidden p-0.5">
           <div
-            className={`h-full rounded-full transition-all duration-500 ${
+            className={`relative h-full rounded-full overflow-hidden transition-all duration-500 ${
               calculations.isOverspent
                 ? 'bg-rose-500'
                 : calculations.budgetUsagePercent > 80
@@ -278,7 +282,9 @@ export const DashboardPage = () => {
                 : 'bg-gradient-to-r from-emerald-500 to-teal-500'
             }`}
             style={{ width: `${Math.min(100, calculations.budgetUsagePercent)}%` }}
-          />
+          >
+            <div className="absolute inset-0 animate-shimmer" />
+          </div>
         </div>
 
         {calculations.isOverspent && (
@@ -295,7 +301,7 @@ export const DashboardPage = () => {
       {/* Charts & Spending Breakdown Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Category Breakdown Chart */}
-        <div className="lg:col-span-2 rounded-2xl bg-white p-6 shadow-xs border border-slate-200/80">
+        <div className="lg:col-span-2 rounded-2xl bg-white p-6 shadow-xs border border-slate-200/80 hover-lift-subtle card-interactive">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-base font-bold text-slate-900">Spending Breakdown</h3>
@@ -303,9 +309,9 @@ export const DashboardPage = () => {
             </div>
             <Link
               to="/budgets"
-              className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 group"
             >
-              Manage Budgets <ArrowRight className="h-3 w-3" />
+              Manage Budgets <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-1" />
             </Link>
           </div>
 
@@ -341,9 +347,9 @@ export const DashboardPage = () => {
               </div>
 
               {/* Category ranking list */}
-              <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+              <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
                 {calculations.categoryBreakdown.slice(0, 5).map((cat, idx) => (
-                  <div key={cat.name} className="flex items-center justify-between text-xs">
+                  <div key={cat.name} className="flex items-center justify-between text-xs p-2 rounded-xl hover:bg-slate-50 transition-colors">
                     <div className="flex items-center gap-2 truncate pr-2">
                       <span
                         className="h-2.5 w-2.5 rounded-full shrink-0"
@@ -369,34 +375,36 @@ export const DashboardPage = () => {
         </div>
 
         {/* Savings Goals Widget */}
-        <div className="rounded-2xl bg-white p-6 shadow-xs border border-slate-200/80 flex flex-col justify-between">
+        <div className="rounded-2xl bg-white p-6 shadow-xs border border-slate-200/80 flex flex-col justify-between hover-lift-subtle card-interactive">
           <div>
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-base font-bold text-slate-900">Family Savings Goals</h3>
-                <p className="text-xs text-slate-400">Pondong Pang-ipit & Dreams</p>
+                <p className="text-xs text-slate-400">Pondong Pang-ipit &amp; Dreams</p>
               </div>
               <Link
                 to="/savings"
-                className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 group"
               >
-                View All <ArrowRight className="h-3 w-3" />
+                View All <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-1" />
               </Link>
             </div>
 
             <div className="space-y-4">
-              <div className="rounded-xl bg-emerald-50/70 p-3.5 border border-emerald-100">
+              <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50/70 p-4 border border-emerald-100">
                 <span className="text-xs font-medium text-emerald-800">Total Saved Across Goals</span>
-                <p className="text-xl font-black text-emerald-900 mt-0.5">
+                <p className="text-2xl font-black text-emerald-950 mt-0.5">
                   {formatPHP(calculations.totalSavedAllGoals)}
                 </p>
-                <div className="mt-2 h-2 w-full rounded-full bg-emerald-200 overflow-hidden">
+                <div className="mt-3 h-2.5 w-full rounded-full bg-emerald-200/80 overflow-hidden p-0.5">
                   <div
-                    className="h-full rounded-full bg-emerald-600 transition-all duration-500"
+                    className="relative h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 overflow-hidden transition-all duration-500"
                     style={{ width: `${Math.min(100, calculations.overallSavingsProgress)}%` }}
-                  />
+                  >
+                    <div className="absolute inset-0 animate-shimmer" />
+                  </div>
                 </div>
-                <p className="mt-1 text-[11px] text-emerald-700 font-semibold text-right">
+                <p className="mt-1.5 text-[11px] text-emerald-800 font-bold text-right">
                   {calculations.overallSavingsProgress.toFixed(1)}% of total target
                 </p>
               </div>
@@ -406,7 +414,7 @@ export const DashboardPage = () => {
           <div className="mt-6 pt-4 border-t border-slate-100">
             <Link
               to="/savings"
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-2.5 text-xs font-bold text-white hover:bg-slate-800 active-press hover-lift transition cursor-pointer"
             >
               <PiggyBank className="h-4 w-4" />
               Manage Savings Goals
@@ -416,25 +424,25 @@ export const DashboardPage = () => {
       </div>
 
       {/* Upcoming & Overdue Bills Section */}
-      <div className="rounded-2xl bg-white p-6 shadow-xs border border-slate-200/80">
+      <div className="rounded-2xl bg-white p-6 shadow-xs border border-slate-200/80 hover-lift-subtle card-interactive">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-base font-bold text-slate-900">Upcoming & Overdue Bills</h3>
+            <h3 className="text-base font-bold text-slate-900">Upcoming &amp; Overdue Bills</h3>
             <p className="text-xs text-slate-400">
               Never miss electricity, water, internet, or tuition deadlines
             </p>
           </div>
           <Link
             to="/bills"
-            className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 group"
           >
-            All Bills <ArrowRight className="h-3 w-3" />
+            All Bills <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-1" />
           </Link>
         </div>
 
         {calculations.overdueBills.length === 0 && calculations.upcomingBills.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
-            <CheckCircle2 className="h-10 w-10 text-emerald-500 mb-2" />
+            <CheckCircle2 className="h-10 w-10 text-emerald-500 mb-2 animate-bounce-subtle" />
             <p className="text-sm font-bold text-slate-800">All Bills are Paid!</p>
             <p className="text-xs text-slate-400">No pending household bills right now.</p>
           </div>
@@ -445,10 +453,10 @@ export const DashboardPage = () => {
               return (
                 <div
                   key={bill.id}
-                  className={`rounded-xl p-4 border transition ${
+                  className={`rounded-2xl p-4 border transition-all duration-300 hover-lift ${
                     bill.computedStatus === 'overdue'
-                      ? 'border-rose-200 bg-rose-50/40'
-                      : 'border-slate-200 bg-slate-50/50 hover:bg-white'
+                      ? 'border-rose-200 bg-rose-50/40 ring-1 ring-rose-200/50'
+                      : 'border-slate-200/80 bg-slate-50/50 hover:bg-white hover:border-slate-300'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -480,7 +488,7 @@ export const DashboardPage = () => {
                   <div className="mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-end">
                     <button
                       onClick={() => openPayModalForBill(bill)}
-                      className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 transition"
+                      className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 active-press hover-lift transition cursor-pointer"
                     >
                       Record Payment
                     </button>
@@ -493,7 +501,7 @@ export const DashboardPage = () => {
       </div>
 
       {/* Recent Transactions List */}
-      <div className="rounded-2xl bg-white p-6 shadow-xs border border-slate-200/80">
+      <div className="rounded-2xl bg-white p-6 shadow-xs border border-slate-200/80 hover-lift-subtle card-interactive">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-base font-bold text-slate-900">Recent Household Activity</h3>
@@ -501,9 +509,9 @@ export const DashboardPage = () => {
           </div>
           <Link
             to="/transactions"
-            className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 group"
           >
-            View All Transactions <ArrowRight className="h-3 w-3" />
+            View All Transactions <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-1" />
           </Link>
         </div>
 
@@ -514,12 +522,15 @@ export const DashboardPage = () => {
         ) : (
           <div className="divide-y divide-slate-100">
             {calculations.monthlyTransactions.slice(0, 6).map((tx) => (
-              <div key={tx.id} className="py-3 flex items-center justify-between gap-4">
+              <div
+                key={tx.id}
+                className="group py-2.5 px-3 -mx-3 rounded-2xl flex items-center justify-between gap-4 hover:bg-slate-50/90 transition-all cursor-pointer"
+              >
                 <div className="flex items-center gap-3 min-w-0">
                   <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-xs transition-transform duration-300 group-hover:scale-110 ${
                       tx.type === 'income'
-                        ? 'bg-emerald-100 text-emerald-700'
+                        ? 'bg-emerald-100/80 text-emerald-700'
                         : 'bg-slate-100 text-slate-700'
                     }`}
                   >
@@ -530,7 +541,9 @@ export const DashboardPage = () => {
                     )}
                   </div>
                   <div className="truncate">
-                    <p className="truncate text-sm font-bold text-slate-900">{tx.description}</p>
+                    <p className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-950 transition-colors">
+                      {tx.description}
+                    </p>
                     <p className="text-xs text-slate-400">
                       {tx.category_name} • By {tx.user_name || 'Member'} • {formatDate(tx.transaction_date)}
                     </p>
@@ -538,7 +551,7 @@ export const DashboardPage = () => {
                 </div>
                 <div className="text-right shrink-0">
                   <span
-                    className={`text-sm font-extrabold ${
+                    className={`text-sm font-black ${
                       tx.type === 'income' ? 'text-emerald-600' : 'text-slate-900'
                     }`}
                   >

@@ -165,11 +165,13 @@ export const SavingsPage = () => {
         </div>
 
         {/* Big Progress Bar */}
-        <div className="mt-6 h-3 w-full rounded-full bg-slate-800/80 overflow-hidden border border-slate-700">
+        <div className="mt-6 h-3.5 w-full rounded-full bg-slate-800/80 overflow-hidden p-0.5 border border-slate-700">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-300 transition-all duration-500"
+            className="relative h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-300 overflow-hidden transition-all duration-500"
             style={{ width: `${Math.min(100, overallPercentage)}%` }}
-          />
+          >
+            <div className="absolute inset-0 animate-shimmer" />
+          </div>
         </div>
       </div>
 
@@ -178,7 +180,7 @@ export const SavingsPage = () => {
         <div className="flex items-center gap-4">
           <button
             onClick={() => setActiveTab('active')}
-            className={`pb-3 text-sm font-bold transition border-b-2 ${
+            className={`pb-3 text-sm font-bold transition border-b-2 cursor-pointer ${
               activeTab === 'active'
                 ? 'border-emerald-600 text-emerald-800'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -188,7 +190,7 @@ export const SavingsPage = () => {
           </button>
           <button
             onClick={() => setActiveTab('completed')}
-            className={`pb-3 text-sm font-bold transition border-b-2 ${
+            className={`pb-3 text-sm font-bold transition border-b-2 cursor-pointer ${
               activeTab === 'completed'
                 ? 'border-emerald-600 text-emerald-800'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -201,7 +203,7 @@ export const SavingsPage = () => {
 
       {/* Goals Grid */}
       {displayedGoals.length === 0 ? (
-        <div className="rounded-2xl bg-white p-8 border border-slate-200/80">
+        <div className="rounded-2xl bg-white p-8 border border-slate-200/80 hover-lift-subtle">
           <EmptyState
             icon={PiggyBank}
             title={activeTab === 'active' ? 'No active goals yet' : 'No completed goals yet'}
@@ -225,7 +227,7 @@ export const SavingsPage = () => {
             return (
               <div
                 key={goal.id}
-                className={`rounded-2xl bg-white p-5 shadow-xs border transition flex flex-col justify-between ${
+                className={`rounded-2xl bg-white p-5 shadow-xs border transition-all duration-300 hover-lift flex flex-col justify-between ${
                   goal.is_completed
                     ? 'border-emerald-300 ring-2 ring-emerald-100 bg-emerald-50/20'
                     : 'border-slate-200/80 hover:border-slate-300'
@@ -242,7 +244,7 @@ export const SavingsPage = () => {
                       )}
                     </div>
                     {goal.is_completed ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800 animate-pulse-subtle">
                         <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Achieved
                       </span>
                     ) : (
@@ -272,13 +274,15 @@ export const SavingsPage = () => {
 
                   {/* Progress Bar */}
                   <div className="mt-3">
-                    <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                    <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden p-0.5">
                       <div
-                        className={`h-full rounded-full transition-all duration-300 ${
-                          goal.is_completed ? 'bg-emerald-500' : 'bg-emerald-600'
+                        className={`relative h-full rounded-full overflow-hidden transition-all duration-500 ${
+                          goal.is_completed ? 'bg-emerald-500' : 'bg-gradient-to-r from-emerald-500 to-teal-500'
                         }`}
                         style={{ width: `${Math.min(100, percent)}%` }}
-                      />
+                      >
+                        <div className="absolute inset-0 animate-shimmer" />
+                      </div>
                     </div>
                   </div>
 
@@ -311,7 +315,7 @@ export const SavingsPage = () => {
                   {!goal.is_completed && (
                     <button
                       onClick={() => openContributeModal(goal)}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-xs"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 active-press hover-lift transition shadow-xs cursor-pointer"
                     >
                       <Coins className="h-3.5 w-3.5" />
                       Add Savings
