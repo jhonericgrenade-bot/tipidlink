@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Lock, Mail, AlertCircle, ArrowRight, Eye, EyeOff, Sparkles, ShieldCheck, KeyRound, CheckCircle2, X } from 'lucide-react';
 
 export const LoginPage = () => {
-  const { signIn, signInWithPin, loginAsDemo, resetPasswordWithPin } = useAuth();
+  const { signIn, signInWithPin, loginAsDemo, resetPasswordWithPin, resetPassword } = useAuth();
   const navigate = useNavigate();
 
   // Mode: 'pin' or 'password' (defaults to 'pin' for ultra-fast, direct login)
@@ -17,8 +17,9 @@ export const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Forgot Password modal state (Option 1: In-App 4-Digit Security PIN)
+  // Forgot Password modal state (PIN or Email recovery)
   const [isForgotOpen, setIsForgotOpen] = useState(false);
+  const [recoveryMethod, setRecoveryMethod] = useState('pin'); // 'pin' or 'email'
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotPin, setForgotPin] = useState('');
   const [showForgotPin, setShowForgotPin] = useState(false);
@@ -119,6 +120,26 @@ export const LoginPage = () => {
       }, 2000);
     } else {
       setForgotError(res.error || 'Hindi mabago ang password. Pakisuri ang impormasyon.');
+    }
+  };
+
+  const handleForgotWithEmail = async (e) => {
+    e.preventDefault();
+    if (!forgotEmail.trim()) {
+      setForgotError('Pakilagay ang iyong rehistradong email address.');
+      return;
+    }
+    setForgotError('');
+    setForgotMessage('');
+    setForgotLoading(true);
+
+    const res = await resetPassword(forgotEmail.trim());
+    setForgotLoading(false);
+
+    if (res.success) {
+      setForgotMessage(res.message || `Napadala na ang password reset link sa ${forgotEmail.trim()}! Pakisuri ang iyong inbox o spam folder.`);
+    } else {
+      setForgotError(res.error || 'Hindi maipadala ang reset link. Pakisuri kung tama ang email.');
     }
   };
 
@@ -388,16 +409,54 @@ export const LoginPage = () => {
 
             <div className="flex items-center gap-3 mb-4">
               <div className="h-12 w-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 shadow-xs">
-                <ShieldCheck className="h-6 w-6" />
+                {recoveryMethod === 'pin' ? <ShieldCheck className="h-6 w-6" /> : <Mail className="h-6 w-6" />}
               </div>
               <div>
                 <h3 className="text-lg font-black text-white">
-                  Reset Password via PIN
+                  {recoveryMethod === 'pin' ? 'Reset Password via PIN' : 'Reset Password via Email (Layer 1)'}
                 </h3>
                 <p className="text-xs text-slate-300">
-                  Instant reset sa mobile at desktop nang walang email links
+                  {recoveryMethod === 'pin'
+                    ? 'Instant reset sa mobile at desktop nang walang email links'
+                    : 'I-recover ang account gamit ang iyong registered Gmail'}
                 </p>
               </div>
+            </div>
+
+            {/* Recovery Mode Switcher Tabs */}
+            <div className="grid grid-cols-2 p-1 bg-white/10 rounded-2xl mb-4 border border-white/10">
+              <button
+                type="button"
+                onClick={() => {
+                  setRecoveryMethod('pin');
+                  setForgotError('');
+                  setForgotMessage('');
+                }}
+                className={`flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
+                  recoveryMethod === 'pin'
+                    ? 'bg-emerald-500 text-slate-950 shadow-xs'
+                    : 'text-slate-300 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <KeyRound className="h-3.5 w-3.5" />
+                <span>Via 4-Digit PIN</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRecoveryMethod('email');
+                  setForgotError('');
+                  setForgotMessage('');
+                }}
+                className={`flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
+                  recoveryMethod === 'email'
+                    ? 'bg-emerald-500 text-slate-950 shadow-xs'
+                    : 'text-slate-300 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Mail className="h-3.5 w-3.5" />
+                <span>Via Gmail (Layer 1)</span>
+              </button>
             </div>
 
             {forgotMessage && (
@@ -414,117 +473,195 @@ export const LoginPage = () => {
               </div>
             )}
 
-            <form onSubmit={handleForgotWithPin} className="space-y-3.5">
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
-                  Registered Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-emerald-400/70" />
-                  <input
-                    type="email"
-                    required
-                    placeholder="name@example.com"
-                    value={forgotEmail}
-                    onChange={(e) => setForgotEmail(e.target.value)}
-                    className="w-full rounded-2xl border border-white/15 bg-white/10 py-2.5 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 focus:border-emerald-400 focus:outline-hidden"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-bold text-slate-300">
-                    4-Digit Security PIN
+            {recoveryMethod === 'pin' ? (
+              /* Option 1: 4-Digit Security PIN Recovery Form */
+              <form onSubmit={handleForgotWithPin} className="space-y-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Registered Email Address
                   </label>
-                  <span className="text-[10px] font-medium text-emerald-300/80">
-                    PIN mo nung nag-register
-                  </span>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-emerald-400/70" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="name@example.com"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      className="w-full rounded-2xl border border-white/15 bg-white/10 py-2.5 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 focus:border-emerald-400 focus:outline-hidden"
+                    />
+                  </div>
                 </div>
-                <div className="relative">
-                  <KeyRound className="absolute left-3.5 top-3 h-4 w-4 text-emerald-400/70" />
-                  <input
-                    type={showForgotPin ? 'text' : 'password'}
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={4}
-                    required
-                    placeholder="••••"
-                    value={forgotPin}
-                    onChange={(e) => setForgotPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    className="w-full rounded-2xl border border-white/15 bg-white/10 py-2 pl-10 pr-10 text-center font-mono text-lg font-black tracking-widest text-emerald-300 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-hidden"
-                  />
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-300">
+                      4-Digit Security PIN
+                    </label>
+                    <span className="text-[10px] font-medium text-emerald-300/80">
+                      PIN mo nung nag-register
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <KeyRound className="absolute left-3.5 top-3 h-4 w-4 text-emerald-400/70" />
+                    <input
+                      type={showForgotPin ? 'text' : 'password'}
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={4}
+                      required
+                      placeholder="••••"
+                      value={forgotPin}
+                      onChange={(e) => setForgotPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      className="w-full rounded-2xl border border-white/15 bg-white/10 py-2 pl-10 pr-10 text-center font-mono text-lg font-black tracking-widest text-emerald-300 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotPin(!showForgotPin)}
+                      className="absolute right-3 top-2.5 p-1 text-slate-400 hover:text-emerald-300 rounded-lg transition"
+                    >
+                      {showForgotPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Gamitin ang 4-digit PIN na itinakda sa registration (o <strong>0000</strong> kung lumang account).
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    New Password (Min. 8 chars)
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-3 h-4 w-4 text-emerald-400/70" />
+                    <input
+                      type={showForgotNewPassword ? 'text' : 'password'}
+                      required
+                      placeholder="••••••••"
+                      value={forgotNewPassword}
+                      onChange={(e) => setForgotNewPassword(e.target.value)}
+                      className="w-full rounded-2xl border border-white/15 bg-white/10 py-2 pl-10 pr-10 text-sm text-white placeholder:text-slate-400 focus:border-emerald-400 focus:outline-hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotNewPassword(!showForgotNewPassword)}
+                      className="absolute right-3 top-2 p-1 text-slate-400 hover:text-emerald-300 rounded-lg transition"
+                    >
+                      {showForgotNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Confirm New Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-3 h-4 w-4 text-emerald-400/70" />
+                    <input
+                      type={showForgotNewPassword ? 'text' : 'password'}
+                      required
+                      placeholder="••••••••"
+                      value={forgotConfirmPassword}
+                      onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                      className="w-full rounded-2xl border border-white/15 bg-white/10 py-2 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 focus:border-emerald-400 focus:outline-hidden"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
                   <button
                     type="button"
-                    onClick={() => setShowForgotPin(!showForgotPin)}
-                    className="absolute right-3 top-2.5 p-1 text-slate-400 hover:text-emerald-300 rounded-lg transition"
+                    onClick={() => {
+                      setRecoveryMethod('email');
+                      setForgotError('');
+                      setForgotMessage('');
+                    }}
+                    className="text-[11px] text-emerald-300 hover:text-emerald-200 underline cursor-pointer"
                   >
-                    {showForgotPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    Nakalimutan pati PIN? I-reset gamit ang Gmail
                   </button>
-                </div>
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Gamitin ang 4-digit PIN na itinakda sa registration (o <strong>0000</strong> kung lumang account).
-                </p>
-              </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
-                  New Password (Min. 8 chars)
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-3 h-4 w-4 text-emerald-400/70" />
-                  <input
-                    type={showForgotNewPassword ? 'text' : 'password'}
-                    required
-                    placeholder="••••••••"
-                    value={forgotNewPassword}
-                    onChange={(e) => setForgotNewPassword(e.target.value)}
-                    className="w-full rounded-2xl border border-white/15 bg-white/10 py-2 pl-10 pr-10 text-sm text-white placeholder:text-slate-400 focus:border-emerald-400 focus:outline-hidden"
-                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsForgotOpen(false)}
+                      className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={forgotLoading}
+                      className="rounded-xl bg-emerald-500 px-5 py-2.5 text-xs font-black text-slate-950 hover:bg-emerald-400 transition disabled:opacity-50 cursor-pointer shadow-md shadow-emerald-500/20"
+                    >
+                      {forgotLoading ? 'Updating...' : 'Change Password'}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            ) : (
+              /* Option 2: Layer 1 - Email Reset Link Form */
+              <form onSubmit={handleForgotWithEmail} className="space-y-4">
+                <div className="rounded-2xl bg-white/5 border border-white/10 p-3.5 text-xs text-slate-300 space-y-2">
+                  <p className="font-semibold text-emerald-300 flex items-center gap-1.5">
+                    <Mail className="h-4 w-4 text-emerald-400" />
+                    <span>Layer 1: Gmail Account Recovery</span>
+                  </p>
+                  <p className="leading-relaxed text-[11px] text-slate-300">
+                    Kung nakalimutan mo ang parehong Password at 4-Digit Security PIN, magpapadala kami ng secure reset link sa iyong rehistradong Gmail inbox upang patunayan na ikaw ang may-ari ng account.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Registered Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-emerald-400/70" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="name@example.com"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      className="w-full rounded-2xl border border-white/15 bg-white/10 py-3 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 focus:border-emerald-400 focus:outline-hidden"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
                   <button
                     type="button"
-                    onClick={() => setShowForgotNewPassword(!showForgotNewPassword)}
-                    className="absolute right-3 top-2 p-1 text-slate-400 hover:text-emerald-300 rounded-lg transition"
+                    onClick={() => {
+                      setRecoveryMethod('pin');
+                      setForgotError('');
+                      setForgotMessage('');
+                    }}
+                    className="text-[11px] text-emerald-300 hover:text-emerald-200 underline cursor-pointer"
                   >
-                    {showForgotNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    Naaalala ang PIN? Bumalik sa PIN Reset
                   </button>
-                </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
-                  Confirm New Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-3 h-4 w-4 text-emerald-400/70" />
-                  <input
-                    type={showForgotNewPassword ? 'text' : 'password'}
-                    required
-                    placeholder="••••••••"
-                    value={forgotConfirmPassword}
-                    onChange={(e) => setForgotConfirmPassword(e.target.value)}
-                    className="w-full rounded-2xl border border-white/15 bg-white/10 py-2 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 focus:border-emerald-400 focus:outline-hidden"
-                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsForgotOpen(false)}
+                      className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={forgotLoading || !forgotEmail.trim()}
+                      className="rounded-xl bg-emerald-500 px-5 py-2.5 text-xs font-black text-slate-950 hover:bg-emerald-400 transition disabled:opacity-50 cursor-pointer shadow-md shadow-emerald-500/20"
+                    >
+                      {forgotLoading ? 'Sending...' : 'Send Reset Link to Email'}
+                    </button>
+                  </div>
                 </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsForgotOpen(false)}
-                  className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={forgotLoading}
-                  className="rounded-xl bg-emerald-500 px-5 py-2.5 text-xs font-black text-slate-950 hover:bg-emerald-400 transition disabled:opacity-50 cursor-pointer shadow-md shadow-emerald-500/20"
-                >
-                  {forgotLoading ? 'Updating...' : 'Change Password'}
-                </button>
-              </div>
-            </form>
+              </form>
+            )}
           </div>
         </div>
       )}
