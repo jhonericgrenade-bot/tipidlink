@@ -13,9 +13,8 @@ const escapeCSV = (value) => {
 
 /**
  * Universal CSV Exporter
- * Attempts Native Mobile Share (iOS/Android Share Sheet -> Files/Drive/Excel)
- * Falls back to Blob URL download for Desktop PC
- * Falls back to Data URI / Clipboard copy for restricted in-app WebViews
+ * Direct download directly into Android/PC "Downloads" folder / "Files" app
+ * Fallbacks to Data URI, Web Share, or Clipboard if in-app browser blocks direct download
  */
 export const exportToCSV = async ({ filename, headers, rows, title = 'TipidLink Export' }) => {
   if (!rows || rows.length === 0) {
@@ -33,30 +32,7 @@ export const exportToCSV = async ({ filename, headers, rows, title = 'TipidLink 
   const csvContent = '\uFEFF' + csvBody;
   const cleanFilename = filename.endsWith('.csv') ? filename : `${filename}.csv`;
 
-  // 1. Check for Mobile Web Share API with file support (Best UX for iPhone, iPad & Android)
-  if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
-    try {
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const file = new File([blob], cleanFilename, { type: 'text/csv' });
-
-      if (navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: title,
-          text: `${title} (${rows.length} records exported from TipidLink)`,
-        });
-        return { success: true, method: 'native_share' };
-      }
-    } catch (shareErr) {
-      // User tapped "Cancel" in the native share sheet
-      if (shareErr.name === 'AbortError') {
-        return { success: true, method: 'cancelled' };
-      }
-      console.warn('Native share failed or dismissed, proceeding to file download fallback:', shareErr);
-    }
-  }
-
-  // 2. Standard Blob Download for PC / Desktop Browsers & standard Mobile Browsers
+  // 1. Direct File Download (Saves directly to Android "Downloads" / PC Downloads / iOS Files)
   try {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -70,49 +46,33 @@ export const exportToCSV = async ({ filename, headers, rows, title = 'TipidLink 
     setTimeout(() => {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-    }, 800);
+    }, 1000);
 
-    return { success: true, method: 'blob_download' };
+    return { success: true, method: 'direct_download', filename: cleanFilename };
   } catch (downloadErr) {
-    console.warn('Blob download encountered error, attempting Data-URI fallback:', downloadErr);
+    console.warn('Direct blob download failed, trying data-uri fallback:', downloadErr);
   }
 
-  // 3. Fallback for restricted mobile in-app webviews (e.g. Messenger, Instagram, WeChat)
+  // 2. Fallback: Data-URI link for browsers that block object URLs
   try {
     const encodedUri = encodeURI(`data:text/csv;charset=utf-8,${csvContent}`);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
     link.setAttribute('download', cleanFilename);
-    link.setAttribute('target', '_blank');
+    link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    return { success: true, method: 'data_uri' };
+    return { success: true, method: 'data_uri', filename: cleanFilename };
   } catch (dataUriErr) {
-    console.error('All automatic download methods failed:', dataUriErr);
-    // Ultimate fallback: copy to clipboard
-    try {
-      await navigator.clipboard.writeText(csvContent);
-      alert('The exported CSV content has been copied to your clipboard. You can paste it directly into Excel or Google Sheets.');
-      return { success: true, method: 'clipboard' };
-    } catch (clipErr) {
-      alert(`Could not export file: ${dataUriErr.message || 'Download blocked by browser'}`);
-      return { success: false, error: dataUriErr };
-    }
+    console.warn('Data-URI fallback failed, attempting Web Share:', dataUriErr);
   }
-};
 
-/**
- * Universal JSON Exporter for Backups
- */
-export const exportToJSON = async ({ filename, data, title = 'TipidLink Backup' }) => {
-  const jsonContent = JSON.stringify(data, null, 2);
-  const cleanFilename = filename.endsWith('.json') ? filename : `${filename}.json`;
-
+  // 3. Fallback: Web Share API if direct download is blocked by in-app browser
   if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
     try {
-      const blob = new Blob([jsonContent], { type: 'application/json' });
-      const file = new File([blob], cleanFilename, { type: 'application/json' });
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const file = new File([blob], cleanFilename, { type: 'text/csv' });
 
       if (navigator.canShare({ files: [file] })) {
         await navigator.share({
@@ -120,13 +80,36 @@ export const exportToJSON = async ({ filename, data, title = 'TipidLink Backup' 
           title: title,
           text: `${title} exported from TipidLink`,
         });
-        return { success: true, method: 'native_share' };
+        return { success: true, method: 'native_share', filename: cleanFilename };
       }
     } catch (shareErr) {
-      if (shareErr.name === 'AbortError') return { success: true, method: 'cancelled' };
+      if (shareErr.name === 'AbortError') {
+        return { success: true, method: 'cancelled' };
+      }
+      console.warn('Web Share failed:', shareErr);
     }
   }
 
+  // 4. Final Fallback: Copy to clipboard
+  try {
+    await navigator.clipboard.writeText(csvContent);
+    alert('The CSV file content has been copied to your clipboard. You can paste it into Google Sheets or Excel.');
+    return { success: true, method: 'clipboard' };
+  } catch (clipErr) {
+    alert(`Could not download file: ${clipErr.message}`);
+    return { success: false, error: clipErr };
+  }
+};
+
+/**
+ * Universal JSON Exporter for Backups
+ * Direct download directly into Android/PC "Downloads" folder
+ */
+export const exportToJSON = async ({ filename, data, title = 'TipidLink Backup' }) => {
+  const jsonContent = JSON.stringify(data, null, 2);
+  const cleanFilename = filename.endsWith('.json') ? filename : `${filename}.json`;
+
+  // 1. Direct File Download (Direct to Android "Downloads" / PC Downloads)
   try {
     const blob = new Blob([jsonContent], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -140,13 +123,34 @@ export const exportToJSON = async ({ filename, data, title = 'TipidLink Backup' 
     setTimeout(() => {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-    }, 800);
+    }, 1000);
 
-    return { success: true, method: 'blob_download' };
+    return { success: true, method: 'direct_download', filename: cleanFilename };
   } catch (err) {
-    alert(`Could not export backup: ${err.message}`);
-    return { success: false, error: err };
+    console.warn('Direct JSON download error, attempting Web Share fallback:', err);
   }
+
+  // 2. Fallback: Web Share API if direct download is blocked by in-app browser
+  if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
+    try {
+      const blob = new Blob([jsonContent], { type: 'application/json' });
+      const file = new File([blob], cleanFilename, { type: 'application/json' });
+
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: title,
+          text: `${title} exported from TipidLink`,
+        });
+        return { success: true, method: 'native_share', filename: cleanFilename };
+      }
+    } catch (shareErr) {
+      if (shareErr.name === 'AbortError') return { success: true, method: 'cancelled' };
+    }
+  }
+
+  alert(`Could not download backup file.`);
+  return { success: false };
 };
 
 /**
