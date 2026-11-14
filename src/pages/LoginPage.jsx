@@ -59,7 +59,7 @@ export const LoginPage = () => {
 
     if (res.success) {
       setForgotStep(2);
-      setForgotMessage(`Nagsend kami ng email sa ${forgotEmail}. Maaari mong i-click ang "Reset password" sa iyong Gmail, o i-copy-paste ang link nito sa ibaba kasama ang iyong bagong password.`);
+      setForgotMessage(`Nagpadala kami ng 6-digit verification code sa ${forgotEmail}. Pakitingnan ang code sa iyong Gmail at ilagay sa ibaba:`);
     } else {
       setForgotError(res.error || 'Failed to send reset code.');
     }
@@ -367,18 +367,19 @@ export const LoginPage = () => {
               <form onSubmit={handleForgotVerifyAndSave} className="space-y-3.5">
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">
-                    Code o Link mula sa iyong Email
+                    6-Digit Verification Code
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="Ilagay ang 6-digit code o i-paste ang link"
+                    maxLength={6}
+                    placeholder="hal. 123456"
                     value={forgotOtp}
-                    onChange={(e) => setForgotOtp(e.target.value)}
-                    className="w-full rounded-2xl border border-white/20 bg-white/10 py-2.5 px-3.5 text-center font-mono text-sm font-bold text-emerald-300 placeholder:text-slate-400 focus:border-emerald-400 focus:outline-hidden"
+                    onChange={(e) => setForgotOtp(e.target.value.trim())}
+                    className="w-full rounded-2xl border border-white/20 bg-white/10 py-2.5 px-3.5 text-center font-mono text-xl font-black tracking-widest text-emerald-300 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-hidden"
                   />
-                  <p className="text-[11px] text-slate-300 mt-1.5 text-center leading-relaxed">
-                    Maaari mong i-paste dito ang link mula sa button na <em>"Reset password"</em> sa Gmail, o i-type ang code kung mayroon.
+                  <p className="text-[11px] text-slate-300 mt-1.5 text-center">
+                    Ilagay ang 6-digit code na ipinadala sa iyong Gmail.
                   </p>
                 </div>
 
