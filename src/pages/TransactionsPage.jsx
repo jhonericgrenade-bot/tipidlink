@@ -146,28 +146,76 @@ export const TransactionsPage = () => {
     setSelectedTx(null);
   };
 
-  // CSV export helper
-  const exportCSV = () => {
-    const headers = ['Date', 'Type', 'Description', 'Category', 'Amount (PHP)', 'Logged By', 'Payment Method', 'Notes'];
-    const rows = filteredTransactions.map((t) => [
-      t.transaction_date,
-      t.type,
-      `"${(t.description || '').replace(/"/g, '""')}"`,
-      `"${(t.category_name || '').replace(/"/g, '""')}"`,
-      t.amount,
-      `"${(t.user_name || '').replace(/"/g, '""')}"`,
-      t.payment_method,
-      `"${(t.notes || '').replace(/"/g, '""')}"`,
-    ]);
+  // CSV export helper (Mobile-compatible with Web Share API and Blob download)
+  const [isExporting, setIsExporting] = useState(false);
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `tipidlink_transactions_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const exportCSV = async () => {
+    if (filteredTransactions.length === 0) {
+      alert('Walang transactions na ma-e-export para sa napiling filter.');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const headers = ['Date', 'Type', 'Description', 'Category', 'Amount (PHP)', 'Logged By', 'Payment Method', 'Notes'];
+      const rows = filteredTransactions.map((t) => [
+        t.transaction_date || '',
+        t.type || 'expense',
+        `"${(t.description || '').replace(/"/g, '""')}"`,
+        `"${(t.category_name || '').replace(/"/g, '""')}"`,
+        t.amount || 0,
+        `"${(t.user_name || '').replace(/"/g, '""')}"`,
+        t.payment_method || 'cash',
+        `"${(t.notes || '').replace(/"/g, '""')}"`,
+      ]);
+
+      // Add UTF-8 BOM (\uFEFF) for Microsoft Excel compatibility on mobile and desktop
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+      const filename = `tipidlink_transactions_${new Date().toISOString().split('T')[0]}.csv`;
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+      // 1. Try Mobile Web Share API first (Best for iPhone / Android: opens Save to Files, Drive, Sheets, Messenger)
+      if (navigator.share && navigator.canShare) {
+        try {
+          const file = new File([blob], filename, { type: 'text/csv' });
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: 'TipidLink Family Transactions Export',
+              text: `TipidLink CSV Report (${filteredTransactions.length} records)`,
+            });
+            setIsExporting(false);
+            return;
+          }
+        } catch (shareErr) {
+          // If user cancelled the share sheet, exit cleanly
+          if (shareErr.name === 'AbortError') {
+            setIsExporting(false);
+            return;
+          }
+          console.warn('Native share was skipped, falling back to blob download:', shareErr);
+        }
+      }
+
+      // 2. Fallback: Blob URL download for desktop and browsers without file share
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        setIsExporting(false);
+      }, 500);
+    } catch (err) {
+      console.error('Export failed:', err);
+      alert('Hindi ma-export ang file: ' + err.message);
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -185,32 +233,13 @@ export const TransactionsPage = () => {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => {
-              if (!isPremium) {
-                openUpgradeModal();
-                return;
-              }
-              exportCSV();
-            }}
-            disabled={filteredTransactions.length === 0}
-            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold shadow-xs active-press hover-lift transition cursor-pointer disabled:opacity-50 ${
-              isPremium
-                ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                : 'border-amber-300 bg-amber-50/60 text-amber-900 hover:bg-amber-100/80'
-            }`}
-            title={isPremium ? 'Download CSV file' : 'Unlock Financial Statement Export with Premium'}
+            onClick={exportCSV}
+            disabled={filteredTransactions.length === 0 || isExporting}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 active-press hover-lift transition cursor-pointer disabled:opacity-50"
+            title="Export transactions to CSV (Excel / Google Sheets)"
           >
-            {isPremium ? (
-              <Download className="h-4 w-4" />
-            ) : (
-              <Crown className="h-3.5 w-3.5 text-amber-600 fill-amber-500" />
-            )}
-            <span>Export CSV</span>
-            {!isPremium && (
-              <span className="text-[9px] font-extrabold uppercase bg-amber-200 text-amber-900 px-1.5 py-0.2 rounded-md">
-                PRO
-              </span>
-            )}
+            <Download className="h-4 w-4 text-emerald-600" />
+            <span>{isExporting ? 'Exporting...' : 'Export CSV'}</span>
           </button>
 
           <button
