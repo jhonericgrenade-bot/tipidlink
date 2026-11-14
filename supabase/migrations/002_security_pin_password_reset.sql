@@ -1,10 +1,10 @@
 -- ==============================================================================
 -- TIPIDLINK: In-App 4-Digit Security PIN & Password Reset (Zero Email / Zero Localhost)
 -- Migration: 002_security_pin_password_reset.sql
--- Description: Adds security_pin column to profiles with default '0000', and exposes
---              secure PostgreSQL functions for PIN-based logins and password resets.
---              Seamlessly supports custom PINs chosen during registration (stored in
---              raw_user_meta_data or profiles), with default '0000' for existing accounts.
+-- Description: Adds security_pin column to profiles with default '0000' for existing accounts.
+--              Strictly enforces that once an account sets a custom PIN (e.g. 1234),
+--              ONLY THAT CUSTOM PIN CAN BE USED. '0000' is ONLY accepted if the account
+--              never configured a custom PIN.
 -- ==============================================================================
 
 -- 1. Enable pgcrypto extension for bcrypt password hashing
@@ -23,7 +23,7 @@ BEGIN
     END IF;
 END $$;
 
--- 3. Set default '0000' for all existing accounts
+-- 3. Set default '0000' only for accounts that have no PIN configured at all
 UPDATE public.profiles 
 SET security_pin = '0000' 
 WHERE security_pin IS NULL OR trim(security_pin) = '';
@@ -42,14 +42,14 @@ BEGIN
         new.email,
         COALESCE(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
         new.raw_user_meta_data->>'avatar_url',
-        COALESCE(NULLIF(new.raw_user_meta_data->>'security_pin', ''), '0000')
+        COALESCE(NULLIF(trim(new.raw_user_meta_data->>'security_pin'), ''), '0000')
     )
     ON CONFLICT (id) DO UPDATE
     SET
         email = EXCLUDED.email,
         full_name = COALESCE(EXCLUDED.full_name, profiles.full_name),
         avatar_url = COALESCE(EXCLUDED.avatar_url, profiles.avatar_url),
-        security_pin = COALESCE(NULLIF(EXCLUDED.security_pin, ''), profiles.security_pin, '0000'),
+        security_pin = COALESCE(NULLIF(trim(EXCLUDED.security_pin), ''), NULLIF(trim(profiles.security_pin), ''), '0000'),
         updated_at = timezone('utc'::text, now());
     RETURN new;
 END;
@@ -75,6 +75,7 @@ DECLARE
     target_user_id UUID;
     stored_pin TEXT;
     meta_pin TEXT;
+    expected_pin TEXT;
     clean_email TEXT;
     clean_pin TEXT;
 BEGIN
@@ -109,8 +110,8 @@ BEGIN
     -- Look up user ID and PINs from both auth.users and public.profiles
     SELECT 
         u.id,
-        NULLIF(p.security_pin, ''),
-        NULLIF(u.raw_user_meta_data->>'security_pin', '')
+        NULLIF(trim(p.security_pin), ''),
+        NULLIF(trim(u.raw_user_meta_data->>'security_pin'), '')
     INTO target_user_id, stored_pin, meta_pin
     FROM auth.users u
     LEFT JOIN public.profiles p ON p.id = u.id
@@ -121,10 +122,12 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'Hindi natagpuan ang account gamit ang email na ito. Pakisuri ang spelling.');
     END IF;
 
-    -- Match against custom profile PIN, signup metadata PIN, or default '0000'
-    IF clean_pin != COALESCE(stored_pin, '') 
-       AND clean_pin != COALESCE(meta_pin, '') 
-       AND clean_pin != '0000' THEN
+    -- Determine strict expected PIN:
+    -- If custom PIN was set in profiles or signup metadata, ONLY that custom PIN is valid.
+    -- '0000' is ONLY accepted if no custom PIN was ever set.
+    expected_pin := COALESCE(stored_pin, meta_pin, '0000');
+
+    IF clean_pin != expected_pin THEN
         RETURN jsonb_build_object('success', false, 'error', 'Maling Security PIN. Pakisuri ang iyong 4-digit PIN.');
     END IF;
 
@@ -160,6 +163,7 @@ DECLARE
     target_user_id UUID;
     stored_pin TEXT;
     meta_pin TEXT;
+    expected_pin TEXT;
     clean_email TEXT;
     clean_pin TEXT;
     temp_pass TEXT;
@@ -178,8 +182,8 @@ BEGIN
     -- Look up user ID and PINs from both auth.users and public.profiles
     SELECT 
         u.id,
-        NULLIF(p.security_pin, ''),
-        NULLIF(u.raw_user_meta_data->>'security_pin', '')
+        NULLIF(trim(p.security_pin), ''),
+        NULLIF(trim(u.raw_user_meta_data->>'security_pin'), '')
     INTO target_user_id, stored_pin, meta_pin
     FROM auth.users u
     LEFT JOIN public.profiles p ON p.id = u.id
@@ -190,14 +194,16 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'Hindi natagpuan ang account gamit ang email na ito. Pakisuri ang spelling.');
     END IF;
 
-    -- Match against custom profile PIN, signup metadata PIN, or default '0000'
-    IF clean_pin != COALESCE(stored_pin, '') 
-       AND clean_pin != COALESCE(meta_pin, '') 
-       AND clean_pin != '0000' THEN
+    -- Determine strict expected PIN:
+    -- If custom PIN was set in profiles or signup metadata, ONLY that custom PIN is valid.
+    -- '0000' is ONLY accepted if no custom PIN was ever set.
+    expected_pin := COALESCE(stored_pin, meta_pin, '0000');
+
+    IF clean_pin != expected_pin THEN
         RETURN jsonb_build_object('success', false, 'error', 'Maling Security PIN. Pakisuri ang iyong 4-digit PIN.');
     END IF;
 
-    -- Update profile PIN to keep in sync
+    -- Keep profile PIN in sync
     UPDATE public.profiles
     SET security_pin = clean_pin, updated_at = timezone('utc'::text, now())
     WHERE id = target_user_id;
