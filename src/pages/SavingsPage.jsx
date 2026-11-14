@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useFinance } from '../contexts/FinanceContext';
+import { useHousehold } from '../contexts/HouseholdContext';
 import { formatPHP, formatDate } from '../lib/formatters';
+import { exportSavingsCSV } from '../lib/exportUtils';
 import { Modal } from '../components/Modal';
 import { EmptyState } from '../components/EmptyState';
 import {
@@ -13,10 +15,25 @@ import {
   CheckCircle2,
   AlertCircle,
   Coins,
+  Download,
 } from 'lucide-react';
 
 export const SavingsPage = () => {
   const { savingsGoals, addSavingsGoal, contributeToGoal, deleteSavingsGoal } = useFinance();
+  const { currentHousehold } = useHousehold();
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportCSV = async () => {
+    setIsExporting(true);
+    try {
+      await exportSavingsCSV(savingsGoals, currentHousehold?.name || 'Household');
+    } catch (err) {
+      console.error('Savings export failed:', err);
+      alert(`Could not export savings goals: ${err.message}`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const [activeTab, setActiveTab] = useState('active'); // active, completed
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -122,17 +139,28 @@ export const SavingsPage = () => {
             Family Savings & Goals
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Pondong pang-emergency, future dreams, and shared household milestones.
+            Emergency funds, future milestones, and shared household dreams.
           </p>
         </div>
 
-        <button
-          onClick={openAddModal}
-          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press hover-lift transition cursor-pointer"
-        >
-          <Plus className="h-4 w-4" />
-          Create Savings Goal
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleExportCSV}
+            disabled={isExporting || savingsGoals.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 active-press hover-lift transition cursor-pointer disabled:opacity-50"
+            title="Export family savings milestones and targets to CSV"
+          >
+            <Download className="h-4 w-4 text-emerald-600" />
+            <span>{isExporting ? 'Exporting...' : 'Export Goals'}</span>
+          </button>
+          <button
+            onClick={openAddModal}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press hover-lift transition cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            Create Savings Goal
+          </button>
+        </div>
       </div>
 
       {/* Hero Overview Card */}

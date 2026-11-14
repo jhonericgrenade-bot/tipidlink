@@ -1,7 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { useFinance } from '../contexts/FinanceContext';
+import { useHousehold } from '../contexts/HouseholdContext';
 import { usePremium } from '../contexts/PremiumContext';
 import { formatPHP, formatDate } from '../lib/formatters';
+import { exportTransactionsCSV } from '../lib/exportUtils';
 import { Modal } from '../components/Modal';
 import { EmptyState } from '../components/EmptyState';
 import {
@@ -19,6 +21,7 @@ import {
 
 export const TransactionsPage = () => {
   const { transactions, categories, addTransaction, updateTransaction, deleteTransaction } = useFinance();
+  const { currentHousehold } = useHousehold();
   const { isPremium, openUpgradeModal } = usePremium();
 
   // Search & Filters
@@ -146,74 +149,22 @@ export const TransactionsPage = () => {
     setSelectedTx(null);
   };
 
-  // CSV export helper (Mobile-compatible with Web Share API and Blob download)
+  // Cross-platform CSV export (Mobile Web Share Sheet + PC Blob Download)
   const [isExporting, setIsExporting] = useState(false);
 
   const exportCSV = async () => {
     if (filteredTransactions.length === 0) {
-      alert('Walang transactions na ma-e-export para sa napiling filter.');
+      alert('No transactions available to export for the selected filter.');
       return;
     }
 
     setIsExporting(true);
     try {
-      const headers = ['Date', 'Type', 'Description', 'Category', 'Amount (PHP)', 'Logged By', 'Payment Method', 'Notes'];
-      const rows = filteredTransactions.map((t) => [
-        t.transaction_date || '',
-        t.type || 'expense',
-        `"${(t.description || '').replace(/"/g, '""')}"`,
-        `"${(t.category_name || '').replace(/"/g, '""')}"`,
-        t.amount || 0,
-        `"${(t.user_name || '').replace(/"/g, '""')}"`,
-        t.payment_method || 'cash',
-        `"${(t.notes || '').replace(/"/g, '""')}"`,
-      ]);
-
-      // Add UTF-8 BOM (\uFEFF) for Microsoft Excel compatibility on mobile and desktop
-      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
-      const filename = `tipidlink_transactions_${new Date().toISOString().split('T')[0]}.csv`;
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-
-      // 1. Try Mobile Web Share API first (Best for iPhone / Android: opens Save to Files, Drive, Sheets, Messenger)
-      if (navigator.share && navigator.canShare) {
-        try {
-          const file = new File([blob], filename, { type: 'text/csv' });
-          if (navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              files: [file],
-              title: 'TipidLink Family Transactions Export',
-              text: `TipidLink CSV Report (${filteredTransactions.length} records)`,
-            });
-            setIsExporting(false);
-            return;
-          }
-        } catch (shareErr) {
-          // If user cancelled the share sheet, exit cleanly
-          if (shareErr.name === 'AbortError') {
-            setIsExporting(false);
-            return;
-          }
-          console.warn('Native share was skipped, falling back to blob download:', shareErr);
-        }
-      }
-
-      // 2. Fallback: Blob URL download for desktop and browsers without file share
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename);
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-
-      setTimeout(() => {
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        setIsExporting(false);
-      }, 500);
+      await exportTransactionsCSV(filteredTransactions, currentHousehold?.name || 'Household');
     } catch (err) {
       console.error('Export failed:', err);
-      alert('Hindi ma-export ang file: ' + err.message);
+      alert(`Could not export transactions: ${err.message}`);
+    } finally {
       setIsExporting(false);
     }
   };

@@ -5,6 +5,15 @@ import { useFinance } from '../contexts/FinanceContext';
 import { usePremium } from '../contexts/PremiumContext';
 import { isSupabaseConfigured, getSupabaseConfig } from '../lib/supabase';
 import {
+  exportToCSV,
+  exportToJSON,
+  printFinancialStatement,
+  exportTransactionsCSV,
+  exportBudgetsCSV,
+  exportBillsCSV,
+  exportSavingsCSV,
+} from '../lib/exportUtils';
+import {
   Database,
   ShieldCheck,
   RefreshCw,
@@ -22,15 +31,32 @@ import {
   Mail,
   AlertCircle,
   UserCheck,
+  Download,
+  FileSpreadsheet,
+  FileJson,
+  Printer,
+  ArrowDownToLine,
 } from 'lucide-react';
 
 export const SettingsPage = () => {
   const { user, profile, updatePassword, updateSecurityPin, isDemoMode } = useAuth();
   const { currentUserRole, currentHousehold } = useHousehold();
-  const { resetToDemoData } = useFinance();
+  const {
+    transactions,
+    budgets,
+    bills,
+    savingsGoals,
+    categories,
+    calculations,
+    selectedMonth,
+    selectedYear,
+    resetToDemoData,
+  } = useFinance();
   const { isPremium, premiumPlan, sponsorDetails, openUpgradeModal } = usePremium();
 
   const [resetMessage, setResetMessage] = useState('');
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportStatus, setExportStatus] = useState('');
 
   // Password Management State
   const [newPassword, setNewPassword] = useState('');
@@ -246,7 +272,7 @@ export const SettingsPage = () => {
               </div>
 
               <p className="text-xs text-slate-500 leading-relaxed">
-                Gagamitin mo ito para mag-palit ng password sa mobile o kahit anong unit nang walang email o localhost.
+                Use this 4-digit PIN for instant password recovery without needing email access.
               </p>
 
               {pinSuccess && (
@@ -265,7 +291,7 @@ export const SettingsPage = () => {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Baguhin ang Security PIN
+                  Change 4-Digit Security PIN
                 </label>
                 <div className="relative">
                   <KeyRound className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
@@ -274,7 +300,7 @@ export const SettingsPage = () => {
                     inputMode="numeric"
                     pattern="[0-9]*"
                     maxLength={4}
-                    placeholder="Mag-type ng bagong 4-digit PIN"
+                    placeholder="Enter new 4-digit PIN"
                     value={newPin}
                     onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
                     className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-9 text-xs tracking-widest font-mono font-bold focus:border-emerald-500 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20"
@@ -299,6 +325,260 @@ export const SettingsPage = () => {
               <span>{pinLoading ? 'Saving...' : 'Update Security PIN'}</span>
             </button>
           </form>
+        </div>
+      </div>
+
+      {/* Data Export & Backup Center Card */}
+      <div className="rounded-3xl bg-white p-6 shadow-xs border border-slate-200/80 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-teal-100 text-teal-800 shadow-xs">
+              <ArrowDownToLine className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">Data Export & Backup Center</h3>
+              <p className="text-xs text-slate-500">
+                Export family records to Excel / CSV, download full JSON backups, or print statements. Compatible with PC, iOS, and Android.
+              </p>
+            </div>
+          </div>
+
+          {exportStatus && (
+            <div className="flex items-center gap-1.5 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs font-bold text-emerald-800">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+              <span>{exportStatus}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Primary Export Actions Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* 1. All-in-One Consolidated CSV */}
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 flex flex-col justify-between space-y-3 hover-lift-subtle">
+            <div>
+              <div className="flex items-center gap-2 text-slate-900 font-bold text-xs uppercase tracking-wider">
+                <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+                <span>Full Financial CSV</span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Consolidates all transactions, active budgets, household bills, and savings goals into one Excel-ready sheet.
+              </p>
+            </div>
+            <button
+              onClick={async () => {
+                setExportLoading(true);
+                try {
+                  const dateStr = new Date().toISOString().split('T')[0];
+                  const householdName = currentHousehold?.name || 'Household';
+                  const safeName = householdName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                  const filename = `tipidlink_full_statement_${safeName}_${dateStr}.csv`;
+
+                  const headers = [
+                    'Record Type',
+                    'Date / Period',
+                    'Title / Description',
+                    'Category / Biller',
+                    'Amount (PHP)',
+                    'Status / Method',
+                    'Details / Logged By',
+                    'Notes'
+                  ];
+
+                  const rows = [];
+                  transactions.forEach(t => {
+                    rows.push([
+                      'TRANSACTION',
+                      t.transaction_date || '',
+                      t.description || '',
+                      t.category_name || t.categories?.name || 'General',
+                      t.amount || 0,
+                      `${(t.type || 'expense').toUpperCase()} (${(t.payment_method || 'cash').toUpperCase()})`,
+                      t.user_name || t.profiles?.full_name || 'Member',
+                      t.notes || ''
+                    ]);
+                  });
+
+                  budgets.forEach(b => {
+                    const cat = categories.find(c => c.id === b.category_id);
+                    rows.push([
+                      'BUDGET LIMIT',
+                      `${selectedMonth}/${selectedYear}`,
+                      `Budget Limit for ${cat?.name || 'Category'}`,
+                      cat?.name || 'Category',
+                      b.amount || 0,
+                      'ALLOCATED',
+                      `Month: ${selectedMonth}, Year: ${selectedYear}`,
+                      ''
+                    ]);
+                  });
+
+                  bills.forEach(b => {
+                    const totalPaid = (b.payments || []).reduce((acc, p) => acc + Number(p.amount), 0);
+                    const remaining = Math.max(0, Number(b.amount) - totalPaid);
+                    rows.push([
+                      'BILL OBLIGATION',
+                      b.due_date || '',
+                      b.title || 'Untitled Bill',
+                      b.biller_name || 'Biller',
+                      b.amount || 0,
+                      remaining <= 0 ? 'PAID' : (totalPaid > 0 ? 'PARTIALLY PAID' : 'UNPAID'),
+                      `Paid: ₱${totalPaid} | Balance: ₱${remaining}`,
+                      b.notes || ''
+                    ]);
+                  });
+
+                  savingsGoals.forEach(g => {
+                    rows.push([
+                      'SAVINGS GOAL',
+                      g.target_date || 'Ongoing',
+                      g.name || 'Savings Goal',
+                      g.category || 'General',
+                      g.target_amount || 0,
+                      Number(g.current_amount) >= Number(g.target_amount) ? 'COMPLETED' : 'IN PROGRESS',
+                      `Saved: ₱${g.current_amount || 0}`,
+                      g.description || ''
+                    ]);
+                  });
+
+                  await exportToCSV({
+                    filename,
+                    headers,
+                    rows,
+                    title: `${householdName} - Consolidated Financial Statement`,
+                  });
+                  setExportStatus('Consolidated CSV exported!');
+                  setTimeout(() => setExportStatus(''), 4000);
+                } catch (err) {
+                  alert(`Export error: ${err.message}`);
+                } finally {
+                  setExportLoading(false);
+                }
+              }}
+              disabled={exportLoading}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press transition cursor-pointer disabled:opacity-50"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>Export Full CSV</span>
+            </button>
+          </div>
+
+          {/* 2. Complete Household JSON Backup */}
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 flex flex-col justify-between space-y-3 hover-lift-subtle">
+            <div>
+              <div className="flex items-center gap-2 text-slate-900 font-bold text-xs uppercase tracking-wider">
+                <FileJson className="h-4 w-4 text-indigo-600" />
+                <span>JSON Data Backup</span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Raw database snapshot of your entire family household records for offline safekeeping or system migration.
+              </p>
+            </div>
+            <button
+              onClick={async () => {
+                setExportLoading(true);
+                try {
+                  const dateStr = new Date().toISOString().split('T')[0];
+                  const householdName = currentHousehold?.name || 'Household';
+                  const safeName = householdName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                  const filename = `tipidlink_backup_${safeName}_${dateStr}.json`;
+
+                  const backupData = {
+                    app: 'TipidLink',
+                    version: '2.0',
+                    exported_at: new Date().toISOString(),
+                    household: currentHousehold,
+                    transactions,
+                    budgets,
+                    bills,
+                    savings_goals: savingsGoals,
+                    categories,
+                  };
+
+                  await exportToJSON({
+                    filename,
+                    data: backupData,
+                    title: `${householdName} - Complete Household Backup`,
+                  });
+                  setExportStatus('JSON backup downloaded!');
+                  setTimeout(() => setExportStatus(''), 4000);
+                } catch (err) {
+                  alert(`Backup error: ${err.message}`);
+                } finally {
+                  setExportLoading(false);
+                }
+              }}
+              disabled={exportLoading}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-100 active-press transition cursor-pointer disabled:opacity-50"
+            >
+              <Download className="h-3.5 w-3.5 text-indigo-600" />
+              <span>Download Backup (JSON)</span>
+            </button>
+          </div>
+
+          {/* 3. Printable Financial Statement */}
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 flex flex-col justify-between space-y-3 hover-lift-subtle">
+            <div>
+              <div className="flex items-center gap-2 text-slate-900 font-bold text-xs uppercase tracking-wider">
+                <Printer className="h-4 w-4 text-teal-600" />
+                <span>Print / Save as PDF</span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Clean document layout formatted for desktop and mobile printing or instant &ldquo;Save as PDF&rdquo;.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                printFinancialStatement();
+              }}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-100 active-press transition cursor-pointer"
+            >
+              <Printer className="h-3.5 w-3.5 text-teal-600" />
+              <span>Print / Save PDF</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Quick Export Individual Modules */}
+        <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <span className="font-semibold text-slate-600">Quick module exports:</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => exportTransactionsCSV(transactions, currentHousehold?.name || 'Household')}
+              className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+            >
+              <Download className="h-3 w-3 text-emerald-600" />
+              Transactions CSV
+            </button>
+            <button
+              onClick={() => exportBudgetsCSV({
+                budgets,
+                categories,
+                transactions,
+                householdName: currentHousehold?.name || 'Household',
+                month: selectedMonth,
+                year: selectedYear,
+                overallMonthlyTarget: currentHousehold?.monthly_budget_target || calculations.activeBudgetTarget || 0,
+              })}
+              className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+            >
+              <Download className="h-3 w-3 text-emerald-600" />
+              Budgets CSV
+            </button>
+            <button
+              onClick={() => exportBillsCSV(bills, currentHousehold?.name || 'Household')}
+              className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+            >
+              <Download className="h-3 w-3 text-emerald-600" />
+              Bills CSV
+            </button>
+            <button
+              onClick={() => exportSavingsCSV(savingsGoals, currentHousehold?.name || 'Household')}
+              className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+            >
+              <Download className="h-3 w-3 text-emerald-600" />
+              Savings CSV
+            </button>
+          </div>
         </div>
       </div>
 

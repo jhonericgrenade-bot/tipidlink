@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useFinance } from '../contexts/FinanceContext';
+import { useHousehold } from '../contexts/HouseholdContext';
 import { formatPHP, formatDate, getDueDateStatus } from '../lib/formatters';
+import { exportBillsCSV } from '../lib/exportUtils';
 import { StatusBadge } from '../components/StatusBadge';
 import { Modal } from '../components/Modal';
 import { EmptyState } from '../components/EmptyState';
@@ -14,10 +16,25 @@ import {
   AlertCircle,
   CreditCard,
   Calendar,
+  Download,
 } from 'lucide-react';
 
 export const BillsPage = () => {
   const { bills, categories, addBill, deleteBill, recordBillPayment } = useFinance();
+  const { currentHousehold } = useHousehold();
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportCSV = async () => {
+    setIsExporting(true);
+    try {
+      await exportBillsCSV(bills, currentHousehold?.name || 'Household');
+    } catch (err) {
+      console.error('Bills export failed:', err);
+      alert(`Could not export bills: ${err.message}`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // Filter & Search
   const [statusFilter, setStatusFilter] = useState('all'); // all, unpaid, partially_paid, overdue, paid
@@ -184,13 +201,24 @@ export const BillsPage = () => {
           </p>
         </div>
 
-        <button
-          onClick={openAddModal}
-          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press hover-lift transition cursor-pointer"
-        >
-          <Plus className="h-4 w-4" />
-          Add Household Bill
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleExportCSV}
+            disabled={isExporting || bills.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 active-press hover-lift transition cursor-pointer disabled:opacity-50"
+            title="Export household bills and payment logs to CSV"
+          >
+            <Download className="h-4 w-4 text-emerald-600" />
+            <span>{isExporting ? 'Exporting...' : 'Export Bills'}</span>
+          </button>
+          <button
+            onClick={openAddModal}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press hover-lift transition cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            Add Household Bill
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards */}

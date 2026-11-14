@@ -251,3 +251,35 @@
 .stagger-6 { animation-delay: 240ms; }
 .stagger-7 { animation-delay: 280ms; }
 .stagger-8 { animation-delay: 320ms; }
+
+/* Clean Print & Save-to-PDF styles for Desktop PC & Mobile */
+@media print {
+  header,
+  nav,
+  aside,
+  .mobile-nav,
+  .no-print,
+  button,
+  .install-prompt,
+  [role="dialog"] {
+    display: none !important;
+  }
+
+  body,
+  main {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-size: 11pt !important;
+  }
+
+  .card-interactive,
+  .rounded-3xl,
+  .rounded-2xl {
+    box-shadow: none !important;
+    border: 1px solid #e2e8f0 !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}
