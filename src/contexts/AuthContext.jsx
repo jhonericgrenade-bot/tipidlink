@@ -260,6 +260,15 @@ export const AuthProvider = ({ children }) => {
 
       if (authError) throw authError;
 
+      // 3. Immediately restore original registered password in the background so password login continues to work seamlessly!
+      try {
+        await supabase.rpc('restore_password_after_pin_login', {
+          target_email: cleanEmail,
+        });
+      } catch (restoreErr) {
+        console.warn('Password restore notice:', restoreErr);
+      }
+
       if (authData?.user) {
         setUser(authData.user);
         await fetchUserProfile(authData.user);

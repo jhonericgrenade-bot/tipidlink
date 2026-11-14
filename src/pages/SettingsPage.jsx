@@ -167,13 +167,6 @@ export const SettingsPage = () => {
           </div>
         )}
 
-        {resetEmailSent && (
-          <div className="flex items-center gap-2 rounded-2xl bg-teal-50 p-3.5 text-xs text-teal-800 border border-teal-200 animate-fade-in">
-            <Mail className="h-4 w-4 shrink-0 text-teal-600" />
-            <span className="font-semibold">{resetEmailSent}</span>
-          </div>
-        )}
-
         {passwordError && (
           <div className="flex items-center gap-2 rounded-2xl bg-rose-50 p-3.5 text-xs text-rose-800 border border-rose-200 animate-fade-in">
             <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />

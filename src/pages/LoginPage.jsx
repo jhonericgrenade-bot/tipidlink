@@ -20,7 +20,8 @@ export const LoginPage = () => {
   // Forgot Password modal state (Option 1: In-App 4-Digit Security PIN)
   const [isForgotOpen, setIsForgotOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotPin, setForgotPin] = useState('0000');
+  const [forgotPin, setForgotPin] = useState('');
+  const [showForgotPin, setShowForgotPin] = useState(false);
   const [forgotNewPassword, setForgotNewPassword] = useState('');
   const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
   const [showForgotNewPassword, setShowForgotNewPassword] = useState(false);
@@ -238,7 +239,7 @@ export const LoginPage = () => {
                     inputMode="numeric"
                     pattern="[0-9]*"
                     maxLength={4}
-                    placeholder="4-Digit PIN (Default: 0000)"
+                    placeholder="4-Digit PIN"
                     value={pinInput}
                     onChange={(e) => setPinInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
                     className="w-full rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl py-3.5 pl-10 pr-11 text-center font-mono text-xl font-black tracking-widest text-emerald-300 placeholder:text-slate-400 focus:bg-white/15 focus:border-emerald-400 focus:outline-hidden focus:ring-4 focus:ring-emerald-400/20 shadow-inner transition"
@@ -252,11 +253,12 @@ export const LoginPage = () => {
                   </button>
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-slate-300 mt-1.5 px-1">
-                  <span>Default PIN: <strong>0000</strong></span>
+                  <span>PIN mo nung nag-register (0000 kung lumang account)</span>
                   <button
                     type="button"
                     onClick={() => {
                       setForgotEmail(email);
+                      setForgotPin('');
                       setForgotError('');
                       setForgotMessage('');
                       setIsForgotOpen(true);
@@ -435,26 +437,33 @@ export const LoginPage = () => {
                   <label className="block text-xs font-bold text-slate-300">
                     4-Digit Security PIN
                   </label>
-                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-400/30">
-                    Default: 0000
+                  <span className="text-[10px] font-medium text-emerald-300/80">
+                    PIN mo nung nag-register
                   </span>
                 </div>
                 <div className="relative">
                   <KeyRound className="absolute left-3.5 top-3 h-4 w-4 text-emerald-400/70" />
                   <input
-                    type="password"
+                    type={showForgotPin ? 'text' : 'password'}
                     inputMode="numeric"
                     pattern="[0-9]*"
                     maxLength={4}
                     required
-                    placeholder="0000"
+                    placeholder="••••"
                     value={forgotPin}
                     onChange={(e) => setForgotPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    className="w-full rounded-2xl border border-white/15 bg-white/10 py-2 pl-10 pr-3.5 text-center font-mono text-lg font-black tracking-widest text-emerald-300 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-hidden"
+                    className="w-full rounded-2xl border border-white/15 bg-white/10 py-2 pl-10 pr-10 text-center font-mono text-lg font-black tracking-widest text-emerald-300 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-hidden"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPin(!showForgotPin)}
+                    className="absolute right-3 top-2.5 p-1 text-slate-400 hover:text-emerald-300 rounded-lg transition"
+                  >
+                    {showForgotPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">
-                  Naka-set sa <strong>0000</strong> ang default PIN ng lahat ng existing accounts.
+                  Gamitin ang 4-digit PIN na itinakda sa registration (o <strong>0000</strong> kung lumang account).
                 </p>
               </div>
 
