@@ -165,7 +165,7 @@ export const JoinHouseholdModal = ({ isOpen, onClose }) => {
             <input
               type="text"
               required
-              placeholder="I-paste ang Family Invite Code dito"
+              placeholder="Paste Family Invite Code here (e.g. KALAB-4211)"
               value={inviteCode}
               onChange={(e) => setInviteCode(e.target.value.trim().toUpperCase())}
               className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm tracking-wider font-mono font-bold focus:border-indigo-500 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"

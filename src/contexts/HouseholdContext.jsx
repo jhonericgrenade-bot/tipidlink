@@ -277,12 +277,26 @@ export const HouseholdProvider = ({ children }) => {
         hhList = [defaultHH];
         localStorage.setItem(storageKey, JSON.stringify(hhList));
       }
+      // Sort hhList so joined households appear first
+      hhList.sort((a, b) => {
+        const aIsJoined = (a.created_by !== user?.id) || (a.user_role === 'member' || a.user_role === 'admin');
+        const bIsJoined = (b.created_by !== user?.id) || (b.user_role === 'member' || b.user_role === 'admin');
+        if (aIsJoined && !bIsJoined) return -1;
+        if (!aIsJoined && bIsJoined) return 1;
+        return 0;
+      });
       setHouseholds(hhList);
-      const activeId = forceSelectId || localStorage.getItem('tipidlink_active_household_id');
-      const active = hhList.find(h => h.id === activeId) || hhList[0];
+      const joinedHousehold = hhList.find(h => 
+        (h.created_by !== user?.id) || (h.user_role === 'member' || h.user_role === 'admin')
+      );
+      const activeId = forceSelectId || (joinedHousehold ? joinedHousehold.id : null) || localStorage.getItem('tipidlink_active_household_id');
+      const active = hhList.find(h => h.id === activeId) || joinedHousehold || hhList[0];
       setCurrentHousehold(active || null);
       if (active?.id) {
         localStorage.setItem('tipidlink_active_household_id', active.id);
+        if (user?.id) {
+          localStorage.setItem(`tipidlink_active_household_${user.id}`, active.id);
+        }
       }
       setLoading(false);
       return hhList;
@@ -311,7 +325,13 @@ export const HouseholdProvider = ({ children }) => {
       if (memberErr) throw memberErr;
 
       let hhList = (memberRows || [])
-        .map(row => row.households)
+        .map(row => {
+          if (!row.households) return null;
+          return {
+            ...row.households,
+            user_role: row.role || (row.households.created_by === user.id ? 'owner' : 'member'),
+          };
+        })
         .filter(Boolean);
 
       // If user signed up with a pending invite code, join that household first
@@ -339,18 +359,65 @@ export const HouseholdProvider = ({ children }) => {
         });
 
         if (autoCreated.success && autoCreated.household) {
-          hhList = [autoCreated.household];
+          hhList = [{
+            ...autoCreated.household,
+            user_role: 'owner',
+          }];
         }
       }
+
+      // Prioritize joined family households where user is an admin or member.
+      // Auto-created single-member dummy households (created_by === user.id) are placed after joined households.
+      hhList.sort((a, b) => {
+        const aIsJoined = (a.created_by !== user?.id) || (a.user_role === 'member' || a.user_role === 'admin');
+        const bIsJoined = (b.created_by !== user?.id) || (b.user_role === 'member' || b.user_role === 'admin');
+        if (aIsJoined && !bIsJoined) return -1;
+        if (!aIsJoined && bIsJoined) return 1;
+        return 0;
+      });
 
       setHouseholds(hhList);
 
       if (hhList.length > 0) {
-        const activeId = forceSelectId || localStorage.getItem('tipidlink_active_household_id');
-        const found = hhList.find(h => h.id === activeId) || hhList[0];
+        // Identify joined household (where role is admin or member, or created_by is someone else)
+        const joinedHousehold = hhList.find(h => 
+          (h.created_by !== user?.id) || (h.user_role === 'member' || h.user_role === 'admin')
+        );
+
+        let activeId = forceSelectId;
+
+        // If not force-selected by manual switcher:
+        if (!activeId) {
+          const userSavedId = user?.id ? localStorage.getItem(`tipidlink_active_household_${user.id}`) : null;
+          const genericSavedId = localStorage.getItem('tipidlink_active_household_id');
+          const candidateId = userSavedId || genericSavedId;
+
+          if (candidateId) {
+            const candidate = hhList.find(h => h.id === candidateId);
+            // If the candidate household is their own empty auto-created household,
+            // but the user belongs to a joined family household, automatically direct to the joined household!
+            if (candidate) {
+              if (candidate.created_by === user?.id && joinedHousehold) {
+                activeId = joinedHousehold.id;
+              } else {
+                activeId = candidate.id;
+              }
+            }
+          }
+        }
+
+        // Fallback default: if user belongs to a joined household (admin/member), default to it!
+        if (!activeId) {
+          activeId = joinedHousehold ? joinedHousehold.id : hhList[0].id;
+        }
+
+        const found = hhList.find(h => h.id === activeId) || joinedHousehold || hhList[0];
         setCurrentHousehold(found);
         if (found?.id) {
           localStorage.setItem('tipidlink_active_household_id', found.id);
+          if (user?.id) {
+            localStorage.setItem(`tipidlink_active_household_${user.id}`, found.id);
+          }
         }
 
         // Keep ALL invite_codes in profile.phone in sync for reliable family lookup
@@ -483,7 +550,7 @@ export const HouseholdProvider = ({ children }) => {
   const joinHouseholdByCode = async (inviteCode) => {
     const rawCode = (inviteCode || '').trim();
     if (!rawCode) {
-      return { success: false, error: 'Pakilagay ang household invite code.' };
+      return { success: false, error: 'Please enter the household invite code.' };
     }
 
     if (isDemoMode) {
@@ -492,7 +559,7 @@ export const HouseholdProvider = ({ children }) => {
         const target = households.find(h => h.invite_code === cleanUpper) || INITIAL_DEMO_DATA.household;
         const alreadyIn = members.some(m => m.user_id === user.id && m.household_id === target.id);
         if (alreadyIn) {
-          return { success: false, error: 'Kasapi ka na sa household na ito!' };
+          return { success: false, error: 'You are already a member of this household!' };
         }
         const newMember = {
           id: `mem-${Date.now()}`,
@@ -520,12 +587,6 @@ export const HouseholdProvider = ({ children }) => {
     try {
       const cleanInput = rawCode.trim();
       const cleanUpper = cleanInput.toUpperCase().replace(/\s+/g, '');
-      if (cleanUpper === 'KALAB-4211' || cleanUpper === 'KALAB4211') {
-        return {
-          success: false,
-          error: "Halimbawa lamang ang 'KALAB-4211'. Kunin ang totoong invite code mula sa Family Household page ng may-ari ng account."
-        };
-      }
       let targetHouseholdId = null;
 
       // Step 1: Universal lookup in profiles.phone (INVITES:CODE:UUID|CODE2:UUID2)
@@ -602,7 +663,7 @@ export const HouseholdProvider = ({ children }) => {
       }
 
       if (!targetHouseholdId) {
-        return { success: false, error: 'Hindi natagpuan ang household gamit ang code na ito. Pakisuri kung tama ang spelling ng invite code mula sa nag-imbita.' };
+        return { success: false, error: 'Household not found with this code. Please check the spelling of the invite code provided by the household owner.' };
       }
 
       // Check if already joined
@@ -615,12 +676,15 @@ export const HouseholdProvider = ({ children }) => {
 
       if (existing) {
         localStorage.setItem('tipidlink_active_household_id', targetHouseholdId);
+        if (user?.id) {
+          localStorage.setItem(`tipidlink_active_household_${user.id}`, targetHouseholdId);
+        }
         const freshList = await loadHouseholds(targetHouseholdId);
         const joinedHH = freshList.find(h => h.id === targetHouseholdId);
         if (joinedHH) {
           setCurrentHousehold(joinedHH);
         }
-        return { success: true, message: 'Kasapi ka na sa household na ito.' };
+        return { success: true, message: 'You are already a member of this household.' };
       }
 
       // Insert membership
@@ -638,13 +702,16 @@ export const HouseholdProvider = ({ children }) => {
         if (joinErr.code === '23503' || joinErr.message?.includes('foreign key')) {
           return {
             success: false,
-            error: 'Hindi natagpuan o hindi na aktibo ang household gamit ang code na ito. Pakisuri ang tamang invite code mula sa nag-imbita.'
+            error: 'Household not found or no longer active with this code. Please verify the invite code with the owner.'
           };
         }
         throw joinErr;
       }
 
       localStorage.setItem('tipidlink_active_household_id', targetHouseholdId);
+      if (user?.id) {
+        localStorage.setItem(`tipidlink_active_household_${user.id}`, targetHouseholdId);
+      }
       const freshList = await loadHouseholds(targetHouseholdId);
       const joinedHH = freshList.find(h => h.id === targetHouseholdId);
       if (joinedHH) {

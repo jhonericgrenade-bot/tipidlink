@@ -288,7 +288,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
                     ? 'bg-white text-emerald-900 hover:bg-emerald-50 shadow-xs'
                     : 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 hover:from-amber-300 hover:to-amber-400 shadow-md ring-2 ring-amber-300/50'
                 }`}
-                title={isPremium ? 'Copy Invite Code' : 'Mag-upgrade sa ₱30 Pro para ma-unlock at ma-copy ang code'}
+                title={isPremium ? 'Copy Invite Code' : 'Upgrade to ₱30 Pro to unlock and copy the invite code'}
               >
                 {isPremium ? (
                   <>
@@ -311,7 +311,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
               >
                 <span className="flex items-center gap-1.5 font-semibold">
                   <Crown className="h-3.5 w-3.5 text-amber-300 fill-amber-300" />
-                  Kailangan ng ₱30 Pro para ma-copy at ma-share ang code
+                  ₱30 Pro required to copy and share the invite code
                 </span>
                 <span className="font-black underline text-white group-hover:translate-x-0.5 transition-transform">
                   Upgrade &rarr;
@@ -320,7 +320,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
             ) : (
               <div className="mt-3 flex items-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-400/30 p-2.5 text-[11px] text-emerald-200">
                 <Crown className="h-3.5 w-3.5 text-amber-300 fill-amber-300 shrink-0" />
-                <span>₱30 Premium Active • Pwedeng i-share ang code sa lahat ng kapamilya</span>
+                <span>₱30 Premium Active • Code can be shared with all family members</span>
               </div>
             )}
           </div>
@@ -485,20 +485,20 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
       <div className="rounded-3xl bg-emerald-50/70 border border-emerald-200/80 p-6">
         <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-2 mb-3">
           <Sparkles className="h-4 w-4 text-emerald-600" />
-          Paano Mag-share ng Account sa Pamilya (3 Simpleng Hakbang):
+          How to Share with Family (3 Simple Steps):
         </h4>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-slate-700">
           <div className="bg-white p-4 rounded-2xl border border-emerald-100 shadow-2xs">
-            <span className="font-black text-emerald-700 text-sm">1. I-share ang Code</span>
-            <p className="mt-1 text-slate-500">I-copy ang <strong>Household Code</strong> ({displayCode}) at ibigay sa iyong kapamilya (asawa, anak, magulang).</p>
+            <span className="font-black text-emerald-700 text-sm">1. Share the Code</span>
+            <p className="mt-1 text-slate-500">Copy the <strong>Household Code</strong> ({displayCode}) and give it to your family members (spouse, children, parents).</p>
           </div>
           <div className="bg-white p-4 rounded-2xl border border-emerald-100 shadow-2xs">
-            <span className="font-black text-indigo-700 text-sm">2. Mag-sign up Sila</span>
-            <p className="mt-1 text-slate-500">Buksan nila ang TipidLink sa kanilang cellphone at gumawa ng sariling account gamit ang kanilang email.</p>
+            <span className="font-black text-indigo-700 text-sm">2. They Sign Up</span>
+            <p className="mt-1 text-slate-500">They open TipidLink on their phone and create their own account using their email.</p>
           </div>
           <div className="bg-white p-4 rounded-2xl border border-emerald-100 shadow-2xs">
-            <span className="font-black text-amber-700 text-sm">3. I-click ang Join</span>
-            <p className="mt-1 text-slate-500">Sa menu sa itaas, i-click ang <strong>"Join Household with Code"</strong> at i-paste ang code. Sabay na kayong makakapag-record!</p>
+            <span className="font-black text-amber-700 text-sm">3. Click Join with Code</span>
+            <p className="mt-1 text-slate-500">In the top menu, click <strong>"Join with Code"</strong> and paste the invite code. You can now manage your budget together!</p>
           </div>
         </div>
       </div>
@@ -510,8 +510,8 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
             <h4 className="text-sm font-bold text-slate-900">Household Management</h4>
             <p className="text-xs text-slate-500">
               {currentUserRole === 'owner'
-                ? 'Bilang may-ari, maaari mong burahin ang household na ito kung hindi na kailangan.'
-                : 'Maaari kang umalis sa household na ito anumang oras.'}
+                ? 'As the owner, you can delete this household if it is no longer needed.'
+                : 'You can leave this household at any time.'}
             </p>
           </div>
           <div>
@@ -519,7 +519,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
               <button
                 type="button"
                 onClick={async () => {
-                  if (window.confirm(`Sigurado ka bang nais mong burahin ang "${currentHousehold.name}"? Mabubura ang lahat ng pampamilyang transaksyon at badyet nito.`)) {
+                  if (window.confirm(`Are you sure you want to delete "${currentHousehold.name}"? All shared family transactions and budgets will be permanently deleted.`)) {
                     await deleteHousehold(currentHousehold.id);
                   }
                 }}
@@ -532,7 +532,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
               <button
                 type="button"
                 onClick={async () => {
-                  if (window.confirm(`Sigurado ka bang nais mong umalis sa "${currentHousehold.name}"?`)) {
+                  if (window.confirm(`Are you sure you want to leave "${currentHousehold.name}"?`)) {
                     await leaveHousehold(currentHousehold.id);
                   }
                 }}
@@ -571,7 +571,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
             </label>
             <input
               type="number"
-              step="1000"
+              step="any"
               min="0"
               required
               value={editBudget}
