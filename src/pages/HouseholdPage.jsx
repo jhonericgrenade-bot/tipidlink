@@ -17,6 +17,9 @@ import {
   Crown,
   Lock,
   ShieldCheck,
+  ShieldAlert,
+  Users,
+  AlertTriangle,
 } from 'lucide-react';
 
 export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
@@ -108,6 +111,37 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
     setIsEditProfileOpen(false);
   };
 
+  const handleRoleChange = async (memberId, targetName, newRole) => {
+    let confirmMsg = '';
+    if (newRole === 'owner') {
+      confirmMsg = `BABALA SA PAGLILIPAT NG OWNER ROLE:\n\nSigurado ka bang nais mong italaga si "${targetName}" bilang bagong OWNER?\n\nPAALALA SA PAHINTULOT:\n• Tanging ang kasalukuyang Owner lamang ang makakagawa nito.\n• Ang Owner ang may buong kapangyarihan sa pagbura ng household at pag-demote ng Admins.\n\nNais mo bang magpatuloy?`;
+    } else if (newRole === 'admin') {
+      confirmMsg = `PABATID SA PAGTATALAGA NG ADMIN:\n\nItatalaga mo si "${targetName}" bilang ADMIN.\n\nPAALALA SA PAHINTULOT:\n• Magkakaroon siya ng karapatang magpalit ng Monthly Budget Target.\n• Maaari siyang mag-alis ng ordinaryong Members.\n• Hindi niya maaaring tanggalin o palitan ang Owner.\n\nNais mo bang magpatuloy?`;
+    } else if (newRole === 'member') {
+      confirmMsg = `PABATID: Pagbabalik sa Ordinaryong MEMBER\n\nIbababa mo ang tungkulin ni "${targetName}" bilang ordinaryong MEMBER.\n\nPAALALA SA PAHINTULOT:\n• Hindi na siya makakapagbago ng budget target o mag-alis ng ibang miyembro.\n• Makakapag-record pa rin siya ng araw-araw na gastos, kita, at bills.\n\nNais mo bang magpatuloy?`;
+    }
+
+    if (confirmMsg && !window.confirm(confirmMsg)) {
+      return;
+    }
+
+    const res = await updateMemberRole(memberId, newRole);
+    if (res && !res.success) {
+      alert(`Hindi ma-update ang role: ${res.error}`);
+    }
+  };
+
+  const handleRemoveMember = async (memberId, targetName, targetRole) => {
+    const confirmMsg = `BABALA SA PAG-ALIS NG MIYEMBRO:\n\nSigurado ka bang nais mong tanggalin si "${targetName}" (${targetRole.toUpperCase()}) sa household?\n\nPAALALA SA PAHINTULOT:\n• Tanging Owner at Admin lamang ang may karapatang magtanggal ng kapamilya.\n• Hindi na makikita ng taong ito ang inyong shared financial records at mga bills.\n\nNais mo bang tanggalin ang miyembrong ito?`;
+
+    if (window.confirm(confirmMsg)) {
+      const res = await removeMember(memberId);
+      if (res && !res.success) {
+        alert(`Hindi maalis ang miyembro: ${res.error}`);
+      }
+    }
+  };
+
   if (loading && !currentHousehold) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center animate-page-enter">
@@ -165,7 +199,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
               </div>
             </div>
 
-            {isOwnerOrAdmin && (
+            {isOwnerOrAdmin ? (
               <button
                 onClick={() => {
                   setEditName(currentHousehold.name);
@@ -173,11 +207,20 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
                   setEditBudget(String(currentHousehold.monthly_budget_target || 65000));
                   setIsEditProfileOpen(true);
                 }}
-                className="rounded-xl border border-slate-200 p-2 text-slate-500 hover:bg-slate-50 hover:text-slate-900 active-press transition cursor-pointer"
+                className="rounded-xl border border-slate-200 p-2 text-slate-500 hover:bg-slate-50 hover:text-slate-900 active-press transition cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
                 title="Edit Household Info"
               >
                 <Edit className="h-4 w-4" />
+                <span className="hidden sm:inline">Edit Settings</span>
               </button>
+            ) : (
+              <div
+                className="flex items-center gap-1.5 rounded-xl bg-slate-100 border border-slate-200 px-2.5 py-1.5 text-[11px] text-slate-500 font-medium"
+                title="Tanging ang Owner at Admin lamang ang may karapatang magbago ng settings"
+              >
+                <Lock className="h-3.5 w-3.5 text-slate-400" />
+                <span>Pang-Owner/Admin lamang</span>
+              </div>
             )}
           </div>
 
@@ -300,6 +343,75 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
           </div>
         </div>
 
+        {/* Role Permissions & Security Policy Warning Banner */}
+        <div className="mb-5 rounded-2xl border border-amber-200/80 bg-amber-50/60 p-4 text-xs text-amber-950 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 font-black text-amber-900 text-xs">
+              <ShieldAlert className="h-4 w-4 text-amber-600 shrink-0" />
+              <span>Gabay sa Roles &amp; Mga Karapatan (Role Access Control):</span>
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-200/60 px-2 py-0.5 rounded-md">
+              Security Policy
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px] leading-relaxed">
+            {/* 👑 Owner */}
+            <div className={`rounded-xl p-3 border shadow-2xs transition ${
+              currentUserRole === 'owner' ? 'bg-amber-100/70 border-amber-300 ring-2 ring-amber-400/40' : 'bg-white/80 border-amber-200/60'
+            }`}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-extrabold text-amber-900 flex items-center gap-1">
+                  <Crown className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
+                  👑 Owner (Pinuno)
+                </span>
+                {currentUserRole === 'owner' && (
+                  <span className="text-[9px] font-black bg-amber-600 text-white px-1.5 py-0.2 rounded-full">Ito Ka</span>
+                )}
+              </div>
+              <p className="text-slate-600">
+                <strong>Buong Kapangyarihan:</strong> Tanging ang Owner lamang ang makakapagbura ng household, mag-promote/demote ng Admin, at mag-alis ng kahit sinong miyembro.
+              </p>
+            </div>
+
+            {/* 🛡️ Admin */}
+            <div className={`rounded-xl p-3 border shadow-2xs transition ${
+              currentUserRole === 'admin' ? 'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-400/40' : 'bg-white/80 border-amber-200/60'
+            }`}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-extrabold text-indigo-900 flex items-center gap-1">
+                  <ShieldCheck className="h-3.5 w-3.5 text-indigo-600" />
+                  🛡️ Admin (Katuwang)
+                </span>
+                {currentUserRole === 'admin' && (
+                  <span className="text-[9px] font-black bg-indigo-600 text-white px-1.5 py-0.2 rounded-full">Ito Ka</span>
+                )}
+              </div>
+              <p className="text-slate-600">
+                <strong>Pamamahala:</strong> Pwedeng magbago ng budget target at mag-alis ng <strong>Member lamang</strong>. <em>Babala: Hindi pwedeng tanggalin o palitan ang Owner.</em>
+              </p>
+            </div>
+
+            {/* 👤 Member */}
+            <div className={`rounded-xl p-3 border shadow-2xs transition ${
+              currentUserRole === 'member' ? 'bg-slate-100 border-slate-300 ring-2 ring-slate-400/40' : 'bg-white/80 border-amber-200/60'
+            }`}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-extrabold text-slate-800 flex items-center gap-1">
+                  <Users className="h-3.5 w-3.5 text-slate-500" />
+                  👤 Member (Kasapi)
+                </span>
+                {currentUserRole === 'member' && (
+                  <span className="text-[9px] font-black bg-slate-600 text-white px-1.5 py-0.2 rounded-full">Ito Ka</span>
+                )}
+              </div>
+              <p className="text-slate-600">
+                <strong>Pang-araw-araw:</strong> Pwedeng mag-record ng gastos, kita, at bills. <em>Babala: Walang karapatang magbago ng role o magtanggal ng kapamilya.</em>
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="divide-y divide-slate-100">
           {members.map((member) => {
             const isSelf = member.user_id === user?.id;
@@ -336,12 +448,13 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
                 <div className="flex items-center gap-3 self-end sm:self-auto">
                   <StatusBadge status={member.role} type="role" />
 
-                  {!isSelf && (currentUserRole === 'owner' || (currentUserRole === 'admin' && member.role === 'member')) && (
+                  {!isSelf && (currentUserRole === 'owner' || (currentUserRole === 'admin' && member.role === 'member')) ? (
                     <div className="flex items-center gap-2">
                       <select
                         value={member.role}
-                        onChange={(e) => updateMemberRole(member.id, e.target.value)}
-                        className="rounded-lg border border-slate-200 bg-slate-50 py-1 px-2 text-xs font-semibold text-slate-700 focus:outline-hidden"
+                        onChange={(e) => handleRoleChange(member.id, member.full_name || member.email, e.target.value)}
+                        className="rounded-lg border border-slate-200 bg-slate-50 py-1 px-2 text-xs font-semibold text-slate-700 focus:outline-hidden cursor-pointer"
+                        title="Palitan ang role ng kapamilya (may babala bago ilapat)"
                       >
                         <option value="member">Member</option>
                         <option value="admin">Admin</option>
@@ -349,14 +462,18 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
                       </select>
 
                       <button
-                        onClick={() => removeMember(member.id)}
-                        className="rounded-lg p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
-                        title="Remove member"
+                        onClick={() => handleRemoveMember(member.id, member.full_name || member.email, member.role)}
+                        className="rounded-lg p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                        title="Tanggalin sa household (may babala)"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
-                  )}
+                  ) : !isSelf ? (
+                    <span className="text-[10px] text-slate-400 italic">
+                      Walang access magpalit
+                    </span>
+                  ) : null}
                 </div>
               </div>
             );
