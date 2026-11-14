@@ -633,6 +633,16 @@ export const AuthProvider = ({ children }) => {
         .eq('id', user.id);
 
       if (error) throw error;
+
+      // Also update auth user metadata so login_with_pin recognizes the new PIN immediately
+      try {
+        await supabase.auth.updateUser({
+          data: { security_pin: cleanPin }
+        });
+      } catch (metaErr) {
+        console.warn('Metadata PIN sync notice:', metaErr);
+      }
+
       setProfile(prev => ({ ...prev, security_pin: cleanPin }));
       return { success: true, message: 'Matagumpay na na-update ang iyong Security PIN!' };
     } catch (err) {

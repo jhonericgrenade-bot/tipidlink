@@ -42,6 +42,7 @@ export const SettingsPage = () => {
 
   // Security PIN State
   const [newPin, setNewPin] = useState('');
+  const [showSettingsPin, setShowSettingsPin] = useState(false);
   const [pinSuccess, setPinSuccess] = useState('');
   const [pinError, setPinError] = useState('');
   const [pinLoading, setPinLoading] = useState(false);
@@ -276,15 +277,22 @@ export const SettingsPage = () => {
                 <div className="relative">
                   <KeyRound className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
                   <input
-                    type="password"
+                    type={showSettingsPin ? 'text' : 'password'}
                     inputMode="numeric"
                     pattern="[0-9]*"
                     maxLength={4}
                     placeholder="Mag-type ng bagong 4-digit PIN"
                     value={newPin}
                     onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs tracking-widest font-mono font-bold focus:border-emerald-500 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20"
+                    className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-9 text-xs tracking-widest font-mono font-bold focus:border-emerald-500 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowSettingsPin(!showSettingsPin)}
+                    className="absolute right-2.5 top-2 p-1 text-slate-400 hover:text-emerald-600 rounded-lg transition"
+                  >
+                    {showSettingsPin ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
                 </div>
               </div>
             </div>
