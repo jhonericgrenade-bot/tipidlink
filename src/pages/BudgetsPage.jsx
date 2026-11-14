@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useFinance } from '../contexts/FinanceContext';
 import { useHousehold } from '../contexts/HouseholdContext';
 import { formatPHP } from '../lib/formatters';
-import { exportBudgetsCSV } from '../lib/exportUtils';
+import { exportBudgetsPDF, exportBudgetsCSV } from '../lib/exportUtils';
 import { Modal } from '../components/Modal';
 import {
   Plus,
@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Lock,
   Download,
+  FileText,
 } from 'lucide-react';
 
 export const BudgetsPage = () => {
@@ -36,6 +37,26 @@ export const BudgetsPage = () => {
   const [isOverallModalOpen, setIsOverallModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
+  const handleExportPDF = async () => {
+    setIsExporting(true);
+    try {
+      await exportBudgetsPDF({
+        budgets,
+        categories,
+        transactions,
+        householdName: currentHousehold?.name || 'Household',
+        month: selectedMonth,
+        year: selectedYear,
+        overallMonthlyTarget: currentHousehold?.monthly_budget_target || calculations.activeBudgetTarget || 0,
+      });
+    } catch (err) {
+      console.error('Budgets PDF export failed:', err);
+      alert(`Could not export budgets PDF: ${err.message}`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleExportCSV = async () => {
     setIsExporting(true);
     try {
@@ -49,7 +70,7 @@ export const BudgetsPage = () => {
         overallMonthlyTarget: currentHousehold?.monthly_budget_target || calculations.activeBudgetTarget || 0,
       });
     } catch (err) {
-      console.error('Budgets export failed:', err);
+      console.error('Budgets CSV export failed:', err);
       alert(`Could not export budgets: ${err.message}`);
     } finally {
       setIsExporting(false);
@@ -160,14 +181,26 @@ export const BudgetsPage = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Primary PDF Export Button */}
+          <button
+            onClick={handleExportPDF}
+            disabled={isExporting}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/70 px-3.5 py-2 text-xs font-bold text-rose-700 shadow-xs hover:bg-rose-100 active-press hover-lift transition cursor-pointer disabled:opacity-50"
+            title="Download formatted PDF Budget Statement"
+          >
+            <FileText className="h-4 w-4 text-rose-600" />
+            <span>{isExporting ? 'Generating...' : 'Export PDF'}</span>
+          </button>
+
+          {/* Secondary CSV Export Button */}
           <button
             onClick={handleExportCSV}
             disabled={isExporting}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 active-press hover-lift transition cursor-pointer disabled:opacity-50"
-            title="Export monthly budget limits and actual spending to CSV"
+            className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 active-press hover-lift transition cursor-pointer disabled:opacity-50"
+            title="Export monthly budget data to CSV"
           >
             <Download className="h-4 w-4 text-emerald-600" />
-            <span>{isExporting ? 'Exporting...' : 'Export Budgets'}</span>
+            <span>CSV</span>
           </button>
 
           {isOwnerOrAdmin && (

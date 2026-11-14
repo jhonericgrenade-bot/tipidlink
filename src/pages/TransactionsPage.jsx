@@ -3,7 +3,7 @@ import { useFinance } from '../contexts/FinanceContext';
 import { useHousehold } from '../contexts/HouseholdContext';
 import { usePremium } from '../contexts/PremiumContext';
 import { formatPHP, formatDate } from '../lib/formatters';
-import { exportTransactionsCSV } from '../lib/exportUtils';
+import { exportTransactionsPDF, exportTransactionsCSV } from '../lib/exportUtils';
 import { Modal } from '../components/Modal';
 import { EmptyState } from '../components/EmptyState';
 import {
@@ -17,6 +17,7 @@ import {
   AlertCircle,
   Tag,
   Crown,
+  FileText,
 } from 'lucide-react';
 
 export const TransactionsPage = () => {
@@ -149,10 +150,27 @@ export const TransactionsPage = () => {
     setSelectedTx(null);
   };
 
-  // Cross-platform CSV export (Mobile Web Share Sheet + PC Blob Download)
+  // Cross-platform PDF & CSV export (Direct Download to PC/Android Downloads & iOS Files)
   const [isExporting, setIsExporting] = useState(false);
 
-  const exportCSV = async () => {
+  const handleExportPDF = async () => {
+    if (filteredTransactions.length === 0) {
+      alert('No transactions available to export for the selected filter.');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      await exportTransactionsPDF(filteredTransactions, currentHousehold?.name || 'Household');
+    } catch (err) {
+      console.error('PDF Export failed:', err);
+      alert(`Could not export PDF: ${err.message}`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportCSV = async () => {
     if (filteredTransactions.length === 0) {
       alert('No transactions available to export for the selected filter.');
       return;
@@ -162,8 +180,8 @@ export const TransactionsPage = () => {
     try {
       await exportTransactionsCSV(filteredTransactions, currentHousehold?.name || 'Household');
     } catch (err) {
-      console.error('Export failed:', err);
-      alert(`Could not export transactions: ${err.message}`);
+      console.error('CSV Export failed:', err);
+      alert(`Could not export CSV: ${err.message}`);
     } finally {
       setIsExporting(false);
     }
@@ -182,15 +200,27 @@ export const TransactionsPage = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Primary PDF Export Button */}
           <button
-            onClick={exportCSV}
+            onClick={handleExportPDF}
             disabled={filteredTransactions.length === 0 || isExporting}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 active-press hover-lift transition cursor-pointer disabled:opacity-50"
-            title="Export transactions to CSV (Excel / Google Sheets)"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/70 px-3.5 py-2 text-xs font-bold text-rose-700 shadow-xs hover:bg-rose-100 active-press hover-lift transition cursor-pointer disabled:opacity-50"
+            title="Download formatted PDF Statement (iOS, Android, PC)"
+          >
+            <FileText className="h-4 w-4 text-rose-600" />
+            <span>{isExporting ? 'Generating...' : 'Export PDF'}</span>
+          </button>
+
+          {/* Secondary CSV Export Button */}
+          <button
+            onClick={handleExportCSV}
+            disabled={filteredTransactions.length === 0 || isExporting}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 active-press hover-lift transition cursor-pointer disabled:opacity-50"
+            title="Export raw data to CSV (Excel / Google Sheets)"
           >
             <Download className="h-4 w-4 text-emerald-600" />
-            <span>{isExporting ? 'Exporting...' : 'Export CSV'}</span>
+            <span>CSV</span>
           </button>
 
           <button

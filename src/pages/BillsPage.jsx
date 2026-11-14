@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useFinance } from '../contexts/FinanceContext';
 import { useHousehold } from '../contexts/HouseholdContext';
 import { formatPHP, formatDate, getDueDateStatus } from '../lib/formatters';
-import { exportBillsCSV } from '../lib/exportUtils';
+import { exportBillsPDF, exportBillsCSV } from '../lib/exportUtils';
 import { StatusBadge } from '../components/StatusBadge';
 import { Modal } from '../components/Modal';
 import { EmptyState } from '../components/EmptyState';
@@ -17,12 +17,25 @@ import {
   CreditCard,
   Calendar,
   Download,
+  FileText,
 } from 'lucide-react';
 
 export const BillsPage = () => {
   const { bills, categories, addBill, deleteBill, recordBillPayment } = useFinance();
   const { currentHousehold } = useHousehold();
   const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportPDF = async () => {
+    setIsExporting(true);
+    try {
+      await exportBillsPDF(bills, currentHousehold?.name || 'Household');
+    } catch (err) {
+      console.error('Bills PDF export failed:', err);
+      alert(`Could not export bills PDF: ${err.message}`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleExportCSV = async () => {
     setIsExporting(true);
@@ -202,15 +215,28 @@ export const BillsPage = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Primary PDF Export Button */}
+          <button
+            onClick={handleExportPDF}
+            disabled={isExporting || bills.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/70 px-3.5 py-2 text-xs font-bold text-rose-700 shadow-xs hover:bg-rose-100 active-press hover-lift transition cursor-pointer disabled:opacity-50"
+            title="Download formatted PDF Bills Statement"
+          >
+            <FileText className="h-4 w-4 text-rose-600" />
+            <span>{isExporting ? 'Generating...' : 'Export PDF'}</span>
+          </button>
+
+          {/* Secondary CSV Export Button */}
           <button
             onClick={handleExportCSV}
             disabled={isExporting || bills.length === 0}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 active-press hover-lift transition cursor-pointer disabled:opacity-50"
-            title="Export household bills and payment logs to CSV"
+            className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 active-press hover-lift transition cursor-pointer disabled:opacity-50"
+            title="Export household bills to CSV"
           >
             <Download className="h-4 w-4 text-emerald-600" />
-            <span>{isExporting ? 'Exporting...' : 'Export Bills'}</span>
+            <span>CSV</span>
           </button>
+
           <button
             onClick={openAddModal}
             className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press hover-lift transition cursor-pointer"

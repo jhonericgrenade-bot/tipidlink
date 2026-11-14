@@ -8,6 +8,11 @@ import {
   exportToCSV,
   exportToJSON,
   printFinancialStatement,
+  exportFullFinancialStatementPDF,
+  exportTransactionsPDF,
+  exportBudgetsPDF,
+  exportBillsPDF,
+  exportSavingsPDF,
   exportTransactionsCSV,
   exportBudgetsCSV,
   exportBillsCSV,
@@ -36,6 +41,7 @@ import {
   FileJson,
   Printer,
   ArrowDownToLine,
+  FileText,
 } from 'lucide-react';
 
 export const SettingsPage = () => {
@@ -332,13 +338,13 @@ export const SettingsPage = () => {
       <div className="rounded-3xl bg-white p-6 shadow-xs border border-slate-200/80 space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-teal-100 text-teal-800 shadow-xs">
-              <ArrowDownToLine className="h-5 w-5" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-rose-100 text-rose-700 shadow-xs">
+              <FileText className="h-5 w-5" />
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900">Data Export & Backup Center</h3>
               <p className="text-xs text-slate-500">
-                Export family records to Excel / CSV, download full JSON backups, or print statements. Compatible with PC, iOS, and Android.
+                Download formatted PDF reports (iOS, Android, PC), raw CSV spreadsheets, or complete JSON backups.
               </p>
             </div>
           </div>
@@ -353,7 +359,49 @@ export const SettingsPage = () => {
 
         {/* Primary Export Actions Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {/* 1. All-in-One Consolidated CSV */}
+          {/* 1. All-in-One Formatted PDF Statement */}
+          <div className="rounded-2xl border-2 border-rose-200 bg-rose-50/40 p-4 flex flex-col justify-between space-y-3 hover-lift-subtle">
+            <div>
+              <div className="flex items-center gap-2 text-rose-900 font-bold text-xs uppercase tracking-wider">
+                <FileText className="h-4 w-4 text-rose-600" />
+                <span>Executive Statement (PDF)</span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Multi-page official financial audit with Executive Summary, Budgets, Bills, Savings Goals, and Cashflow.
+              </p>
+            </div>
+            <button
+              onClick={async () => {
+                setExportLoading(true);
+                try {
+                  await exportFullFinancialStatementPDF({
+                    household: currentHousehold,
+                    calculations,
+                    transactions,
+                    budgets,
+                    bills,
+                    savingsGoals,
+                    categories,
+                    month: selectedMonth,
+                    year: selectedYear,
+                  });
+                  setExportStatus('Executive PDF generated!');
+                  setTimeout(() => setExportStatus(''), 4000);
+                } catch (err) {
+                  alert(`PDF error: ${err.message}`);
+                } finally {
+                  setExportLoading(false);
+                }
+              }}
+              disabled={exportLoading}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-rose-600 px-3.5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-rose-700 active-press transition cursor-pointer disabled:opacity-50"
+            >
+              <FileText className="h-4 w-4" />
+              <span>Download Full PDF</span>
+            </button>
+          </div>
+
+          {/* 2. All-in-One Consolidated CSV */}
           <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 flex flex-col justify-between space-y-3 hover-lift-subtle">
             <div>
               <div className="flex items-center gap-2 text-slate-900 font-bold text-xs uppercase tracking-wider">
@@ -361,7 +409,7 @@ export const SettingsPage = () => {
                 <span>Full Financial CSV</span>
               </div>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Consolidates all transactions, active budgets, household bills, and savings goals into one Excel-ready sheet.
+                Consolidates all transactions, active budgets, household bills, and savings goals into one Excel-ready spreadsheet.
               </p>
             </div>
             <button
@@ -455,14 +503,14 @@ export const SettingsPage = () => {
                 }
               }}
               disabled={exportLoading}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press transition cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press transition cursor-pointer disabled:opacity-50"
             >
               <Download className="h-3.5 w-3.5" />
               <span>Export Full CSV</span>
             </button>
           </div>
 
-          {/* 2. Complete Household JSON Backup */}
+          {/* 3. Complete Household JSON Backup */}
           <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 flex flex-col justify-between space-y-3 hover-lift-subtle">
             <div>
               <div className="flex items-center gap-2 text-slate-900 font-bold text-xs uppercase tracking-wider">
@@ -508,49 +556,33 @@ export const SettingsPage = () => {
                 }
               }}
               disabled={exportLoading}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-100 active-press transition cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-100 active-press transition cursor-pointer disabled:opacity-50"
             >
               <Download className="h-3.5 w-3.5 text-indigo-600" />
               <span>Download Backup (JSON)</span>
             </button>
           </div>
-
-          {/* 3. Printable Financial Statement */}
-          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 flex flex-col justify-between space-y-3 hover-lift-subtle">
-            <div>
-              <div className="flex items-center gap-2 text-slate-900 font-bold text-xs uppercase tracking-wider">
-                <Printer className="h-4 w-4 text-teal-600" />
-                <span>Print / Save as PDF</span>
-              </div>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Clean document layout formatted for desktop and mobile printing or instant &ldquo;Save as PDF&rdquo;.
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                printFinancialStatement();
-              }}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-100 active-press transition cursor-pointer"
-            >
-              <Printer className="h-3.5 w-3.5 text-teal-600" />
-              <span>Print / Save PDF</span>
-            </button>
-          </div>
         </div>
 
-        {/* Quick Export Individual Modules */}
-        <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <span className="font-semibold text-slate-600">Quick module exports:</span>
-          <div className="flex flex-wrap items-center gap-2">
+        {/* Quick Export PDF Modules */}
+        <div className="pt-3 border-t border-slate-100 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <FileText className="h-3.5 w-3.5 text-rose-600" />
+              Quick Module PDF Statements (Direct Download):
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <button
-              onClick={() => exportTransactionsCSV(transactions, currentHousehold?.name || 'Household')}
-              className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+              onClick={() => exportTransactionsPDF(transactions, currentHousehold?.name || 'Household')}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/60 p-2.5 text-xs font-bold text-rose-700 hover:bg-rose-100 active-press transition cursor-pointer"
             >
-              <Download className="h-3 w-3 text-emerald-600" />
-              Transactions CSV
+              <FileText className="h-3.5 w-3.5" />
+              Transactions PDF
             </button>
             <button
-              onClick={() => exportBudgetsCSV({
+              onClick={() => exportBudgetsPDF({
                 budgets,
                 categories,
                 transactions,
@@ -559,24 +591,24 @@ export const SettingsPage = () => {
                 year: selectedYear,
                 overallMonthlyTarget: currentHousehold?.monthly_budget_target || calculations.activeBudgetTarget || 0,
               })}
-              className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/60 p-2.5 text-xs font-bold text-rose-700 hover:bg-rose-100 active-press transition cursor-pointer"
             >
-              <Download className="h-3 w-3 text-emerald-600" />
-              Budgets CSV
+              <FileText className="h-3.5 w-3.5" />
+              Budgets PDF
             </button>
             <button
-              onClick={() => exportBillsCSV(bills, currentHousehold?.name || 'Household')}
-              className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+              onClick={() => exportBillsPDF(bills, currentHousehold?.name || 'Household')}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/60 p-2.5 text-xs font-bold text-rose-700 hover:bg-rose-100 active-press transition cursor-pointer"
             >
-              <Download className="h-3 w-3 text-emerald-600" />
-              Bills CSV
+              <FileText className="h-3.5 w-3.5" />
+              Bills PDF
             </button>
             <button
-              onClick={() => exportSavingsCSV(savingsGoals, currentHousehold?.name || 'Household')}
-              className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+              onClick={() => exportSavingsPDF(savingsGoals, currentHousehold?.name || 'Household')}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/60 p-2.5 text-xs font-bold text-rose-700 hover:bg-rose-100 active-press transition cursor-pointer"
             >
-              <Download className="h-3 w-3 text-emerald-600" />
-              Savings CSV
+              <FileText className="h-3.5 w-3.5" />
+              Savings PDF
             </button>
           </div>
         </div>

@@ -21,6 +21,8 @@
     "@capacitor/ios": "^8.6.0",
     "@supabase/supabase-js": "^2.118.0",
     "autoprefixer": "^10.6.1",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.9",
     "lucide-react": "^1.61.0",
     "postcss": "^8.5.31",
     "react": "^19.3.1",
