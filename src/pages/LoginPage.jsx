@@ -4,11 +4,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { Lock, Mail, AlertCircle, ArrowRight, Eye, EyeOff, Sparkles, ShieldCheck, KeyRound, CheckCircle2, X } from 'lucide-react';
 
 export const LoginPage = () => {
-  const { signIn, loginAsDemo, resetPasswordWithPin } = useAuth();
+  const { signIn, signInWithPin, loginAsDemo, resetPasswordWithPin } = useAuth();
   const navigate = useNavigate();
 
+  // Mode: 'pin' or 'password' (defaults to 'pin' for ultra-fast, direct login)
+  const [loginMode, setLoginMode] = useState('pin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [pinInput, setPinInput] = useState('0000');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -26,20 +29,40 @@ export const LoginPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !password) {
-      setError('Please enter your email and password.');
+    if (!email.trim()) {
+      setError('Pakilagay ang iyong email address.');
       return;
     }
+
     setError('');
     setLoading(true);
 
-    const res = await signIn(email.trim(), password);
-    setLoading(false);
-
-    if (res.success) {
-      navigate('/');
+    if (loginMode === 'pin') {
+      if (!pinInput || pinInput.length !== 4) {
+        setError('Pakilagay ang 4-digit PIN (default: 0000).');
+        setLoading(false);
+        return;
+      }
+      const res = await signInWithPin(email.trim(), pinInput.trim());
+      setLoading(false);
+      if (res.success) {
+        navigate('/');
+      } else {
+        setError(res.error || 'Hindi makapag-log in gamit ang PIN.');
+      }
     } else {
-      setError(res.error || 'Invalid email or password.');
+      if (!password) {
+        setError('Please enter your password.');
+        setLoading(false);
+        return;
+      }
+      const res = await signIn(email.trim(), password);
+      setLoading(false);
+      if (res.success) {
+        navigate('/');
+      } else {
+        setError(res.error || 'Invalid email or password.');
+      }
     }
   };
 
@@ -153,6 +176,35 @@ export const LoginPage = () => {
             </div>
           )}
 
+          {/* Login Mode Toggle: Quick PIN vs Password */}
+          <div className="flex rounded-2xl bg-white/10 p-1 mb-4 border border-white/15 backdrop-blur-md">
+            <button
+              type="button"
+              onClick={() => { setLoginMode('pin'); setError(''); }}
+              className={`flex-1 py-2 text-xs font-bold rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                loginMode === 'pin'
+                  ? 'bg-emerald-500 text-slate-950 shadow-md font-black'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <ShieldCheck className="h-4 w-4" />
+              <span>4-Digit PIN Login</span>
+              <span className="text-[10px] bg-slate-950/25 px-1.5 py-0.5 rounded-full font-mono">0000</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setLoginMode('password'); setError(''); }}
+              className={`flex-1 py-2 text-xs font-bold rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                loginMode === 'password'
+                  ? 'bg-emerald-500 text-slate-950 shadow-md font-black'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <Lock className="h-3.5 w-3.5" />
+              <span>Password</span>
+            </button>
+          </div>
+
           {/* Glass Form */}
           <form onSubmit={handleSubmit} className="space-y-3.5">
             <div>
@@ -174,46 +226,80 @@ export const LoginPage = () => {
               </div>
             </div>
 
-            <div>
-              <div className="relative group">
-                <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-emerald-400/70 group-focus-within:text-emerald-300 transition-colors" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck="false"
-                  required
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl py-3.5 pl-10 pr-11 text-sm text-white placeholder:text-slate-400 focus:bg-white/15 focus:border-emerald-400 focus:outline-hidden focus:ring-4 focus:ring-emerald-400/20 shadow-inner transition"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 p-1 text-slate-400 hover:text-emerald-300 rounded-lg transition"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+            {loginMode === 'pin' ? (
+              /* Quick 4-Digit PIN Input */
+              <div>
+                <div className="relative group">
+                  <KeyRound className="absolute left-3.5 top-3.5 h-4 w-4 text-emerald-400/70 group-focus-within:text-emerald-300 transition-colors" />
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={4}
+                    required
+                    placeholder="4-Digit PIN (Default: 0000)"
+                    value={pinInput}
+                    onChange={(e) => setPinInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    className="w-full rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl py-3.5 pl-10 pr-3.5 text-center font-mono text-xl font-black tracking-widest text-emerald-300 placeholder:text-slate-400 focus:bg-white/15 focus:border-emerald-400 focus:outline-hidden focus:ring-4 focus:ring-emerald-400/20 shadow-inner transition"
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-slate-300 mt-1.5 px-1">
+                  <span>Default PIN: <strong>0000</strong></span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForgotEmail(email);
+                      setForgotError('');
+                      setForgotMessage('');
+                      setIsForgotOpen(true);
+                    }}
+                    className="text-emerald-300 hover:text-emerald-200 underline cursor-pointer"
+                  >
+                    Change PIN / Forgot?
+                  </button>
+                </div>
               </div>
-            </div>
-
-            {/* Forgot Password Link */}
-            <div className="flex items-center justify-end -mt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setForgotEmail(email);
-                  setForgotError('');
-                  setForgotMessage('');
-                  setIsForgotOpen(true);
-                }}
-                className="text-xs font-semibold text-emerald-300/90 hover:text-emerald-200 hover:underline transition cursor-pointer"
-              >
-                Forgot password?
-              </button>
-            </div>
+            ) : (
+              /* Password Input */
+              <div>
+                <div className="relative group">
+                  <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-emerald-400/70 group-focus-within:text-emerald-300 transition-colors" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck="false"
+                    required
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl py-3.5 pl-10 pr-11 text-sm text-white placeholder:text-slate-400 focus:bg-white/15 focus:border-emerald-400 focus:outline-hidden focus:ring-4 focus:ring-emerald-400/20 shadow-inner transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-3 p-1 text-slate-400 hover:text-emerald-300 rounded-lg transition"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <div className="flex items-center justify-end -mt-1 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForgotEmail(email);
+                      setForgotError('');
+                      setForgotMessage('');
+                      setIsForgotOpen(true);
+                    }}
+                    className="text-xs font-semibold text-emerald-300/90 hover:text-emerald-200 hover:underline transition cursor-pointer"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Radiant Glowing Neon Glass Button */}
             <button
@@ -225,7 +311,7 @@ export const LoginPage = () => {
                 <div className="h-4 w-4 border-2 border-slate-900/40 border-t-slate-900 rounded-full animate-spin" />
               ) : (
                 <>
-                  <span>Sign In</span>
+                  <span>{loginMode === 'pin' ? 'Log In with PIN' : 'Sign In with Password'}</span>
                   <ArrowRight className="h-4 w-4" />
                 </>
               )}

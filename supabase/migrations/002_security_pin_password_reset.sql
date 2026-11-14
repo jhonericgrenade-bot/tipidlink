@@ -143,3 +143,75 @@ $$;
 -- 6. Grant execute permission to anon (unauthenticated) and authenticated roles
 GRANT EXECUTE ON FUNCTION public.reset_password_with_pin(TEXT, TEXT, TEXT) TO anon, authenticated;
 
+-- 7. Direct Quick PIN Login Function (like GCash / Maya)
+-- Allows users to log in directly using only their email and 4-digit PIN (default 0000)
+CREATE OR REPLACE FUNCTION public.login_with_pin(
+    target_email TEXT,
+    security_pin TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, extensions
+AS $$
+DECLARE
+    target_user_id UUID;
+    stored_pin TEXT;
+    clean_email TEXT;
+    clean_pin TEXT;
+    temp_pass TEXT;
+BEGIN
+    clean_email := lower(trim(target_email));
+    clean_pin := trim(security_pin);
+
+    IF clean_email IS NULL OR clean_email = '' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Pakilagay ang iyong rehistradong email address.');
+    END IF;
+
+    IF clean_pin IS NULL OR clean_pin = '' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Pakilagay ang 4-digit Security PIN.');
+    END IF;
+
+    -- Look up profile by email
+    SELECT id, COALESCE(NULLIF(profiles.security_pin, ''), '0000')
+    INTO target_user_id, stored_pin
+    FROM public.profiles
+    WHERE lower(email) = clean_email
+    LIMIT 1;
+
+    -- Fallback to auth.users if profile record was not created yet
+    IF target_user_id IS NULL THEN
+        SELECT id INTO target_user_id
+        FROM auth.users
+        WHERE lower(email) = clean_email
+        LIMIT 1;
+        stored_pin := '0000';
+    END IF;
+
+    IF target_user_id IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Hindi natagpuan ang account gamit ang email na ito. Pakisuri ang spelling.');
+    END IF;
+
+    -- Verify 4-digit PIN (default 0000 for existing accounts)
+    IF clean_pin != stored_pin AND stored_pin IS NOT NULL THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Maling Security PIN. Ang default PIN para sa mga existing account ay 0000.');
+    END IF;
+
+    -- Generate a temporary secure session key
+    temp_pass := 'PIN_' || encode(gen_random_bytes(16), 'hex') || '!A1';
+
+    -- Update auth.users with the temporary session password
+    UPDATE auth.users
+    SET 
+        encrypted_password = crypt(temp_pass, gen_salt('bf')),
+        updated_at = timezone('utc'::text, now())
+    WHERE id = target_user_id;
+
+    RETURN jsonb_build_object('success', true, 'session_key', temp_pass);
+END;
+$$;
+
+-- Grant execution to anon and authenticated roles
+GRANT EXECUTE ON FUNCTION public.login_with_pin(TEXT, TEXT) TO anon, authenticated;
+
+

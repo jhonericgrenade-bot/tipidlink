@@ -194,6 +194,83 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Sign in directly using Email + 4-Digit Security PIN (Direct / No Password)
+  const signInWithPin = async (email, pin) => {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanPin = (pin || '').trim();
+
+    if (!cleanEmail) {
+      return { success: false, error: 'Pakilagay ang iyong rehistradong email address.' };
+    }
+    if (!cleanPin || cleanPin.length !== 4) {
+      return { success: false, error: 'Pakilagay ang 4-digit Security PIN (default: 0000).' };
+    }
+
+    // Clear any previous demo state
+    localStorage.removeItem('tipidlink_demo_user');
+    localStorage.removeItem('tipidlink_demo_active');
+    localStorage.removeItem('tipidlink_active_household_id');
+    setIsDemoMode(false);
+
+    if (!isSupabaseConfigured) {
+      const fallbackName = cleanEmail.split('@')[0];
+      const offlineProfile = {
+        id: `usr-${Date.now()}`,
+        email: cleanEmail,
+        full_name: fallbackName,
+        avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fallbackName)}`,
+        security_pin: cleanPin,
+      };
+      setUser({ id: offlineProfile.id, email: offlineProfile.email });
+      setProfile(offlineProfile);
+      return { success: true };
+    }
+
+    try {
+      // 1. Verify PIN in database & retrieve session key
+      const { data, error } = await supabase.rpc('login_with_pin', {
+        target_email: cleanEmail,
+        security_pin: cleanPin,
+      });
+
+      if (error) {
+        if (error.code === 'PGRST202') {
+          return {
+            success: false,
+            error: 'Kailangang patakbuhin ang 002_security_pin_password_reset.sql sa Supabase SQL Editor para maging aktibo ang Direct PIN Login.'
+          };
+        }
+        return { success: false, error: error.message };
+      }
+
+      if (data && data.success === false) {
+        return { success: false, error: data.error || 'Hindi makapag-log in gamit ang PIN.' };
+      }
+
+      const sessionKey = data?.session_key;
+      if (!sessionKey) {
+        return { success: false, error: 'Failed to establish session from PIN.' };
+      }
+
+      // 2. Sign in with the temporary session key to obtain official Supabase JWT session
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password: sessionKey,
+      });
+
+      if (authError) throw authError;
+
+      if (authData?.user) {
+        setUser(authData.user);
+        await fetchUserProfile(authData.user);
+      }
+
+      return { success: true, data: authData };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
   // Sign up with Supabase Auth or offline fallback
   const signUp = async (email, password, fullName, securityPin = '0000') => {
     const cleanEmail = (email || '').trim().toLowerCase();
@@ -572,6 +649,7 @@ export const AuthProvider = ({ children }) => {
         isDemoMode,
         isSupabaseConfigured,
         signIn,
+        signInWithPin,
         signUp,
         signOut,
         loginAsDemo,
