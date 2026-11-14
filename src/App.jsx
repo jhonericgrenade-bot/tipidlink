@@ -94,6 +94,14 @@ const ProtectedLayout = () => {
 };
 
 export default function App() {
+  // If the user arrives via a password recovery email link with hash fragment
+  if (typeof window !== 'undefined' && window.location.hash) {
+    const hash = window.location.hash;
+    if (hash.includes('type=recovery') && !window.location.pathname.startsWith('/reset-password')) {
+      window.location.replace(`/reset-password${hash}`);
+    }
+  }
+
   return (
     <BrowserRouter>
       <AuthProvider>

@@ -400,7 +400,7 @@ export const AuthProvider = ({ children }) => {
   // Direct OTP Code Verification + Password Reset (Zero-redirect / No-broken-links)
   const verifyOtpAndResetPassword = async (targetEmail, token, newPassword) => {
     const cleanEmail = (targetEmail || '').trim().toLowerCase();
-    const cleanToken = (token || '').trim();
+    let cleanToken = (token || '').trim();
 
     if (!cleanEmail) {
       return { success: false, error: 'Please enter your registered email.' };
@@ -412,6 +412,23 @@ export const AuthProvider = ({ children }) => {
       return { success: false, error: 'Password must be at least 8 characters long.' };
     }
 
+    // Smart token extraction: if user pasted the entire link from their Gmail
+    if (cleanToken.includes('http') || cleanToken.includes('#') || cleanToken.includes('?') || cleanToken.includes('=')) {
+      try {
+        const dummyUrl = cleanToken.startsWith('http') ? cleanToken : `https://tipidlink.app/${cleanToken}`;
+        const parsed = new URL(dummyUrl);
+        const extracted = parsed.searchParams.get('token')
+          || parsed.searchParams.get('code')
+          || parsed.searchParams.get('token_hash')
+          || (parsed.hash && new URLSearchParams(parsed.hash.replace(/^#/, '')).get('access_token'));
+        if (extracted) {
+          cleanToken = extracted;
+        }
+      } catch (e) {
+        // Keep cleanToken as-is
+      }
+    }
+
     if (isDemoMode || !isSupabaseConfigured) {
       return {
         success: true,
@@ -420,22 +437,34 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      // 1. Verify OTP token directly in-app
-      const { data, error: otpError } = await supabase.auth.verifyOtp({
+      // 1. Try OTP verification as 'recovery'
+      let verifyRes = await supabase.auth.verifyOtp({
         email: cleanEmail,
         token: cleanToken,
         type: 'recovery',
       });
 
-      if (otpError) {
-        let msg = otpError.message;
+      // Fallback: Try OTP verification as 'email' if recovery fails
+      if (verifyRes.error) {
+        const emailTypeRes = await supabase.auth.verifyOtp({
+          email: cleanEmail,
+          token: cleanToken,
+          type: 'email',
+        });
+        if (!emailTypeRes.error) {
+          verifyRes = emailTypeRes;
+        }
+      }
+
+      if (verifyRes.error) {
+        let msg = verifyRes.error.message;
         if (msg.toLowerCase().includes('expired') || msg.toLowerCase().includes('invalid')) {
-          msg = 'Maling verification code o nag-expire na. Pakisuri ang 6-digit code sa iyong pinakabagong email.';
+          msg = 'Maling verification code o nag-expire na. Pakisuri ang 6-digit code sa pinakabagong email mula sa TipidLink.';
         }
         return { success: false, error: msg };
       }
 
-      // 2. Update password with the active recovery session
+      // 2. Update password with the verified session
       const { error: pwdError } = await supabase.auth.updateUser({
         password: newPassword,
       });

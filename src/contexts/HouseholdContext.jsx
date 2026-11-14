@@ -520,6 +520,12 @@ export const HouseholdProvider = ({ children }) => {
     try {
       const cleanInput = rawCode.trim();
       const cleanUpper = cleanInput.toUpperCase().replace(/\s+/g, '');
+      if (cleanUpper === 'KALAB-4211' || cleanUpper === 'KALAB4211') {
+        return {
+          success: false,
+          error: "Halimbawa lamang ang 'KALAB-4211'. Kunin ang totoong invite code mula sa Family Household page ng may-ari ng account."
+        };
+      }
       let targetHouseholdId = null;
 
       // Step 1: Universal lookup in profiles.phone (INVITES:CODE:UUID|CODE2:UUID2)
