@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useHousehold } from '../contexts/HouseholdContext';
 import { useFinance } from '../contexts/FinanceContext';
 import { usePremium } from '../contexts/PremiumContext';
 import { isSupabaseConfigured, getSupabaseConfig } from '../lib/supabase';
@@ -14,14 +15,81 @@ import {
   Crown,
   Building2,
   Sparkles,
+  Lock,
+  KeyRound,
+  Eye,
+  EyeOff,
+  Mail,
+  AlertCircle,
+  UserCheck,
 } from 'lucide-react';
 
 export const SettingsPage = () => {
+  const { user, profile, resetPassword, updatePassword, isDemoMode } = useAuth();
+  const { currentUserRole, currentHousehold } = useHousehold();
   const { resetToDemoData } = useFinance();
   const { isPremium, premiumPlan, sponsorDetails, openUpgradeModal } = usePremium();
+
   const [resetMessage, setResetMessage] = useState('');
 
+  // Password Management State
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [resetEmailSent, setResetEmailSent] = useState('');
+
   const config = getSupabaseConfig();
+
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (newPassword.length < 8) {
+      setPasswordError('New password must be at least 8 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New password and confirmation do not match.');
+      return;
+    }
+
+    setPasswordLoading(true);
+    const res = await updatePassword(newPassword);
+    setPasswordLoading(false);
+
+    if (res.success) {
+      setPasswordSuccess(res.message);
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setPasswordSuccess(''), 4000);
+    } else {
+      setPasswordError(res.error || 'Failed to update password.');
+    }
+  };
+
+  const handleSendResetLink = async () => {
+    const targetEmail = user?.email || profile?.email;
+    if (!targetEmail) {
+      setPasswordError('No email registered with this account.');
+      return;
+    }
+    setPasswordError('');
+    setPasswordLoading(true);
+    const res = await resetPassword(targetEmail);
+    setPasswordLoading(false);
+
+    if (res.success) {
+      setResetEmailSent(res.message);
+      setTimeout(() => setResetEmailSent(''), 6000);
+    } else {
+      setPasswordError(res.error || 'Failed to send reset email.');
+    }
+  };
 
   const handleResetData = () => {
     resetToDemoData();
@@ -40,10 +108,10 @@ export const SettingsPage = () => {
     <div className="space-y-6 pb-20 lg:pb-12 max-w-4xl mx-auto animate-page-enter">
       <div>
         <h1 className="text-2xl font-black tracking-tight text-slate-900">
-          Settings & Architecture
+          Account & System Settings
         </h1>
         <p className="text-xs text-slate-500 mt-0.5">
-          Backend configuration, Supabase Row Level Security (RLS), and college presentation documentation.
+          Account security, password management, backend status, and college presentation documentation.
         </p>
       </div>
 
@@ -53,6 +121,144 @@ export const SettingsPage = () => {
           <span>{resetMessage}</span>
         </div>
       )}
+
+      {/* Account Security & Password Management Card */}
+      <div className="rounded-3xl bg-white p-6 shadow-xs border border-slate-200/80 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-5">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-800 shadow-xs">
+              <KeyRound className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-slate-900">Account & Security</h3>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                  {currentUserRole || 'Member'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">
+                {profile?.full_name || user?.user_metadata?.full_name || 'Account User'} • {user?.email || profile?.email || 'demo@tipidlink.ph'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${
+              isPremium ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-slate-100 text-slate-700'
+            }`}>
+              <Crown className="h-3.5 w-3.5 text-amber-500 fill-current" />
+              <span>{isPremium ? 'Pro Account' : 'Free Plan'}</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Password Alerts */}
+        {passwordSuccess && (
+          <div className="flex items-center gap-2 rounded-2xl bg-emerald-50 p-3.5 text-xs text-emerald-800 border border-emerald-200 animate-fade-in">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+            <span className="font-semibold">{passwordSuccess}</span>
+          </div>
+        )}
+
+        {resetEmailSent && (
+          <div className="flex items-center gap-2 rounded-2xl bg-teal-50 p-3.5 text-xs text-teal-800 border border-teal-200 animate-fade-in">
+            <Mail className="h-4 w-4 shrink-0 text-teal-600" />
+            <span className="font-semibold">{resetEmailSent}</span>
+          </div>
+        )}
+
+        {passwordError && (
+          <div className="flex items-center gap-2 rounded-2xl bg-rose-50 p-3.5 text-xs text-rose-800 border border-rose-200 animate-fade-in">
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+            <span className="font-semibold">{passwordError}</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-1">
+          {/* Form: Change Password Direct */}
+          <form onSubmit={handleUpdatePassword} className="space-y-4">
+            <div>
+              <h4 className="text-sm font-bold text-slate-800 mb-0.5">Change Password</h4>
+              <p className="text-xs text-slate-400">Update your login password to keep your account safe.</p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">
+                New Password (Min. 8 characters)
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <input
+                  type={showNewPassword ? 'text' : 'password'}
+                  required
+                  placeholder="••••••••"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-10 text-xs font-semibold text-slate-800 focus:border-emerald-500 focus:outline-hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-2.5 top-2.5 p-1 text-slate-400 hover:text-slate-600 rounded-lg transition"
+                >
+                  {showNewPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">
+                Confirm New Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <input
+                  type={showNewPassword ? 'text' : 'password'}
+                  required
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3.5 text-xs font-semibold text-slate-800 focus:border-emerald-500 focus:outline-hidden"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={passwordLoading || !newPassword}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press transition cursor-pointer disabled:opacity-50"
+            >
+              {passwordLoading ? 'Updating...' : 'Update Password'}
+            </button>
+          </form>
+
+          {/* Option 2: Forgot / Reset Link via Email */}
+          <div className="rounded-2xl bg-slate-50 border border-slate-200/80 p-5 flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
+                <Mail className="h-4 w-4 text-emerald-600" />
+                <span>Forgot or Lost Password?</span>
+              </div>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                If you forgot your password or need to reset it from your registered email, we can send you an official reset link directly to:
+              </p>
+              <div className="rounded-xl bg-white border border-slate-200 px-3 py-2 text-xs font-mono font-bold text-slate-700 truncate">
+                {user?.email || profile?.email || 'demo@tipidlink.ph'}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSendResetLink}
+              disabled={passwordLoading}
+              className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-50 active-press transition cursor-pointer disabled:opacity-50"
+            >
+              <KeyRound className="h-4 w-4 text-emerald-600" />
+              <span>Send Password Reset Link to Email</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Backend Status Card */}
       <div className="rounded-3xl bg-white p-6 shadow-xs border border-slate-200/80 space-y-4">

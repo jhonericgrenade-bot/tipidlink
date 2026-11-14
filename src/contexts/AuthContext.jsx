@@ -339,6 +339,64 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Reset password via email
+  const resetPassword = async (targetEmail) => {
+    const cleanEmail = (targetEmail || '').trim().toLowerCase();
+    if (!cleanEmail) {
+      return { success: false, error: 'Please enter your registered email address.' };
+    }
+
+    if (isDemoMode || !isSupabaseConfigured) {
+      return {
+        success: true,
+        message: `Password reset link has been simulated for ${cleanEmail}. Check your inbox for instructions.`
+      };
+    }
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+        redirectTo: window.location.origin,
+      });
+      if (error) throw error;
+      return {
+        success: true,
+        message: `Password reset instructions have been sent to ${cleanEmail}. Please check your inbox or spam folder.`
+      };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  // Update password for currently signed-in user
+  const updatePassword = async (newPassword) => {
+    if (!newPassword || newPassword.length < 8) {
+      return {
+        success: false,
+        error: 'Password must be at least 8 characters long.'
+      };
+    }
+
+    if (isDemoMode || !isSupabaseConfigured) {
+      return {
+        success: true,
+        message: 'Password successfully updated!'
+      };
+    }
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+      if (error) throw error;
+      return {
+        success: true,
+        message: 'Password successfully updated!'
+      };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -352,6 +410,8 @@ export const AuthProvider = ({ children }) => {
         signOut,
         loginAsDemo,
         updateProfile,
+        resetPassword,
+        updatePassword,
       }}
     >
       {children}

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Lock, Mail, AlertCircle, ArrowRight, Eye, EyeOff, Sparkles, ShieldCheck } from 'lucide-react';
+import { Lock, Mail, AlertCircle, ArrowRight, Eye, EyeOff, Sparkles, ShieldCheck, KeyRound, CheckCircle2, X } from 'lucide-react';
 
 export const LoginPage = () => {
-  const { signIn, loginAsDemo } = useAuth();
+  const { signIn, loginAsDemo, resetPassword } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -12,6 +12,13 @@ export const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Forgot Password modal state
+  const [isForgotOpen, setIsForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotMessage, setForgotMessage] = useState('');
+  const [forgotError, setForgotError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,6 +36,25 @@ export const LoginPage = () => {
       navigate('/');
     } else {
       setError(res.error || 'Invalid email or password.');
+    }
+  };
+
+  const handleForgotSubmit = async (e) => {
+    e.preventDefault();
+    if (!forgotEmail) {
+      setForgotError('Please enter your registered email address.');
+      return;
+    }
+    setForgotError('');
+    setForgotLoading(true);
+
+    const res = await resetPassword(forgotEmail);
+    setForgotLoading(false);
+
+    if (res.success) {
+      setForgotMessage(res.message);
+    } else {
+      setForgotError(res.error || 'Failed to send reset email.');
     }
   };
 
@@ -135,6 +161,22 @@ export const LoginPage = () => {
               </div>
             </div>
 
+            {/* Forgot Password Link */}
+            <div className="flex items-center justify-end -mt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setForgotEmail(email);
+                  setForgotError('');
+                  setForgotMessage('');
+                  setIsForgotOpen(true);
+                }}
+                className="text-xs font-semibold text-emerald-300/90 hover:text-emerald-200 hover:underline transition cursor-pointer"
+              >
+                Forgot password?
+              </button>
+            </div>
+
             {/* Radiant Glowing Neon Glass Button */}
             <button
               type="submit"
@@ -195,6 +237,90 @@ export const LoginPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Forgot Password Glass Modal */}
+      {isForgotOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md animate-fade-in">
+          <div className="relative w-full max-w-md rounded-3xl bg-slate-900/95 border border-white/20 p-7 shadow-2xl text-white animate-modal-pop">
+            <button
+              onClick={() => setIsForgotOpen(false)}
+              className="absolute right-4 top-4 rounded-xl p-1.5 text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-12 w-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 shadow-xs">
+                <KeyRound className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-white">Reset Password</h3>
+                <p className="text-xs text-slate-300">We will send password reset instructions to your email</p>
+              </div>
+            </div>
+
+            {forgotMessage ? (
+              <div className="rounded-2xl bg-emerald-500/20 border border-emerald-500/40 p-4 text-xs text-emerald-200 space-y-3">
+                <div className="flex items-center gap-2 font-bold text-emerald-300">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Email Sent!</span>
+                </div>
+                <p className="leading-relaxed">{forgotMessage}</p>
+                <button
+                  type="button"
+                  onClick={() => setIsForgotOpen(false)}
+                  className="w-full mt-2 rounded-xl bg-emerald-500 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition cursor-pointer"
+                >
+                  Back to Sign In
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotSubmit} className="space-y-4">
+                {forgotError && (
+                  <div className="flex items-center gap-2 rounded-xl bg-rose-500/20 border border-rose-500/40 p-3 text-xs text-rose-200">
+                    <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
+                    <span>{forgotError}</span>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                    Registered Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-emerald-400/70" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="name@example.com"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      className="w-full rounded-2xl border border-white/15 bg-white/10 py-3 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 focus:border-emerald-400 focus:outline-hidden"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsForgotOpen(false)}
+                    className="rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="rounded-xl bg-emerald-500 px-5 py-2.5 text-xs font-black text-slate-950 hover:bg-emerald-400 transition disabled:opacity-50 cursor-pointer"
+                  >
+                    {forgotLoading ? 'Sending...' : 'Send Reset Link'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
