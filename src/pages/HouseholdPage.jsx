@@ -114,11 +114,11 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
   const handleRoleChange = async (memberId, targetName, newRole) => {
     let confirmMsg = '';
     if (newRole === 'owner') {
-      confirmMsg = `BABALA SA PAGLILIPAT NG OWNER ROLE:\n\nSigurado ka bang nais mong italaga si "${targetName}" bilang bagong OWNER?\n\nPAALALA SA PAHINTULOT:\n• Tanging ang kasalukuyang Owner lamang ang makakagawa nito.\n• Ang Owner ang may buong kapangyarihan sa pagbura ng household at pag-demote ng Admins.\n\nNais mo bang magpatuloy?`;
+      confirmMsg = `WARNING: TRANSFERRING HOUSEHOLD OWNERSHIP\n\nAre you sure you want to designate "${targetName}" as the new OWNER?\n\nPERMISSION NOTICE:\n• Only the current Owner can perform this action.\n• The Owner has exclusive authority to delete the household and manage Admins.\n\nDo you want to proceed?`;
     } else if (newRole === 'admin') {
-      confirmMsg = `PABATID SA PAGTATALAGA NG ADMIN:\n\nItatalaga mo si "${targetName}" bilang ADMIN.\n\nPAALALA SA PAHINTULOT:\n• Magkakaroon siya ng karapatang magpalit ng Monthly Budget Target.\n• Maaari siyang mag-alis ng ordinaryong Members.\n• Hindi niya maaaring tanggalin o palitan ang Owner.\n\nNais mo bang magpatuloy?`;
+      confirmMsg = `ADMIN DESIGNATION NOTICE:\n\nYou are assigning "${targetName}" as an ADMIN.\n\nPERMISSION GRANTED:\n• Authority to modify the Household Monthly Target\n• Authority to remove standard Members\n• Notice: Admins cannot remove or demote the Owner.\n\nDo you want to proceed?`;
     } else if (newRole === 'member') {
-      confirmMsg = `PABATID: Pagbabalik sa Ordinaryong MEMBER\n\nIbababa mo ang tungkulin ni "${targetName}" bilang ordinaryong MEMBER.\n\nPAALALA SA PAHINTULOT:\n• Hindi na siya makakapagbago ng budget target o mag-alis ng ibang miyembro.\n• Makakapag-record pa rin siya ng araw-araw na gastos, kita, at bills.\n\nNais mo bang magpatuloy?`;
+      confirmMsg = `MEMBER DEMOTION NOTICE:\n\nYou are setting "${targetName}" as a standard MEMBER.\n\nPERMISSION RESTRICTION:\n• They will no longer be able to modify budget targets or manage members.\n• They can continue recording daily transactions, bills, and savings.\n\nDo you want to proceed?`;
     }
 
     if (confirmMsg && !window.confirm(confirmMsg)) {
@@ -127,17 +127,17 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
 
     const res = await updateMemberRole(memberId, newRole);
     if (res && !res.success) {
-      alert(`Hindi ma-update ang role: ${res.error}`);
+      alert(`Failed to update role: ${res.error}`);
     }
   };
 
   const handleRemoveMember = async (memberId, targetName, targetRole) => {
-    const confirmMsg = `BABALA SA PAG-ALIS NG MIYEMBRO:\n\nSigurado ka bang nais mong tanggalin si "${targetName}" (${targetRole.toUpperCase()}) sa household?\n\nPAALALA SA PAHINTULOT:\n• Tanging Owner at Admin lamang ang may karapatang magtanggal ng kapamilya.\n• Hindi na makikita ng taong ito ang inyong shared financial records at mga bills.\n\nNais mo bang tanggalin ang miyembrong ito?`;
+    const confirmMsg = `WARNING: REMOVING HOUSEHOLD MEMBER\n\nAre you sure you want to remove "${targetName}" (${targetRole.toUpperCase()}) from this household?\n\nPERMISSION POLICY:\n• Only Owners and Admins have permission to remove members.\n• This user will immediately lose access to all shared financial records, budgets, and bills.\n\nDo you want to proceed?`;
 
     if (window.confirm(confirmMsg)) {
       const res = await removeMember(memberId);
       if (res && !res.success) {
-        alert(`Hindi maalis ang miyembro: ${res.error}`);
+        alert(`Failed to remove member: ${res.error}`);
       }
     }
   };
@@ -146,7 +146,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center animate-page-enter">
         <div className="h-10 w-10 animate-spin rounded-full border-3 border-emerald-600 border-t-transparent mb-3" />
-        <p className="text-xs font-semibold text-slate-500">Inihahanda ang impormasyon ng iyong household...</p>
+        <p className="text-xs font-semibold text-slate-500">Loading household information...</p>
       </div>
     );
   }
@@ -216,10 +216,10 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
             ) : (
               <div
                 className="flex items-center gap-1.5 rounded-xl bg-slate-100 border border-slate-200 px-2.5 py-1.5 text-[11px] text-slate-500 font-medium"
-                title="Tanging ang Owner at Admin lamang ang may karapatang magbago ng settings"
+                title="Only the Household Owner and Admins have permission to modify household settings"
               >
                 <Lock className="h-3.5 w-3.5 text-slate-400" />
-                <span>Pang-Owner/Admin lamang</span>
+                <span>Owner &amp; Admin Only</span>
               </div>
             )}
           </div>
@@ -348,7 +348,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 font-black text-amber-900 text-xs">
               <ShieldAlert className="h-4 w-4 text-amber-600 shrink-0" />
-              <span>Gabay sa Roles &amp; Mga Karapatan (Role Access Control):</span>
+              <span>Role Permissions &amp; Access Control Policy:</span>
             </div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-200/60 px-2 py-0.5 rounded-md">
               Security Policy
@@ -363,14 +363,14 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
               <div className="flex items-center justify-between mb-1">
                 <span className="font-extrabold text-amber-900 flex items-center gap-1">
                   <Crown className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
-                  👑 Owner (Pinuno)
+                  👑 Owner
                 </span>
                 {currentUserRole === 'owner' && (
-                  <span className="text-[9px] font-black bg-amber-600 text-white px-1.5 py-0.2 rounded-full">Ito Ka</span>
+                  <span className="text-[9px] font-black bg-amber-600 text-white px-1.5 py-0.2 rounded-full">You</span>
                 )}
               </div>
               <p className="text-slate-600">
-                <strong>Buong Kapangyarihan:</strong> Tanging ang Owner lamang ang makakapagbura ng household, mag-promote/demote ng Admin, at mag-alis ng kahit sinong miyembro.
+                <strong>Full Authority:</strong> Only the Owner can delete the household, promote or demote Admins, and remove any member.
               </p>
             </div>
 
@@ -381,14 +381,14 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
               <div className="flex items-center justify-between mb-1">
                 <span className="font-extrabold text-indigo-900 flex items-center gap-1">
                   <ShieldCheck className="h-3.5 w-3.5 text-indigo-600" />
-                  🛡️ Admin (Katuwang)
+                  🛡️ Admin
                 </span>
                 {currentUserRole === 'admin' && (
-                  <span className="text-[9px] font-black bg-indigo-600 text-white px-1.5 py-0.2 rounded-full">Ito Ka</span>
+                  <span className="text-[9px] font-black bg-indigo-600 text-white px-1.5 py-0.2 rounded-full">You</span>
                 )}
               </div>
               <p className="text-slate-600">
-                <strong>Pamamahala:</strong> Pwedeng magbago ng budget target at mag-alis ng <strong>Member lamang</strong>. <em>Babala: Hindi pwedeng tanggalin o palitan ang Owner.</em>
+                <strong>Management:</strong> Can modify budget targets and remove <strong>Members only</strong>. <em>Restriction: Cannot remove or alter the Owner.</em>
               </p>
             </div>
 
@@ -399,14 +399,14 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
               <div className="flex items-center justify-between mb-1">
                 <span className="font-extrabold text-slate-800 flex items-center gap-1">
                   <Users className="h-3.5 w-3.5 text-slate-500" />
-                  👤 Member (Kasapi)
+                  👤 Member
                 </span>
                 {currentUserRole === 'member' && (
-                  <span className="text-[9px] font-black bg-slate-600 text-white px-1.5 py-0.2 rounded-full">Ito Ka</span>
+                  <span className="text-[9px] font-black bg-slate-600 text-white px-1.5 py-0.2 rounded-full">You</span>
                 )}
               </div>
               <p className="text-slate-600">
-                <strong>Pang-araw-araw:</strong> Pwedeng mag-record ng gastos, kita, at bills. <em>Babala: Walang karapatang magbago ng role o magtanggal ng kapamilya.</em>
+                <strong>Daily Use:</strong> Can log transactions, income, and bills. <em>Restriction: No permission to alter roles or remove household members.</em>
               </p>
             </div>
           </div>
@@ -471,7 +471,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
                     </div>
                   ) : !isSelf ? (
                     <span className="text-[10px] text-slate-400 italic">
-                      Walang access magpalit
+                      View only (Role restricted)
                     </span>
                   ) : null}
                 </div>

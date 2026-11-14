@@ -107,7 +107,7 @@ export const BudgetsPage = () => {
   const handleSaveOverallTarget = async (e) => {
     e.preventDefault();
     if (!isOwnerOrAdmin) {
-      alert('Tanging ang Owner at Admin lamang ang may karapatang magpalit ng Household Monthly Target.');
+      alert('Only the Household Owner and Admins have permission to modify the Monthly Budget Target.');
       setIsOverallModalOpen(false);
       return;
     }
@@ -241,10 +241,10 @@ export const BudgetsPage = () => {
             ) : (
               <div
                 className="inline-flex items-center gap-1.5 rounded-xl bg-white/5 px-3 py-1.5 text-[11px] font-medium text-slate-300 border border-white/10"
-                title="Tanging ang Owner at Admin lamang ang may karapatang magpalit ng budget limit"
+                title="Only the Household Owner and Admins have permission to modify budget limits"
               >
                 <Lock className="h-3.5 w-3.5 text-slate-400" />
-                <span>Pang-Owner/Admin lamang</span>
+                <span>Owner &amp; Admin Only</span>
               </div>
             )}
             {calculations.isOverspent ? (
