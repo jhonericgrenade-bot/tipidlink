@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Lock, Mail, User, AlertCircle, ArrowRight, CheckCircle2, Circle, Eye, EyeOff, Sparkles, KeyRound } from 'lucide-react';
+import { Lock, Mail, User, AlertCircle, ArrowRight, CheckCircle2, Circle, Eye, EyeOff, Sparkles, KeyRound, ShieldCheck } from 'lucide-react';
 
 export const RegisterPage = () => {
   const { signUp } = useAuth();
@@ -12,6 +12,7 @@ export const RegisterPage = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [inviteCode, setInviteCode] = useState('');
+  const [securityPin, setSecurityPin] = useState('0000');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -60,7 +61,7 @@ export const RegisterPage = () => {
       localStorage.removeItem('tipidlink_pending_join_code');
     }
 
-    const res = await signUp(email.trim(), password, fullName.trim());
+    const res = await signUp(email.trim(), password, fullName.trim(), securityPin || '0000');
     setLoading(false);
 
     if (res.success) {
@@ -258,6 +259,25 @@ export const RegisterPage = () => {
                   className="w-full rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl py-3 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 focus:bg-white/15 focus:border-emerald-400 focus:outline-hidden focus:ring-4 focus:ring-emerald-400/20 shadow-inner transition"
                 />
               </div>
+            </div>
+
+            <div>
+              <div className="relative group">
+                <ShieldCheck className="absolute left-3.5 top-3.5 h-4 w-4 text-emerald-400/70 group-focus-within:text-emerald-300 transition-colors" />
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={4}
+                  placeholder="4-Digit Security PIN (Default: 0000)"
+                  value={securityPin}
+                  onChange={(e) => setSecurityPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  className="w-full rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl py-3 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 font-mono tracking-widest focus:bg-white/15 focus:border-emerald-400 focus:outline-hidden focus:ring-4 focus:ring-emerald-400/20 shadow-inner transition"
+                />
+              </div>
+              <p className="text-[10px] text-emerald-200/70 mt-1 pl-1">
+                Security PIN para sa password recovery nang walang email (default: <strong>0000</strong>).
+              </p>
             </div>
 
             <div>

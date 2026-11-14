@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Lock, Mail, AlertCircle, ArrowRight, Eye, EyeOff, Sparkles, ShieldCheck, KeyRound, CheckCircle2, X } from 'lucide-react';
 
 export const LoginPage = () => {
-  const { signIn, loginAsDemo, resetPassword, verifyOtpAndResetPassword } = useAuth();
+  const { signIn, loginAsDemo, resetPasswordWithPin } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -13,11 +13,10 @@ export const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Forgot Password modal state
+  // Forgot Password modal state (Option 1: In-App 4-Digit Security PIN)
   const [isForgotOpen, setIsForgotOpen] = useState(false);
-  const [forgotStep, setForgotStep] = useState(1); // 1 = request code, 2 = enter code & new password
   const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotOtp, setForgotOtp] = useState('');
+  const [forgotPin, setForgotPin] = useState('0000');
   const [forgotNewPassword, setForgotNewPassword] = useState('');
   const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
   const [showForgotNewPassword, setShowForgotNewPassword] = useState(false);
@@ -44,62 +43,44 @@ export const LoginPage = () => {
     }
   };
 
-  const handleForgotRequestCode = async (e) => {
+  const handleForgotWithPin = async (e) => {
     e.preventDefault();
     if (!forgotEmail.trim()) {
-      setForgotError('Please enter your registered email address.');
+      setForgotError('Pakilagay ang iyong rehistradong email address.');
       return;
     }
-    setForgotError('');
-    setForgotMessage('');
-    setForgotLoading(true);
-
-    const res = await resetPassword(forgotEmail.trim());
-    setForgotLoading(false);
-
-    if (res.success) {
-      setForgotStep(2);
-      setForgotMessage(`Nagpadala kami ng 6-digit verification code sa ${forgotEmail}. Pakitingnan ang code sa iyong Gmail at ilagay sa ibaba:`);
-    } else {
-      setForgotError(res.error || 'Failed to send reset code.');
-    }
-  };
-
-  const handleForgotVerifyAndSave = async (e) => {
-    e.preventDefault();
-    if (!forgotOtp.trim()) {
-      setForgotError('Please enter the 6-digit code from your email.');
+    if (!forgotPin.trim() || forgotPin.trim().length !== 4) {
+      setForgotError('Pakilagay ang 4-digit Security PIN (default: 0000).');
       return;
     }
     if (forgotNewPassword.length < 8) {
-      setForgotError('Password must be at least 8 characters long.');
+      setForgotError('Ang bagong password ay dapat hindi bababa sa 8 characters.');
       return;
     }
     if (forgotNewPassword !== forgotConfirmPassword) {
-      setForgotError('New password and confirmation do not match.');
+      setForgotError('Hindi magkatugma ang bagong password at confirmation.');
       return;
     }
 
     setForgotError('');
     setForgotLoading(true);
 
-    const res = await verifyOtpAndResetPassword(forgotEmail.trim(), forgotOtp.trim(), forgotNewPassword);
+    const res = await resetPasswordWithPin(forgotEmail.trim(), forgotPin.trim(), forgotNewPassword);
     setForgotLoading(false);
 
     if (res.success) {
       setForgotMessage(res.message);
-      // Auto-populate the login form with new credentials
-      setEmail(forgotEmail);
+      // Auto-populate login form
+      setEmail(forgotEmail.trim());
       setPassword(forgotNewPassword);
       setTimeout(() => {
         setIsForgotOpen(false);
-        setForgotStep(1);
-        setForgotOtp('');
         setForgotNewPassword('');
         setForgotConfirmPassword('');
-      }, 2500);
+        setForgotMessage('');
+      }, 2000);
     } else {
-      setForgotError(res.error || 'Invalid or expired code.');
+      setForgotError(res.error || 'Hindi mabago ang password. Pakisuri ang impormasyon.');
     }
   };
 
@@ -299,14 +280,14 @@ export const LoginPage = () => {
 
             <div className="flex items-center gap-3 mb-4">
               <div className="h-12 w-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 shadow-xs">
-                <KeyRound className="h-6 w-6" />
+                <ShieldCheck className="h-6 w-6" />
               </div>
               <div>
                 <h3 className="text-lg font-black text-white">
-                  {forgotStep === 1 ? 'Reset Password' : 'Enter 6-Digit Code'}
+                  Reset Password via PIN
                 </h3>
                 <p className="text-xs text-slate-300">
-                  {forgotStep === 1 ? 'Enter your email to receive a 6-digit code' : 'Type code from email and your new password'}
+                  Instant reset sa mobile at desktop nang walang email links
                 </p>
               </div>
             </div>
@@ -325,128 +306,110 @@ export const LoginPage = () => {
               </div>
             )}
 
-            {forgotStep === 1 ? (
-              /* Step 1: Request Code */
-              <form onSubmit={handleForgotRequestCode} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                    Registered Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-emerald-400/70" />
-                    <input
-                      type="email"
-                      required
-                      placeholder="name@example.com"
-                      value={forgotEmail}
-                      onChange={(e) => setForgotEmail(e.target.value)}
-                      className="w-full rounded-2xl border border-white/15 bg-white/10 py-3 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 focus:border-emerald-400 focus:outline-hidden"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsForgotOpen(false)}
-                    className="rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={forgotLoading}
-                    className="rounded-xl bg-emerald-500 px-5 py-2.5 text-xs font-black text-slate-950 hover:bg-emerald-400 transition disabled:opacity-50 cursor-pointer"
-                  >
-                    {forgotLoading ? 'Sending...' : 'Send 6-Digit Code'}
-                  </button>
-                </div>
-              </form>
-            ) : (
-              /* Step 2: Enter 6-digit Code & New Password */
-              <form onSubmit={handleForgotVerifyAndSave} className="space-y-3.5">
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
-                    6-Digit Verification Code
-                  </label>
+            <form onSubmit={handleForgotWithPin} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  Registered Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-emerald-400/70" />
                   <input
-                    type="text"
+                    type="email"
                     required
-                    maxLength={6}
-                    placeholder="hal. 123456"
-                    value={forgotOtp}
-                    onChange={(e) => setForgotOtp(e.target.value.trim())}
-                    className="w-full rounded-2xl border border-white/20 bg-white/10 py-2.5 px-3.5 text-center font-mono text-xl font-black tracking-widest text-emerald-300 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-hidden"
+                    placeholder="name@example.com"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    className="w-full rounded-2xl border border-white/15 bg-white/10 py-2.5 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 focus:border-emerald-400 focus:outline-hidden"
                   />
-                  <p className="text-[11px] text-slate-300 mt-1.5 text-center">
-                    Ilagay ang 6-digit code na ipinadala sa iyong Gmail.
-                  </p>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
-                    New Password (Min. 8 chars)
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-300">
+                    4-Digit Security PIN
                   </label>
-                  <div className="relative">
-                    <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-emerald-400/70" />
-                    <input
-                      type={showForgotNewPassword ? 'text' : 'password'}
-                      required
-                      placeholder="••••••••"
-                      value={forgotNewPassword}
-                      onChange={(e) => setForgotNewPassword(e.target.value)}
-                      className="w-full rounded-2xl border border-white/15 bg-white/10 py-2.5 pl-10 pr-10 text-sm text-white placeholder:text-slate-400 focus:border-emerald-400 focus:outline-hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowForgotNewPassword(!showForgotNewPassword)}
-                      className="absolute right-3 top-2.5 p-1 text-slate-400 hover:text-emerald-300 rounded-lg transition"
-                    >
-                      {showForgotNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
+                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-400/30">
+                    Default: 0000
+                  </span>
                 </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
-                    Confirm New Password
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-emerald-400/70" />
-                    <input
-                      type={showForgotNewPassword ? 'text' : 'password'}
-                      required
-                      placeholder="••••••••"
-                      value={forgotConfirmPassword}
-                      onChange={(e) => setForgotConfirmPassword(e.target.value)}
-                      className="w-full rounded-2xl border border-white/15 bg-white/10 py-2.5 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 focus:border-emerald-400 focus:outline-hidden"
-                    />
-                  </div>
+                <div className="relative">
+                  <KeyRound className="absolute left-3.5 top-3 h-4 w-4 text-emerald-400/70" />
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={4}
+                    required
+                    placeholder="0000"
+                    value={forgotPin}
+                    onChange={(e) => setForgotPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    className="w-full rounded-2xl border border-white/15 bg-white/10 py-2 pl-10 pr-3.5 text-center font-mono text-lg font-black tracking-widest text-emerald-300 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-hidden"
+                  />
                 </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Naka-set sa <strong>0000</strong> ang default PIN ng lahat ng existing accounts.
+                </p>
+              </div>
 
-                <div className="flex items-center justify-between pt-2">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  New Password (Min. 8 chars)
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-3 h-4 w-4 text-emerald-400/70" />
+                  <input
+                    type={showForgotNewPassword ? 'text' : 'password'}
+                    required
+                    placeholder="••••••••"
+                    value={forgotNewPassword}
+                    onChange={(e) => setForgotNewPassword(e.target.value)}
+                    className="w-full rounded-2xl border border-white/15 bg-white/10 py-2 pl-10 pr-10 text-sm text-white placeholder:text-slate-400 focus:border-emerald-400 focus:outline-hidden"
+                  />
                   <button
                     type="button"
-                    onClick={() => {
-                      setForgotStep(1);
-                      setForgotError('');
-                      setForgotMessage('');
-                    }}
-                    className="text-xs font-semibold text-slate-400 hover:text-white underline cursor-pointer"
+                    onClick={() => setShowForgotNewPassword(!showForgotNewPassword)}
+                    className="absolute right-3 top-2 p-1 text-slate-400 hover:text-emerald-300 rounded-lg transition"
                   >
-                    ← Change Email / Resend
-                  </button>
-
-                  <button
-                    type="submit"
-                    disabled={forgotLoading}
-                    className="rounded-xl bg-emerald-500 px-5 py-2.5 text-xs font-black text-slate-950 hover:bg-emerald-400 transition disabled:opacity-50 cursor-pointer"
-                  >
-                    {forgotLoading ? 'Verifying...' : 'Save New Password'}
+                    {showForgotNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-              </form>
-            )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  Confirm New Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-3 h-4 w-4 text-emerald-400/70" />
+                  <input
+                    type={showForgotNewPassword ? 'text' : 'password'}
+                    required
+                    placeholder="••••••••"
+                    value={forgotConfirmPassword}
+                    onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                    className="w-full rounded-2xl border border-white/15 bg-white/10 py-2 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 focus:border-emerald-400 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsForgotOpen(false)}
+                  className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={forgotLoading}
+                  className="rounded-xl bg-emerald-500 px-5 py-2.5 text-xs font-black text-slate-950 hover:bg-emerald-400 transition disabled:opacity-50 cursor-pointer shadow-md shadow-emerald-500/20"
+                >
+                  {forgotLoading ? 'Updating...' : 'Change Password'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

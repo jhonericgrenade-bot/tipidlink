@@ -195,9 +195,10 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Sign up with Supabase Auth or offline fallback
-  const signUp = async (email, password, fullName) => {
+  const signUp = async (email, password, fullName, securityPin = '0000') => {
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanName = (fullName || '').trim() || cleanEmail.split('@')[0];
+    const cleanPin = (securityPin || '0000').trim() || '0000';
 
     // Immediately clear state and any previous demo/user session
     setUser(null);
@@ -216,6 +217,7 @@ export const AuthProvider = ({ children }) => {
         email: cleanEmail,
         full_name: cleanName,
         avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanName)}`,
+        security_pin: cleanPin,
       };
       setUser({ id: demoProfile.id, email: cleanEmail });
       setProfile(demoProfile);
@@ -232,6 +234,7 @@ export const AuthProvider = ({ children }) => {
         options: {
           data: {
             full_name: cleanName,
+            security_pin: cleanPin,
           },
         },
       });
@@ -243,6 +246,7 @@ export const AuthProvider = ({ children }) => {
           email: cleanEmail,
           full_name: cleanName,
           avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanName)}`,
+          security_pin: cleanPin,
         };
         setUser(data.user);
         setProfile(newProfile);
@@ -480,6 +484,85 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Reset Password using 4-digit Security PIN (Zero Email / Zero Localhost)
+  const resetPasswordWithPin = async (targetEmail, securityPin, newPassword) => {
+    const cleanEmail = (targetEmail || '').trim().toLowerCase();
+    const cleanPin = (securityPin || '').trim();
+
+    if (!cleanEmail) {
+      return { success: false, error: 'Pakilagay ang iyong rehistradong email address.' };
+    }
+    if (!cleanPin || cleanPin.length !== 4) {
+      return { success: false, error: 'Pakilagay ang 4-digit Security PIN (default: 0000).' };
+    }
+    if (!newPassword || newPassword.length < 8) {
+      return { success: false, error: 'Ang bagong password ay dapat hindi bababa sa 8 characters.' };
+    }
+
+    if (isDemoMode || !isSupabaseConfigured) {
+      return {
+        success: true,
+        message: 'Matagumpay na nabago ang iyong password gamit ang Security PIN!'
+      };
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('reset_password_with_pin', {
+        target_email: cleanEmail,
+        security_pin: cleanPin,
+        new_password: newPassword,
+      });
+
+      if (error) {
+        if (error.code === 'PGRST202') {
+          return {
+            success: false,
+            error: 'Kailangang patakbuhin ang 002_security_pin_password_reset.sql sa Supabase SQL Editor para maging aktibo ang PIN reset sa cloud database.'
+          };
+        }
+        return { success: false, error: error.message };
+      }
+
+      if (data && data.success === false) {
+        return { success: false, error: data.error || 'Hindi mabago ang password.' };
+      }
+
+      return {
+        success: true,
+        message: data?.message || 'Matagumpay na nabago ang iyong password!'
+      };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  // Update Security PIN for currently logged-in user
+  const updateSecurityPin = async (newPin) => {
+    const cleanPin = (newPin || '').trim();
+    if (!cleanPin || cleanPin.length !== 4 || !/^\d{4}$/.test(cleanPin)) {
+      return { success: false, error: 'Ang Security PIN ay dapat 4 na numero (hal. 1234).' };
+    }
+
+    if (isDemoMode || !isSupabaseConfigured) {
+      const updated = { ...profile, security_pin: cleanPin };
+      setProfile(updated);
+      return { success: true, message: 'Matagumpay na na-update ang iyong Security PIN!' };
+    }
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ security_pin: cleanPin })
+        .eq('id', user.id);
+
+      if (error) throw error;
+      setProfile(prev => ({ ...prev, security_pin: cleanPin }));
+      return { success: true, message: 'Matagumpay na na-update ang iyong Security PIN!' };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -496,6 +579,8 @@ export const AuthProvider = ({ children }) => {
         resetPassword,
         updatePassword,
         verifyOtpAndResetPassword,
+        resetPasswordWithPin,
+        updateSecurityPin,
       }}
     >
       {children}
