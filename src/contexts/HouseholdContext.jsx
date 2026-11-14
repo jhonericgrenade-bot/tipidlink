@@ -242,6 +242,16 @@ export const HouseholdProvider = ({ children }) => {
           hhList = [];
         }
       }
+      // If user signed up with a pending invite code, join that household first
+      const pendingJoinCode = localStorage.getItem('tipidlink_pending_join_code');
+      if (pendingJoinCode) {
+        localStorage.removeItem('tipidlink_pending_join_code');
+        const joinRes = await joinHouseholdByCode(pendingJoinCode);
+        if (joinRes.success) {
+          return;
+        }
+      }
+
       if (hhList.length === 0 && user) {
         const currentFullName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'My';
         const familyLastName = currentFullName.trim().split(' ').slice(-1)[0] || 'Family';
@@ -294,6 +304,16 @@ export const HouseholdProvider = ({ children }) => {
       let hhList = (memberRows || [])
         .map(row => row.households)
         .filter(Boolean);
+
+      // If user signed up with a pending invite code, join that household first
+      const pendingJoinCode = localStorage.getItem('tipidlink_pending_join_code');
+      if (pendingJoinCode) {
+        localStorage.removeItem('tipidlink_pending_join_code');
+        const joinRes = await joinHouseholdByCode(pendingJoinCode);
+        if (joinRes.success) {
+          return;
+        }
+      }
 
       // If a real registered user has 0 households, auto-create a clean household for them
       if (hhList.length === 0 && user) {

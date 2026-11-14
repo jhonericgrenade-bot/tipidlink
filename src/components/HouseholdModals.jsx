@@ -165,7 +165,6 @@ export const JoinHouseholdModal = ({ isOpen, onClose }) => {
             <input
               type="text"
               required
-              placeholder="e.g. KALAB-4211 o i-paste ang code"
               value={inviteCode}
               onChange={(e) => setInviteCode(e.target.value.trim())}
               className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm tracking-wider font-mono font-bold focus:border-indigo-500 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"

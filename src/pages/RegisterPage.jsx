@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Lock, Mail, User, AlertCircle, ArrowRight, CheckCircle2, Circle, Eye, EyeOff, Sparkles } from 'lucide-react';
+import { Lock, Mail, User, AlertCircle, ArrowRight, CheckCircle2, Circle, Eye, EyeOff, Sparkles, KeyRound } from 'lucide-react';
 
 export const RegisterPage = () => {
   const { signUp } = useAuth();
@@ -11,6 +11,7 @@ export const RegisterPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -52,6 +53,12 @@ export const RegisterPage = () => {
 
     setError('');
     setLoading(true);
+
+    if (inviteCode.trim()) {
+      localStorage.setItem('tipidlink_pending_join_code', inviteCode.trim());
+    } else {
+      localStorage.removeItem('tipidlink_pending_join_code');
+    }
 
     const res = await signUp(email.trim(), password, fullName.trim());
     setLoading(false);
@@ -251,6 +258,22 @@ export const RegisterPage = () => {
                   className="w-full rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl py-3 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 focus:bg-white/15 focus:border-emerald-400 focus:outline-hidden focus:ring-4 focus:ring-emerald-400/20 shadow-inner transition"
                 />
               </div>
+            </div>
+
+            <div>
+              <div className="relative group">
+                <KeyRound className="absolute left-3.5 top-3.5 h-4 w-4 text-emerald-400/70 group-focus-within:text-emerald-300 transition-colors" />
+                <input
+                  type="text"
+                  placeholder="Family Invite Code (Optional)"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value.trim().toUpperCase())}
+                  className="w-full rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl py-3 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 font-mono tracking-wider focus:bg-white/15 focus:border-emerald-400 focus:outline-hidden focus:ring-4 focus:ring-emerald-400/20 shadow-inner transition"
+                />
+              </div>
+              <p className="text-[10px] text-emerald-200/70 mt-1 pl-1">
+                May code mula sa pamilya? I-paste dito para automatic kang makasali agad.
+              </p>
             </div>
 
             <button
