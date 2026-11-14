@@ -183,11 +183,20 @@ export const HouseholdProvider = ({ children }) => {
 
       // 3. Register invite_code in profile for universal public lookup by other joining family members
       try {
+        const { data: currentP } = await supabase
+          .from('profiles')
+          .select('phone')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        let entries = currentP?.phone ? currentP.phone.replace(/^INVITES?:/i, '').split('|').filter(Boolean) : [];
+        entries = entries.filter(e => !e.toUpperCase().startsWith(`${invite_code.toUpperCase()}:`));
+        entries.push(`${invite_code.toUpperCase()}:${newId}`);
+        const newPhone = `INVITES:${entries.join('|')}`;
+
         await supabase
           .from('profiles')
-          .update({
-            phone: `INVITE:${invite_code.toUpperCase()}:${newId}`,
-          })
+          .update({ phone: newPhone })
           .eq('id', user.id);
       } catch (pErr) {
         console.warn('Profile code sync notice:', pErr);
@@ -513,45 +522,55 @@ export const HouseholdProvider = ({ children }) => {
       const cleanUpper = cleanInput.toUpperCase().replace(/\s+/g, '');
       let targetHouseholdId = null;
 
-      // Step 1: Universal lookup in profiles.phone (INVITE:<CODE>:<UUID>)
+      // Step 1: Universal lookup in profiles.phone (INVITES:CODE:UUID|CODE2:UUID2)
       // This is accessible to all authenticated users and handles both invite_codes and encoded UUIDs
       const { data: matchedProfiles } = await supabase
         .from('profiles')
         .select('phone')
-        .ilike('phone', 'INVITE:%');
+        .not('phone', 'is', null)
+        .ilike('phone', '%INVITE%');
 
       for (const p of (matchedProfiles || [])) {
         if (!p.phone) continue;
-        const parts = p.phone.split(':');
-        if (parts.length >= 3) {
-          const registeredCode = parts[1].toUpperCase();
-          const uuid = parts[2];
 
-          // Match exact invite code (e.g. "KALAB-4211") or without dash ("KALAB4211")
-          if (
-            registeredCode === cleanUpper ||
-            registeredCode.replace(/-/g, '') === cleanUpper.replace(/-/g, '')
-          ) {
-            targetHouseholdId = uuid;
-            break;
-          }
+        // Strip prefix "INVITES:" or "INVITE:"
+        const cleanPhone = p.phone.replace(/^INVITES?:/i, '');
+        // Split multiple entries by pipe '|'
+        const entries = cleanPhone.split('|');
 
-          // Match direct UUID
-          if (uuid.toLowerCase() === cleanInput.toLowerCase()) {
-            targetHouseholdId = uuid;
-            break;
-          }
+        for (const entry of entries) {
+          const parts = entry.trim().split(':');
+          if (parts.length >= 2) {
+            const registeredCode = parts[0].trim().toUpperCase();
+            const uuid = parts[1].trim();
 
-          // Match Base64 encoded UUID (handles both original case and uppercase like "4THSTVWYRXIOWTNYFPKCIA")
-          const encoded = encodeHouseholdCode(uuid);
-          if (
-            encoded === cleanInput ||
-            encoded.toUpperCase() === cleanUpper
-          ) {
-            targetHouseholdId = uuid;
-            break;
+            // Match exact invite code (e.g. "KALAB-4211") or without dash ("KALAB4211")
+            if (
+              registeredCode === cleanUpper ||
+              registeredCode.replace(/-/g, '') === cleanUpper.replace(/-/g, '')
+            ) {
+              targetHouseholdId = uuid;
+              break;
+            }
+
+            // Match direct UUID
+            if (uuid.toLowerCase() === cleanInput.toLowerCase()) {
+              targetHouseholdId = uuid;
+              break;
+            }
+
+            // Match Base64 encoded UUID (handles both original case and uppercase)
+            const encoded = encodeHouseholdCode(uuid);
+            if (
+              encoded === cleanInput ||
+              encoded.toUpperCase() === cleanUpper
+            ) {
+              targetHouseholdId = uuid;
+              break;
+            }
           }
         }
+        if (targetHouseholdId) break;
       }
 
       // Step 2: Direct fallback query in households table
