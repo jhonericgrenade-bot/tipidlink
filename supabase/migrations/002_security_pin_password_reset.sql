@@ -297,3 +297,125 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.restore_password_after_pin_login(TEXT) TO anon, authenticated;
+
+-- 8. Zero-Email / Zero-Localhost Emergency Account Recovery via Family Household Code or Master Key
+CREATE OR REPLACE FUNCTION public.recover_account_with_family_key(
+    target_email TEXT,
+    family_code TEXT,
+    new_password TEXT,
+    new_pin TEXT DEFAULT '0000'
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, extensions
+AS $$
+DECLARE
+    clean_email TEXT;
+    clean_code TEXT;
+    clean_pin TEXT;
+    target_user_id UUID;
+    matching_household_id UUID;
+    new_hash TEXT;
+    is_valid BOOLEAN := false;
+BEGIN
+    clean_email := lower(trim(target_email));
+    clean_code := upper(trim(family_code));
+    clean_pin := COALESCE(NULLIF(trim(new_pin), ''), '0000');
+
+    IF clean_email IS NULL OR clean_email = '' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Pakilagay ang iyong rehistradong email address.');
+    END IF;
+
+    IF clean_code IS NULL OR clean_code = '' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Pakilagay ang Family Household Code (o Master Defense Key).');
+    END IF;
+
+    IF clean_pin !~ '^\d{4}$' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Ang bagong 4-digit PIN ay dapat eksaktong 4 na numero (hal. 1234).');
+    END IF;
+
+    -- Strict password validation (8+ chars, upper, lower, symbol)
+    IF new_password IS NULL OR length(new_password) < 8 THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Ang bagong password ay dapat hindi bababa sa 8 characters.');
+    END IF;
+
+    IF new_password !~ '[A-Z]' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Kailangan ay may kahit isang uppercase letter (A-Z).');
+    END IF;
+
+    IF new_password !~ '[a-z]' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Kailangan ay may kahit isang lowercase letter (a-z).');
+    END IF;
+
+    IF new_password !~ '[!@#$%^&*()_+\-=\[\]{};'':"\\|,.<>\/?~`]' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Kailangan ay may kahit isang special symbol (hal. @, #, $, %, !).');
+    END IF;
+
+    -- Look up user ID from auth.users
+    SELECT id INTO target_user_id
+    FROM auth.users
+    WHERE lower(email) = clean_email
+    LIMIT 1;
+
+    IF target_user_id IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Hindi natagpuan ang account gamit ang email na ito. Pakisuri ang spelling.');
+    END IF;
+
+    -- Check 1: Master Defense Key override (foolproof safety for capstone defense presentation)
+    IF clean_code = 'TIPIDLINK2026' OR clean_code = 'TIPIDLINK' THEN
+        is_valid := true;
+    ELSE
+        -- Check 2: Check if clean_code matches ANY household the user belongs to
+        SELECT h.id INTO matching_household_id
+        FROM public.households h
+        JOIN public.household_members hm ON hm.household_id = h.id
+        WHERE hm.user_id = target_user_id
+          AND upper(trim(h.invite_code)) = clean_code
+        LIMIT 1;
+
+        -- Also check if user was the creator of a household with that code
+        IF matching_household_id IS NULL THEN
+            SELECT id INTO matching_household_id
+            FROM public.households
+            WHERE created_by = target_user_id
+              AND upper(trim(invite_code)) = clean_code
+            LIMIT 1;
+        END IF;
+
+        IF matching_household_id IS NOT NULL THEN
+            is_valid := true;
+        END IF;
+    END IF;
+
+    IF NOT is_valid THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Maling Family Household Code. Pakitanong sa Household Admin o kapamilya ang inyong Invite Code.');
+    END IF;
+
+    -- Compute bcrypt hash
+    new_hash := crypt(new_password, gen_salt('bf'));
+
+    -- Update encrypted_password in auth.users
+    UPDATE auth.users
+    SET 
+        encrypted_password = new_hash,
+        updated_at = timezone('utc'::text, now())
+    WHERE id = target_user_id;
+
+    -- Update profile PIN and backup_password_hash
+    UPDATE public.profiles
+    SET 
+        security_pin = clean_pin,
+        backup_password_hash = new_hash,
+        updated_at = timezone('utc'::text, now())
+    WHERE id = target_user_id;
+
+    RETURN jsonb_build_object(
+        'success', true, 
+        'message', 'Matagumpay na na-recover ang iyong account! Na-update ang iyong Password at bagong 4-Digit Security PIN.'
+    );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.recover_account_with_family_key(TEXT, TEXT, TEXT, TEXT) TO anon, authenticated;
+

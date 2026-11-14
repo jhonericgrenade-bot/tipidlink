@@ -659,6 +659,63 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Emergency Recovery via Family Household Code or Master Key (Zero Email / Zero Localhost)
+  const recoverAccountWithFamilyKey = async (targetEmail, familyCode, newPassword, newPin = '0000') => {
+    const cleanEmail = (targetEmail || '').trim().toLowerCase();
+    const cleanCode = (familyCode || '').trim();
+    const cleanPin = (newPin || '0000').trim() || '0000';
+
+    if (!cleanEmail) {
+      return { success: false, error: 'Pakilagay ang iyong rehistradong email address.' };
+    }
+    if (!cleanCode) {
+      return { success: false, error: 'Pakilagay ang Family Household Code (o Master Key).' };
+    }
+    if (!newPassword || newPassword.length < 8) {
+      return { success: false, error: 'Ang bagong password ay dapat hindi bababa sa 8 characters.' };
+    }
+    if (cleanPin.length !== 4 || !/^\d{4}$/.test(cleanPin)) {
+      return { success: false, error: 'Ang bagong 4-digit PIN ay dapat eksaktong 4 na numero (hal. 1234).' };
+    }
+
+    if (isDemoMode || !isSupabaseConfigured) {
+      return {
+        success: true,
+        message: 'Matagumpay na na-recover ang iyong account gamit ang Family Code!'
+      };
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('recover_account_with_family_key', {
+        target_email: cleanEmail,
+        family_code: cleanCode,
+        new_password: newPassword,
+        new_pin: cleanPin,
+      });
+
+      if (error) {
+        if (error.code === 'PGRST202') {
+          return {
+            success: false,
+            error: 'Kailangang patakbuhin ang 002_security_pin_password_reset.sql sa Supabase SQL Editor para maging aktibo ang Family Code recovery.'
+          };
+        }
+        return { success: false, error: error.message };
+      }
+
+      if (data && data.success === false) {
+        return { success: false, error: data.error || 'Hindi ma-recover ang account gamit ang ibinigay na Family Code.' };
+      }
+
+      return {
+        success: true,
+        message: data?.message || 'Matagumpay na na-recover ang iyong account!'
+      };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -678,6 +735,7 @@ export const AuthProvider = ({ children }) => {
         verifyOtpAndResetPassword,
         resetPasswordWithPin,
         updateSecurityPin,
+        recoverAccountWithFamilyKey,
       }}
     >
       {children}

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Lock, Mail, AlertCircle, ArrowRight, Eye, EyeOff, Sparkles, ShieldCheck, KeyRound, CheckCircle2, X } from 'lucide-react';
+import { Lock, Mail, AlertCircle, ArrowRight, Eye, EyeOff, Sparkles, ShieldCheck, KeyRound, CheckCircle2, X, Users } from 'lucide-react';
 
 export const LoginPage = () => {
-  const { signIn, signInWithPin, loginAsDemo, resetPasswordWithPin, resetPassword } = useAuth();
+  const { signIn, signInWithPin, loginAsDemo, resetPasswordWithPin, recoverAccountWithFamilyKey } = useAuth();
   const navigate = useNavigate();
 
   // Mode: 'pin' or 'password' (defaults to 'pin' for ultra-fast, direct login)
@@ -17,12 +17,15 @@ export const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Forgot Password modal state (PIN or Email recovery)
+  // Forgot Password modal state (PIN or Family Code recovery)
   const [isForgotOpen, setIsForgotOpen] = useState(false);
-  const [recoveryMethod, setRecoveryMethod] = useState('pin'); // 'pin' or 'email'
+  const [recoveryMethod, setRecoveryMethod] = useState('pin'); // 'pin' or 'family'
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotPin, setForgotPin] = useState('');
+  const [familyCode, setFamilyCode] = useState('');
+  const [newRecoverPin, setNewRecoverPin] = useState('0000');
   const [showForgotPin, setShowForgotPin] = useState(false);
+  const [showRecoverPin, setShowRecoverPin] = useState(false);
   const [forgotNewPassword, setForgotNewPassword] = useState('');
   const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
   const [showForgotNewPassword, setShowForgotNewPassword] = useState(false);
@@ -123,23 +126,69 @@ export const LoginPage = () => {
     }
   };
 
-  const handleForgotWithEmail = async (e) => {
+  const handleForgotWithFamily = async (e) => {
     e.preventDefault();
     if (!forgotEmail.trim()) {
       setForgotError('Pakilagay ang iyong rehistradong email address.');
       return;
     }
+    if (!familyCode.trim()) {
+      setForgotError('Pakilagay ang Family Household Code (o Master Defense Key).');
+      return;
+    }
+    const cleanPin = (newRecoverPin || '0000').trim();
+    if (cleanPin.length !== 4 || !/^\d{4}$/.test(cleanPin)) {
+      setForgotError('Ang bagong 4-digit PIN ay dapat eksaktong 4 na numero (hal. 1234).');
+      return;
+    }
+    if (forgotNewPassword.length < 8) {
+      setForgotError('Ang bagong password ay dapat hindi bababa sa 8 characters.');
+      return;
+    }
+    if (!/[A-Z]/.test(forgotNewPassword)) {
+      setForgotError('Kailangan ay may kahit isang uppercase letter (A-Z).');
+      return;
+    }
+    if (!/[a-z]/.test(forgotNewPassword)) {
+      setForgotError('Kailangan ay may kahit isang lowercase letter (a-z).');
+      return;
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(forgotNewPassword)) {
+      setForgotError('Kailangan ay may kahit isang special symbol (hal. @, #, $, %, !).');
+      return;
+    }
+    if (forgotNewPassword !== forgotConfirmPassword) {
+      setForgotError('Hindi magkatugma ang bagong password at confirmation.');
+      return;
+    }
+
     setForgotError('');
     setForgotMessage('');
     setForgotLoading(true);
 
-    const res = await resetPassword(forgotEmail.trim());
+    const res = await recoverAccountWithFamilyKey(
+      forgotEmail.trim(),
+      familyCode.trim(),
+      forgotNewPassword,
+      cleanPin
+    );
     setForgotLoading(false);
 
     if (res.success) {
-      setForgotMessage(res.message || `Napadala na ang password reset link sa ${forgotEmail.trim()}! Pakisuri ang iyong inbox o spam folder.`);
+      setForgotMessage(res.message);
+      // Auto-populate login form
+      setEmail(forgotEmail.trim());
+      setPassword(forgotNewPassword);
+      setPinInput(cleanPin);
+      setTimeout(() => {
+        setIsForgotOpen(false);
+        setForgotNewPassword('');
+        setForgotConfirmPassword('');
+        setFamilyCode('');
+        setForgotMessage('');
+      }, 2500);
     } else {
-      setForgotError(res.error || 'Hindi maipadala ang reset link. Pakisuri kung tama ang email.');
+      setForgotError(res.error || 'Hindi ma-recover ang account gamit ang Family Code.');
     }
   };
 
@@ -409,16 +458,16 @@ export const LoginPage = () => {
 
             <div className="flex items-center gap-3 mb-4">
               <div className="h-12 w-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 shadow-xs">
-                {recoveryMethod === 'pin' ? <ShieldCheck className="h-6 w-6" /> : <Mail className="h-6 w-6" />}
+                {recoveryMethod === 'pin' ? <ShieldCheck className="h-6 w-6" /> : <Users className="h-6 w-6" />}
               </div>
               <div>
                 <h3 className="text-lg font-black text-white">
-                  {recoveryMethod === 'pin' ? 'Reset Password via PIN' : 'Reset Password via Email (Layer 1)'}
+                  {recoveryMethod === 'pin' ? 'Reset Password via PIN' : 'Family Household Recovery (Paraan 2)'}
                 </h3>
                 <p className="text-xs text-slate-300">
                   {recoveryMethod === 'pin'
-                    ? 'Instant reset sa mobile at desktop nang walang email links'
-                    : 'I-recover ang account gamit ang iyong registered Gmail'}
+                    ? 'Instant reset sa mobile at desktop gamit ang iyong 4-digit PIN'
+                    : 'Zero-Email instant recovery gamit ang Invite Code ng pamilya'}
                 </p>
               </div>
             </div>
@@ -444,18 +493,18 @@ export const LoginPage = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setRecoveryMethod('email');
+                  setRecoveryMethod('family');
                   setForgotError('');
                   setForgotMessage('');
                 }}
                 className={`flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
-                  recoveryMethod === 'email'
+                  recoveryMethod === 'family'
                     ? 'bg-emerald-500 text-slate-950 shadow-xs'
                     : 'text-slate-300 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <Mail className="h-3.5 w-3.5" />
-                <span>Via Gmail (Layer 1)</span>
+                <Users className="h-3.5 w-3.5" />
+                <span>Via Family Code</span>
               </button>
             </div>
 
@@ -573,13 +622,13 @@ export const LoginPage = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      setRecoveryMethod('email');
+                      setRecoveryMethod('family');
                       setForgotError('');
                       setForgotMessage('');
                     }}
                     className="text-[11px] text-emerald-300 hover:text-emerald-200 underline cursor-pointer"
                   >
-                    Nakalimutan pati PIN? I-reset gamit ang Gmail
+                    Nakalimutan pati PIN? I-recover gamit ang Family Code
                   </button>
 
                   <div className="flex items-center gap-2">
@@ -601,15 +650,15 @@ export const LoginPage = () => {
                 </div>
               </form>
             ) : (
-              /* Option 2: Layer 1 - Email Reset Link Form */
-              <form onSubmit={handleForgotWithEmail} className="space-y-4">
-                <div className="rounded-2xl bg-white/5 border border-white/10 p-3.5 text-xs text-slate-300 space-y-2">
+              /* Option 2: Family Household Code Recovery Form (Zero Email / Zero Localhost) */
+              <form onSubmit={handleForgotWithFamily} className="space-y-3.5">
+                <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-xs text-slate-300 space-y-1.5">
                   <p className="font-semibold text-emerald-300 flex items-center gap-1.5">
-                    <Mail className="h-4 w-4 text-emerald-400" />
-                    <span>Layer 1: Gmail Account Recovery</span>
+                    <Users className="h-4 w-4 text-emerald-400" />
+                    <span>Zero-Email / Zero-Localhost Recovery</span>
                   </p>
                   <p className="leading-relaxed text-[11px] text-slate-300">
-                    Kung nakalimutan mo ang parehong Password at 4-Digit Security PIN, magpapadala kami ng secure reset link sa iyong rehistradong Gmail inbox upang patunayan na ikaw ang may-ari ng account.
+                    Nakalimutan ang PIN at Password? Ilagay ang <strong>Household Invite Code</strong> ng inyong pamilya (o ang master defense key: <code className="text-emerald-400 font-bold">TIPIDLINK2026</code>) para makapasok kaagad nang walang email.
                   </p>
                 </div>
 
@@ -625,7 +674,97 @@ export const LoginPage = () => {
                       placeholder="name@example.com"
                       value={forgotEmail}
                       onChange={(e) => setForgotEmail(e.target.value)}
-                      className="w-full rounded-2xl border border-white/15 bg-white/10 py-3 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 focus:border-emerald-400 focus:outline-hidden"
+                      className="w-full rounded-2xl border border-white/15 bg-white/10 py-2.5 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 focus:border-emerald-400 focus:outline-hidden"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Family Household Code (o Master Defense Key)
+                  </label>
+                  <div className="relative">
+                    <Users className="absolute left-3.5 top-3.5 h-4 w-4 text-emerald-400/70" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Hal. SANTOS-1234 o TIPIDLINK2026"
+                      value={familyCode}
+                      onChange={(e) => setFamilyCode(e.target.value.toUpperCase())}
+                      className="w-full rounded-2xl border border-white/15 bg-white/10 py-2.5 pl-10 pr-3.5 font-mono text-sm uppercase font-bold text-emerald-300 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-hidden"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-300">
+                      Bagong 4-Digit Security PIN
+                    </label>
+                    <span className="text-[10px] text-slate-400">
+                      Ito na ang iyong bagong PIN
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <KeyRound className="absolute left-3.5 top-3 h-4 w-4 text-emerald-400/70" />
+                    <input
+                      type={showRecoverPin ? 'text' : 'password'}
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={4}
+                      required
+                      placeholder="••••"
+                      value={newRecoverPin}
+                      onChange={(e) => setNewRecoverPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      className="w-full rounded-2xl border border-white/15 bg-white/10 py-2 pl-10 pr-10 text-center font-mono text-lg font-black tracking-widest text-emerald-300 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowRecoverPin(!showRecoverPin)}
+                      className="absolute right-3 top-2.5 p-1 text-slate-400 hover:text-emerald-300 rounded-lg transition"
+                    >
+                      {showRecoverPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Bagong Password (Min. 8 chars)
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-3 h-4 w-4 text-emerald-400/70" />
+                    <input
+                      type={showForgotNewPassword ? 'text' : 'password'}
+                      required
+                      placeholder="••••••••"
+                      value={forgotNewPassword}
+                      onChange={(e) => setForgotNewPassword(e.target.value)}
+                      className="w-full rounded-2xl border border-white/15 bg-white/10 py-2 pl-10 pr-10 text-sm text-white placeholder:text-slate-400 focus:border-emerald-400 focus:outline-hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotNewPassword(!showForgotNewPassword)}
+                      className="absolute right-3 top-2 p-1 text-slate-400 hover:text-emerald-300 rounded-lg transition"
+                    >
+                      {showForgotNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Confirm Bagong Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-3 h-4 w-4 text-emerald-400/70" />
+                    <input
+                      type={showForgotNewPassword ? 'text' : 'password'}
+                      required
+                      placeholder="••••••••"
+                      value={forgotConfirmPassword}
+                      onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                      className="w-full rounded-2xl border border-white/15 bg-white/10 py-2 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 focus:border-emerald-400 focus:outline-hidden"
                     />
                   </div>
                 </div>
@@ -653,10 +792,10 @@ export const LoginPage = () => {
                     </button>
                     <button
                       type="submit"
-                      disabled={forgotLoading || !forgotEmail.trim()}
+                      disabled={forgotLoading}
                       className="rounded-xl bg-emerald-500 px-5 py-2.5 text-xs font-black text-slate-950 hover:bg-emerald-400 transition disabled:opacity-50 cursor-pointer shadow-md shadow-emerald-500/20"
                     >
-                      {forgotLoading ? 'Sending...' : 'Send Reset Link to Email'}
+                      {forgotLoading ? 'Recovering...' : 'Recover Account'}
                     </button>
                   </div>
                 </div>
