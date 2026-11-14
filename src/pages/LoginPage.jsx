@@ -59,7 +59,7 @@ export const LoginPage = () => {
 
     if (res.success) {
       setForgotStep(2);
-      setForgotMessage(`We sent a verification code to ${forgotEmail}. Please enter the 6-digit code below along with your new password.`);
+      setForgotMessage(`Nagsend kami ng email sa ${forgotEmail}. Maaari mong i-click ang "Reset password" sa iyong Gmail, o i-copy-paste ang link nito sa ibaba kasama ang iyong bagong password.`);
     } else {
       setForgotError(res.error || 'Failed to send reset code.');
     }
@@ -367,19 +367,18 @@ export const LoginPage = () => {
               <form onSubmit={handleForgotVerifyAndSave} className="space-y-3.5">
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">
-                    6-Digit Code (from your email)
+                    Code o Link mula sa iyong Email
                   </label>
                   <input
                     type="text"
                     required
-                    maxLength={10}
-                    placeholder="e.g. 123456"
+                    placeholder="Ilagay ang 6-digit code o i-paste ang link"
                     value={forgotOtp}
                     onChange={(e) => setForgotOtp(e.target.value)}
-                    className="w-full rounded-2xl border border-white/20 bg-white/10 py-2.5 px-3.5 text-center font-mono text-lg font-black tracking-widest text-emerald-300 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-hidden"
+                    className="w-full rounded-2xl border border-white/20 bg-white/10 py-2.5 px-3.5 text-center font-mono text-sm font-bold text-emerald-300 placeholder:text-slate-400 focus:border-emerald-400 focus:outline-hidden"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1 text-center">
-                    Tingnan ang 6 numbers sa iyong Gmail (hindi kailangang i-click ang link).
+                  <p className="text-[11px] text-slate-300 mt-1.5 text-center leading-relaxed">
+                    Maaari mong i-paste dito ang link mula sa button na <em>"Reset password"</em> sa Gmail, o i-type ang code kung mayroon.
                   </p>
                 </div>
 
