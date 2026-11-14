@@ -21,6 +21,7 @@ import { HouseholdPage } from './pages/HouseholdPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 
 // Protected Route Guard
 const ProtectedLayout = () => {
@@ -102,6 +103,7 @@ export default function App() {
               {/* Public Auth Routes */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
 
               {/* Protected App Routes */}
               <Route path="/*" element={<ProtectedLayout />} />
