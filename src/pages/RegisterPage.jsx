@@ -12,7 +12,7 @@ export const RegisterPage = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [inviteCode, setInviteCode] = useState('');
-  const [securityPin, setSecurityPin] = useState('0000');
+  const [securityPin, setSecurityPin] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -269,14 +269,14 @@ export const RegisterPage = () => {
                   inputMode="numeric"
                   pattern="[0-9]*"
                   maxLength={4}
-                  placeholder="4-Digit Security PIN (Default: 0000)"
+                  placeholder="Mag-set ng 4-Digit PIN (hal. 1234)"
                   value={securityPin}
                   onChange={(e) => setSecurityPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
                   className="w-full rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl py-3 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 font-mono tracking-widest focus:bg-white/15 focus:border-emerald-400 focus:outline-hidden focus:ring-4 focus:ring-emerald-400/20 shadow-inner transition"
                 />
               </div>
               <p className="text-[10px] text-emerald-200/70 mt-1 pl-1">
-                Security PIN para sa password recovery nang walang email (default: <strong>0000</strong>).
+                4-Digit PIN para sa instant login at recovery (o iwanang blangko para sa default: <strong>0000</strong>).
               </p>
             </div>
 

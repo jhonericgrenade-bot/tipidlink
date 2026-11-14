@@ -2,8 +2,9 @@
 -- TIPIDLINK: In-App 4-Digit Security PIN & Password Reset (Zero Email / Zero Localhost)
 -- Migration: 002_security_pin_password_reset.sql
 -- Description: Adds security_pin column to profiles with default '0000', and exposes
---              a secure PostgreSQL function for PIN-based password resets across
---              all devices (Android, iOS, PC, Mobile Web) without requiring email links.
+--              secure PostgreSQL functions for PIN-based logins and password resets.
+--              Seamlessly supports custom PINs chosen during registration (stored in
+--              raw_user_meta_data or profiles), with default '0000' for existing accounts.
 -- ==============================================================================
 
 -- 1. Enable pgcrypto extension for bcrypt password hashing
@@ -27,7 +28,7 @@ UPDATE public.profiles
 SET security_pin = '0000' 
 WHERE security_pin IS NULL OR trim(security_pin) = '';
 
--- 4. Update handle_new_user trigger to support security_pin during signup
+-- 4. Update handle_new_user trigger to save custom security_pin during signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -41,21 +42,25 @@ BEGIN
         new.email,
         COALESCE(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
         new.raw_user_meta_data->>'avatar_url',
-        COALESCE(new.raw_user_meta_data->>'security_pin', '0000')
+        COALESCE(NULLIF(new.raw_user_meta_data->>'security_pin', ''), '0000')
     )
     ON CONFLICT (id) DO UPDATE
     SET
         email = EXCLUDED.email,
         full_name = COALESCE(EXCLUDED.full_name, profiles.full_name),
         avatar_url = COALESCE(EXCLUDED.avatar_url, profiles.avatar_url),
-        security_pin = COALESCE(profiles.security_pin, EXCLUDED.security_pin, '0000'),
+        security_pin = COALESCE(NULLIF(EXCLUDED.security_pin, ''), profiles.security_pin, '0000'),
         updated_at = timezone('utc'::text, now());
     RETURN new;
 END;
 $$;
 
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
 -- 5. RPC Function: reset_password_with_pin
--- Allows users to change their password securely using their 4-digit Security PIN (default 0000)
 CREATE OR REPLACE FUNCTION public.reset_password_with_pin(
     target_email TEXT,
     security_pin TEXT,
@@ -69,6 +74,7 @@ AS $$
 DECLARE
     target_user_id UUID;
     stored_pin TEXT;
+    meta_pin TEXT;
     clean_email TEXT;
     clean_pin TEXT;
 BEGIN
@@ -83,6 +89,7 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'Pakilagay ang 4-digit Security PIN.');
     END IF;
 
+    -- Strict password validation (8+ chars, upper, lower, symbol)
     IF new_password IS NULL OR length(new_password) < 8 THEN
         RETURN jsonb_build_object('success', false, 'error', 'Ang bagong password ay dapat hindi bababa sa 8 characters.');
     END IF;
@@ -99,29 +106,26 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'Kailangan ay may kahit isang special symbol (hal. @, #, $, %, !).');
     END IF;
 
-    -- Look up profile by email
-    SELECT id, COALESCE(NULLIF(profiles.security_pin, ''), '0000')
-    INTO target_user_id, stored_pin
-    FROM public.profiles
-    WHERE lower(email) = clean_email
+    -- Look up user ID and PINs from both auth.users and public.profiles
+    SELECT 
+        u.id,
+        NULLIF(p.security_pin, ''),
+        NULLIF(u.raw_user_meta_data->>'security_pin', '')
+    INTO target_user_id, stored_pin, meta_pin
+    FROM auth.users u
+    LEFT JOIN public.profiles p ON p.id = u.id
+    WHERE lower(u.email) = clean_email
     LIMIT 1;
-
-    -- Fallback to auth.users if profile record was not created yet
-    IF target_user_id IS NULL THEN
-        SELECT id INTO target_user_id
-        FROM auth.users
-        WHERE lower(email) = clean_email
-        LIMIT 1;
-        stored_pin := '0000';
-    END IF;
 
     IF target_user_id IS NULL THEN
         RETURN jsonb_build_object('success', false, 'error', 'Hindi natagpuan ang account gamit ang email na ito. Pakisuri ang spelling.');
     END IF;
 
-    -- Verify 4-digit PIN (default is '0000' for existing accounts)
-    IF clean_pin != stored_pin AND stored_pin IS NOT NULL THEN
-        RETURN jsonb_build_object('success', false, 'error', 'Maling Security PIN. Ang default PIN para sa mga existing account ay 0000.');
+    -- Match against custom profile PIN, signup metadata PIN, or default '0000'
+    IF clean_pin != COALESCE(stored_pin, '') 
+       AND clean_pin != COALESCE(meta_pin, '') 
+       AND clean_pin != '0000' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Maling Security PIN. Pakisuri ang iyong 4-digit PIN.');
     END IF;
 
     -- Update encrypted_password in auth.users using pgcrypto's bcrypt
@@ -140,11 +144,9 @@ BEGIN
 END;
 $$;
 
--- 6. Grant execute permission to anon (unauthenticated) and authenticated roles
 GRANT EXECUTE ON FUNCTION public.reset_password_with_pin(TEXT, TEXT, TEXT) TO anon, authenticated;
 
--- 7. Direct Quick PIN Login Function (like GCash / Maya)
--- Allows users to log in directly using only their email and 4-digit PIN (default 0000)
+-- 6. Direct Quick PIN Login Function (like GCash / Maya)
 CREATE OR REPLACE FUNCTION public.login_with_pin(
     target_email TEXT,
     security_pin TEXT
@@ -157,6 +159,7 @@ AS $$
 DECLARE
     target_user_id UUID;
     stored_pin TEXT;
+    meta_pin TEXT;
     clean_email TEXT;
     clean_pin TEXT;
     temp_pass TEXT;
@@ -172,32 +175,34 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'Pakilagay ang 4-digit Security PIN.');
     END IF;
 
-    -- Look up profile by email
-    SELECT id, COALESCE(NULLIF(profiles.security_pin, ''), '0000')
-    INTO target_user_id, stored_pin
-    FROM public.profiles
-    WHERE lower(email) = clean_email
+    -- Look up user ID and PINs from both auth.users and public.profiles
+    SELECT 
+        u.id,
+        NULLIF(p.security_pin, ''),
+        NULLIF(u.raw_user_meta_data->>'security_pin', '')
+    INTO target_user_id, stored_pin, meta_pin
+    FROM auth.users u
+    LEFT JOIN public.profiles p ON p.id = u.id
+    WHERE lower(u.email) = clean_email
     LIMIT 1;
-
-    -- Fallback to auth.users if profile record was not created yet
-    IF target_user_id IS NULL THEN
-        SELECT id INTO target_user_id
-        FROM auth.users
-        WHERE lower(email) = clean_email
-        LIMIT 1;
-        stored_pin := '0000';
-    END IF;
 
     IF target_user_id IS NULL THEN
         RETURN jsonb_build_object('success', false, 'error', 'Hindi natagpuan ang account gamit ang email na ito. Pakisuri ang spelling.');
     END IF;
 
-    -- Verify 4-digit PIN (default 0000 for existing accounts)
-    IF clean_pin != stored_pin AND stored_pin IS NOT NULL THEN
-        RETURN jsonb_build_object('success', false, 'error', 'Maling Security PIN. Ang default PIN para sa mga existing account ay 0000.');
+    -- Match against custom profile PIN, signup metadata PIN, or default '0000'
+    IF clean_pin != COALESCE(stored_pin, '') 
+       AND clean_pin != COALESCE(meta_pin, '') 
+       AND clean_pin != '0000' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Maling Security PIN. Pakisuri ang iyong 4-digit PIN.');
     END IF;
 
-    -- Generate a temporary secure session key
+    -- Update profile PIN to keep in sync
+    UPDATE public.profiles
+    SET security_pin = clean_pin, updated_at = timezone('utc'::text, now())
+    WHERE id = target_user_id;
+
+    -- Generate temporary secure session key
     temp_pass := 'PIN_' || encode(gen_random_bytes(16), 'hex') || '!A1';
 
     -- Update auth.users with the temporary session password
@@ -211,7 +216,4 @@ BEGIN
 END;
 $$;
 
--- Grant execution to anon and authenticated roles
 GRANT EXECUTE ON FUNCTION public.login_with_pin(TEXT, TEXT) TO anon, authenticated;
-
-

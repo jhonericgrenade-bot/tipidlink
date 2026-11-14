@@ -11,7 +11,7 @@ export const LoginPage = () => {
   const [loginMode, setLoginMode] = useState('pin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [pinInput, setPinInput] = useState('0000');
+  const [pinInput, setPinInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -38,12 +38,13 @@ export const LoginPage = () => {
     setLoading(true);
 
     if (loginMode === 'pin') {
-      if (!pinInput || pinInput.length !== 4) {
+      const cleanPin = (pinInput || '0000').trim();
+      if (cleanPin.length !== 4) {
         setError('Pakilagay ang 4-digit PIN (default: 0000).');
         setLoading(false);
         return;
       }
-      const res = await signInWithPin(email.trim(), pinInput.trim());
+      const res = await signInWithPin(email.trim(), cleanPin);
       setLoading(false);
       if (res.success) {
         navigate('/');
@@ -236,7 +237,6 @@ export const LoginPage = () => {
                     inputMode="numeric"
                     pattern="[0-9]*"
                     maxLength={4}
-                    required
                     placeholder="4-Digit PIN (Default: 0000)"
                     value={pinInput}
                     onChange={(e) => setPinInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
