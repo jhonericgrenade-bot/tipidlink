@@ -12,6 +12,7 @@ import {
   Calendar,
   Layers,
   CheckCircle2,
+  Lock,
 } from 'lucide-react';
 
 export const BudgetsPage = () => {
@@ -105,6 +106,11 @@ export const BudgetsPage = () => {
 
   const handleSaveOverallTarget = async (e) => {
     e.preventDefault();
+    if (!isOwnerOrAdmin) {
+      alert('Tanging ang Owner at Admin lamang ang may karapatang magpalit ng Household Monthly Target.');
+      setIsOverallModalOpen(false);
+      return;
+    }
     if (!overallTarget) return;
     setLoading(true);
 
@@ -224,13 +230,23 @@ export const BudgetsPage = () => {
           </div>
 
           <div className="flex flex-col items-start md:items-end gap-2">
-            <button
-              onClick={() => setIsOverallModalOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/20 transition border border-white/15"
-            >
-              <Edit className="h-3.5 w-3.5" />
-              Adjust Target
-            </button>
+            {isOwnerOrAdmin ? (
+              <button
+                onClick={() => setIsOverallModalOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/20 transition border border-white/15 cursor-pointer"
+              >
+                <Edit className="h-3.5 w-3.5" />
+                Adjust Target
+              </button>
+            ) : (
+              <div
+                className="inline-flex items-center gap-1.5 rounded-xl bg-white/5 px-3 py-1.5 text-[11px] font-medium text-slate-300 border border-white/10"
+                title="Tanging ang Owner at Admin lamang ang may karapatang magpalit ng budget limit"
+              >
+                <Lock className="h-3.5 w-3.5 text-slate-400" />
+                <span>Pang-Owner/Admin lamang</span>
+              </div>
+            )}
             {calculations.isOverspent ? (
               <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-400 bg-rose-950/60 px-3 py-1 rounded-full border border-rose-800">
                 <AlertTriangle className="h-3.5 w-3.5" />
@@ -407,8 +423,8 @@ export const BudgetsPage = () => {
             </label>
             <input
               type="number"
-              step="500"
-              min="100"
+              step="any"
+              min="0"
               required
               placeholder="e.g. 15000"
               value={catAmount}
@@ -447,14 +463,19 @@ export const BudgetsPage = () => {
             The target amount for the entire household helps family members understand overall spending limits at a glance.
           </p>
 
-          <div>
+          <div className="flex items-center justify-between">
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
               Target Monthly Limit (₱) *
             </label>
+            <span className="text-[10px] text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md font-bold border border-emerald-200">
+              👑 Owner / 🛡️ Admin Access
+            </span>
+          </div>
+          <div>
             <input
               type="number"
-              step="1000"
-              min="1000"
+              step="any"
+              min="0"
               required
               value={overallTarget}
               onChange={(e) => setOverallTarget(e.target.value)}
