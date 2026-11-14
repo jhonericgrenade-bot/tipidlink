@@ -87,6 +87,18 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'Ang bagong password ay dapat hindi bababa sa 8 characters.');
     END IF;
 
+    IF new_password !~ '[A-Z]' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Kailangan ay may kahit isang uppercase letter (A-Z).');
+    END IF;
+
+    IF new_password !~ '[a-z]' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Kailangan ay may kahit isang lowercase letter (a-z).');
+    END IF;
+
+    IF new_password !~ '[!@#$%^&*()_+\-=\[\]{};'':"\\|,.<>\/?~`]' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Kailangan ay may kahit isang special symbol (hal. @, #, $, %, !).');
+    END IF;
+
     -- Look up profile by email
     SELECT id, COALESCE(NULLIF(profiles.security_pin, ''), '0000')
     INTO target_user_id, stored_pin
@@ -130,3 +142,4 @@ $$;
 
 -- 6. Grant execute permission to anon (unauthenticated) and authenticated roles
 GRANT EXECUTE ON FUNCTION public.reset_password_with_pin(TEXT, TEXT, TEXT) TO anon, authenticated;
+

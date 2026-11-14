@@ -57,6 +57,18 @@ export const LoginPage = () => {
       setForgotError('Ang bagong password ay dapat hindi bababa sa 8 characters.');
       return;
     }
+    if (!/[A-Z]/.test(forgotNewPassword)) {
+      setForgotError('Kailangan ay may kahit isang uppercase letter (A-Z).');
+      return;
+    }
+    if (!/[a-z]/.test(forgotNewPassword)) {
+      setForgotError('Kailangan ay may kahit isang lowercase letter (a-z).');
+      return;
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(forgotNewPassword)) {
+      setForgotError('Kailangan ay may kahit isang special symbol (hal. @, #, $, %, !).');
+      return;
+    }
     if (forgotNewPassword !== forgotConfirmPassword) {
       setForgotError('Hindi magkatugma ang bagong password at confirmation.');
       return;
