@@ -13,6 +13,7 @@ export const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [pinInput, setPinInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showLoginPin, setShowLoginPin] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -233,15 +234,22 @@ export const LoginPage = () => {
                 <div className="relative group">
                   <KeyRound className="absolute left-3.5 top-3.5 h-4 w-4 text-emerald-400/70 group-focus-within:text-emerald-300 transition-colors" />
                   <input
-                    type="password"
+                    type={showLoginPin ? 'text' : 'password'}
                     inputMode="numeric"
                     pattern="[0-9]*"
                     maxLength={4}
                     placeholder="4-Digit PIN (Default: 0000)"
                     value={pinInput}
                     onChange={(e) => setPinInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    className="w-full rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl py-3.5 pl-10 pr-3.5 text-center font-mono text-xl font-black tracking-widest text-emerald-300 placeholder:text-slate-400 focus:bg-white/15 focus:border-emerald-400 focus:outline-hidden focus:ring-4 focus:ring-emerald-400/20 shadow-inner transition"
+                    className="w-full rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl py-3.5 pl-10 pr-11 text-center font-mono text-xl font-black tracking-widest text-emerald-300 placeholder:text-slate-400 focus:bg-white/15 focus:border-emerald-400 focus:outline-hidden focus:ring-4 focus:ring-emerald-400/20 shadow-inner transition"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPin(!showLoginPin)}
+                    className="absolute right-3 top-3.5 p-1 text-slate-400 hover:text-emerald-300 rounded-lg transition"
+                  >
+                    {showLoginPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-slate-300 mt-1.5 px-1">
                   <span>Default PIN: <strong>0000</strong></span>

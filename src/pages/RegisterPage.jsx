@@ -14,6 +14,7 @@ export const RegisterPage = () => {
   const [inviteCode, setInviteCode] = useState('');
   const [securityPin, setSecurityPin] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showPin, setShowPin] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -49,6 +50,10 @@ export const RegisterPage = () => {
     }
     if (password !== confirmPassword) {
       setError('Passwords do not match.');
+      return;
+    }
+    if (securityPin.trim() && securityPin.trim().length !== 4) {
+      setError('Ang 4-Digit PIN ay dapat eksaktong 4 na numero (hal. 1234).');
       return;
     }
 
@@ -265,18 +270,25 @@ export const RegisterPage = () => {
               <div className="relative group">
                 <ShieldCheck className="absolute left-3.5 top-3.5 h-4 w-4 text-emerald-400/70 group-focus-within:text-emerald-300 transition-colors" />
                 <input
-                  type="password"
+                  type={showPin ? 'text' : 'password'}
                   inputMode="numeric"
                   pattern="[0-9]*"
                   maxLength={4}
                   placeholder="Mag-set ng 4-Digit PIN (hal. 1234)"
                   value={securityPin}
                   onChange={(e) => setSecurityPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  className="w-full rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl py-3 pl-10 pr-3.5 text-sm text-white placeholder:text-slate-400 font-mono tracking-widest focus:bg-white/15 focus:border-emerald-400 focus:outline-hidden focus:ring-4 focus:ring-emerald-400/20 shadow-inner transition"
+                  className="w-full rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl py-3 pl-10 pr-11 text-sm text-white placeholder:text-slate-400 font-mono tracking-widest focus:bg-white/15 focus:border-emerald-400 focus:outline-hidden focus:ring-4 focus:ring-emerald-400/20 shadow-inner transition"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPin(!showPin)}
+                  className="absolute right-3 top-3 p-1 text-slate-400 hover:text-emerald-300 rounded-lg transition"
+                >
+                  {showPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
               <p className="text-[10px] text-emerald-200/70 mt-1 pl-1">
-                4-Digit PIN para sa instant login at recovery (o iwanang blangko para sa default: <strong>0000</strong>).
+                Ang PIN na ito ang gagamitin mo sa instant login (o iwanang blangko para sa default: <strong>0000</strong>).
               </p>
             </div>
 
