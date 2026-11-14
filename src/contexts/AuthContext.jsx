@@ -397,6 +397,60 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Direct OTP Code Verification + Password Reset (Zero-redirect / No-broken-links)
+  const verifyOtpAndResetPassword = async (targetEmail, token, newPassword) => {
+    const cleanEmail = (targetEmail || '').trim().toLowerCase();
+    const cleanToken = (token || '').trim();
+
+    if (!cleanEmail) {
+      return { success: false, error: 'Please enter your registered email.' };
+    }
+    if (!cleanToken) {
+      return { success: false, error: 'Please enter the 6-digit verification code sent to your email.' };
+    }
+    if (!newPassword || newPassword.length < 8) {
+      return { success: false, error: 'Password must be at least 8 characters long.' };
+    }
+
+    if (isDemoMode || !isSupabaseConfigured) {
+      return {
+        success: true,
+        message: 'Password successfully updated!'
+      };
+    }
+
+    try {
+      // 1. Verify OTP token directly in-app
+      const { data, error: otpError } = await supabase.auth.verifyOtp({
+        email: cleanEmail,
+        token: cleanToken,
+        type: 'recovery',
+      });
+
+      if (otpError) {
+        let msg = otpError.message;
+        if (msg.toLowerCase().includes('expired') || msg.toLowerCase().includes('invalid')) {
+          msg = 'Maling verification code o nag-expire na. Pakisuri ang 6-digit code sa iyong pinakabagong email.';
+        }
+        return { success: false, error: msg };
+      }
+
+      // 2. Update password with the active recovery session
+      const { error: pwdError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (pwdError) throw pwdError;
+
+      return {
+        success: true,
+        message: 'Matagumpay na nabago ang iyong password! Maaari ka nang mag-sign in gamit ang bagong password.',
+      };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -412,6 +466,7 @@ export const AuthProvider = ({ children }) => {
         updateProfile,
         resetPassword,
         updatePassword,
+        verifyOtpAndResetPassword,
       }}
     >
       {children}
