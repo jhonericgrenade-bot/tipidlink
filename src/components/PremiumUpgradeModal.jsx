@@ -199,7 +199,7 @@ export const PremiumUpgradeModal = ({ isOpen, onClose }) => {
               </li>
               <li className="flex items-center gap-1.5 font-medium">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                <span>Full CSV & Financial Statement Export</span>
+                <span>Full Financial Statement & PDF Export</span>
               </li>
               <li className="flex items-center gap-1.5 font-medium">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />

@@ -1,12 +1,15 @@
 {
-  "name": "TipidLink - Shared Family Budget",
+  "id": "/",
+  "name": "TipidLink - Shared Family Budget Management Platform",
   "short_name": "TipidLink",
-  "description": "Shared Family Budget Management Platform designed for Filipino households.",
+  "description": "Shared Family Budget Management Platform designed for Filipino households. As you save, life becomes more comfortable.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#ffffff",
+  "background_color": "#f8fafc",
   "theme_color": "#059669",
+  "categories": ["finance", "productivity", "utilities"],
   "icons": [
     {
       "src": "/tipidlink-logo.png",
@@ -19,6 +22,22 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Add Transaction",
+      "short_name": "Add Expense",
+      "description": "Quickly record a new household transaction",
+      "url": "/transactions",
+      "icons": [{ "src": "/tipidlink-logo.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Household Bills",
+      "short_name": "Bills",
+      "description": "View upcoming and overdue utility bills",
+      "url": "/bills",
+      "icons": [{ "src": "/tipidlink-logo.png", "sizes": "192x192" }]
     }
   ]
 }

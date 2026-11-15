@@ -3,7 +3,7 @@ import { useFinance } from '../contexts/FinanceContext';
 import { useHousehold } from '../contexts/HouseholdContext';
 import { usePremium } from '../contexts/PremiumContext';
 import { formatPHP, formatDate } from '../lib/formatters';
-import { exportTransactionsPDF, exportTransactionsCSV } from '../lib/exportUtils';
+import { exportTransactionsPDF } from '../lib/exportUtils';
 import { Modal } from '../components/Modal';
 import { EmptyState } from '../components/EmptyState';
 import {
@@ -150,7 +150,7 @@ export const TransactionsPage = () => {
     setSelectedTx(null);
   };
 
-  // Cross-platform PDF & CSV export (Direct Download to PC/Android Downloads & iOS Files)
+  // Cross-platform PDF export (Direct Download to PC/Android Downloads & iOS Files)
   const [isExporting, setIsExporting] = useState(false);
 
   const handleExportPDF = async () => {
@@ -170,23 +170,6 @@ export const TransactionsPage = () => {
     }
   };
 
-  const handleExportCSV = async () => {
-    if (filteredTransactions.length === 0) {
-      alert('No transactions available to export for the selected filter.');
-      return;
-    }
-
-    setIsExporting(true);
-    try {
-      await exportTransactionsCSV(filteredTransactions, currentHousehold?.name || 'Household');
-    } catch (err) {
-      console.error('CSV Export failed:', err);
-      alert(`Could not export CSV: ${err.message}`);
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
   return (
     <div className="space-y-6 pb-20 lg:pb-12 animate-page-enter">
       {/* Header */}
@@ -201,7 +184,6 @@ export const TransactionsPage = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Primary PDF Export Button */}
           <button
             onClick={handleExportPDF}
             disabled={filteredTransactions.length === 0 || isExporting}
@@ -210,17 +192,6 @@ export const TransactionsPage = () => {
           >
             <FileText className="h-4 w-4 text-rose-600" />
             <span>{isExporting ? 'Generating...' : 'Export PDF'}</span>
-          </button>
-
-          {/* Secondary CSV Export Button */}
-          <button
-            onClick={handleExportCSV}
-            disabled={filteredTransactions.length === 0 || isExporting}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 active-press hover-lift transition cursor-pointer disabled:opacity-50"
-            title="Export raw data to CSV (Excel / Google Sheets)"
-          >
-            <Download className="h-4 w-4 text-emerald-600" />
-            <span>CSV</span>
           </button>
 
           <button

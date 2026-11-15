@@ -5,7 +5,6 @@ import { useFinance } from '../contexts/FinanceContext';
 import { usePremium } from '../contexts/PremiumContext';
 import { isSupabaseConfigured, getSupabaseConfig } from '../lib/supabase';
 import {
-  exportToCSV,
   exportToJSON,
   printFinancialStatement,
   exportFullFinancialStatementPDF,
@@ -13,10 +12,6 @@ import {
   exportBudgetsPDF,
   exportBillsPDF,
   exportSavingsPDF,
-  exportTransactionsCSV,
-  exportBudgetsCSV,
-  exportBillsCSV,
-  exportSavingsCSV,
 } from '../lib/exportUtils';
 import {
   Database,
@@ -37,7 +32,6 @@ import {
   AlertCircle,
   UserCheck,
   Download,
-  FileSpreadsheet,
   FileJson,
   Printer,
   ArrowDownToLine,
@@ -344,7 +338,7 @@ export const SettingsPage = () => {
             <div>
               <h3 className="text-base font-bold text-slate-900">Data Export & Backup Center</h3>
               <p className="text-xs text-slate-500">
-                Download formatted PDF reports (iOS, Android, PC), raw CSV spreadsheets, or complete JSON backups.
+                Download formatted PDF reports (iOS, Android, PC) or complete household JSON backups.
               </p>
             </div>
           </div>
@@ -401,112 +395,27 @@ export const SettingsPage = () => {
             </button>
           </div>
 
-          {/* 2. All-in-One Consolidated CSV */}
+          {/* 2. Print / System PDF Dialog */}
           <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 flex flex-col justify-between space-y-3 hover-lift-subtle">
             <div>
               <div className="flex items-center gap-2 text-slate-900 font-bold text-xs uppercase tracking-wider">
-                <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
-                <span>Full Financial CSV</span>
+                <Printer className="h-4 w-4 text-emerald-600" />
+                <span>Print / Save as PDF</span>
               </div>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Consolidates all transactions, active budgets, household bills, and savings goals into one Excel-ready spreadsheet.
+                Opens your browser or device print dialog to print directly to paper or save as a local PDF document.
               </p>
             </div>
             <button
-              onClick={async () => {
-                setExportLoading(true);
-                try {
-                  const dateStr = new Date().toISOString().split('T')[0];
-                  const householdName = currentHousehold?.name || 'Household';
-                  const safeName = householdName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-                  const filename = `tipidlink_full_statement_${safeName}_${dateStr}.csv`;
-
-                  const headers = [
-                    'Record Type',
-                    'Date / Period',
-                    'Title / Description',
-                    'Category / Biller',
-                    'Amount (PHP)',
-                    'Status / Method',
-                    'Details / Logged By',
-                    'Notes'
-                  ];
-
-                  const rows = [];
-                  transactions.forEach(t => {
-                    rows.push([
-                      'TRANSACTION',
-                      t.transaction_date || '',
-                      t.description || '',
-                      t.category_name || t.categories?.name || 'General',
-                      t.amount || 0,
-                      `${(t.type || 'expense').toUpperCase()} (${(t.payment_method || 'cash').toUpperCase()})`,
-                      t.user_name || t.profiles?.full_name || 'Member',
-                      t.notes || ''
-                    ]);
-                  });
-
-                  budgets.forEach(b => {
-                    const cat = categories.find(c => c.id === b.category_id);
-                    rows.push([
-                      'BUDGET LIMIT',
-                      `${selectedMonth}/${selectedYear}`,
-                      `Budget Limit for ${cat?.name || 'Category'}`,
-                      cat?.name || 'Category',
-                      b.amount || 0,
-                      'ALLOCATED',
-                      `Month: ${selectedMonth}, Year: ${selectedYear}`,
-                      ''
-                    ]);
-                  });
-
-                  bills.forEach(b => {
-                    const totalPaid = (b.payments || []).reduce((acc, p) => acc + Number(p.amount), 0);
-                    const remaining = Math.max(0, Number(b.amount) - totalPaid);
-                    rows.push([
-                      'BILL OBLIGATION',
-                      b.due_date || '',
-                      b.title || 'Untitled Bill',
-                      b.biller_name || 'Biller',
-                      b.amount || 0,
-                      remaining <= 0 ? 'PAID' : (totalPaid > 0 ? 'PARTIALLY PAID' : 'UNPAID'),
-                      `Paid: ₱${totalPaid} | Balance: ₱${remaining}`,
-                      b.notes || ''
-                    ]);
-                  });
-
-                  savingsGoals.forEach(g => {
-                    rows.push([
-                      'SAVINGS GOAL',
-                      g.target_date || 'Ongoing',
-                      g.name || 'Savings Goal',
-                      g.category || 'General',
-                      g.target_amount || 0,
-                      Number(g.current_amount) >= Number(g.target_amount) ? 'COMPLETED' : 'IN PROGRESS',
-                      `Saved: ₱${g.current_amount || 0}`,
-                      g.description || ''
-                    ]);
-                  });
-
-                  await exportToCSV({
-                    filename,
-                    headers,
-                    rows,
-                    title: `${householdName} - Consolidated Financial Statement`,
-                  });
-                  setExportStatus('Consolidated CSV exported!');
-                  setTimeout(() => setExportStatus(''), 4000);
-                } catch (err) {
-                  alert(`Export error: ${err.message}`);
-                } finally {
-                  setExportLoading(false);
-                }
+              onClick={() => {
+                printFinancialStatement();
+                setExportStatus('Print dialog opened');
+                setTimeout(() => setExportStatus(''), 4000);
               }}
-              disabled={exportLoading}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press transition cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-white px-3.5 py-2.5 text-xs font-bold text-emerald-700 shadow-xs hover:bg-emerald-50 active-press transition cursor-pointer"
             >
-              <Download className="h-3.5 w-3.5" />
-              <span>Export Full CSV</span>
+              <Printer className="h-3.5 w-3.5" />
+              <span>Print / Save as PDF</span>
             </button>
           </div>
 
@@ -843,7 +752,7 @@ export const SettingsPage = () => {
                   <td className="p-3 text-center text-slate-500">✓</td>
                   <td className="p-3 text-center text-slate-500">✓</td>
                   <td className="p-3 text-center text-slate-500">✓</td>
-                  <td className="p-3 text-slate-600">Simple daily expense recording with GCash/Cash/Maya support & CSV export</td>
+                  <td className="p-3 text-slate-600">Simple daily expense recording with GCash/Cash/Maya support & PDF export</td>
                 </tr>
                 <tr className="hover:bg-slate-50/80">
                   <td className="p-3 font-semibold text-slate-900">Bill/payment tracking</td>

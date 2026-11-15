@@ -22,7 +22,7 @@
 3. **Income & Expense Tracking (Transactions)**
    - Add, edit, filter, search, and delete transactions.
    - Categorization (Palengke & Groceries, Meralco Electric, Maynilad Water, Converge Fiber, Tricycle/Jeep commute, School Baon, Salary, Sari-Sari Store profits, Remittance/OFW padala).
-   - Export filtered transactions to CSV with a single click.
+   - Export filtered transactions to PDF with a single click.
 
 4. **Category & Overall Monthly Budgets**
    - Set monthly spending ceilings per category and for the entire household.

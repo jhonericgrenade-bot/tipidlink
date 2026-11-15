@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useFinance } from '../contexts/FinanceContext';
 import { useHousehold } from '../contexts/HouseholdContext';
 import { formatPHP, formatDate } from '../lib/formatters';
-import { exportSavingsPDF, exportSavingsCSV } from '../lib/exportUtils';
+import { exportSavingsPDF } from '../lib/exportUtils';
 import { Modal } from '../components/Modal';
 import { EmptyState } from '../components/EmptyState';
 import {
@@ -15,7 +15,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Coins,
-  Download,
   FileText,
 } from 'lucide-react';
 
@@ -31,18 +30,6 @@ export const SavingsPage = () => {
     } catch (err) {
       console.error('Savings PDF export failed:', err);
       alert(`Could not export savings PDF: ${err.message}`);
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const handleExportCSV = async () => {
-    setIsExporting(true);
-    try {
-      await exportSavingsCSV(savingsGoals, currentHousehold?.name || 'Household');
-    } catch (err) {
-      console.error('Savings export failed:', err);
-      alert(`Could not export savings goals: ${err.message}`);
     } finally {
       setIsExporting(false);
     }
@@ -166,17 +153,6 @@ export const SavingsPage = () => {
           >
             <FileText className="h-4 w-4 text-rose-600" />
             <span>{isExporting ? 'Generating...' : 'Export PDF'}</span>
-          </button>
-
-          {/* Secondary CSV Export Button */}
-          <button
-            onClick={handleExportCSV}
-            disabled={isExporting || savingsGoals.length === 0}
-            className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 active-press hover-lift transition cursor-pointer disabled:opacity-50"
-            title="Export savings data to CSV"
-          >
-            <Download className="h-4 w-4 text-emerald-600" />
-            <span>CSV</span>
           </button>
 
           <button
