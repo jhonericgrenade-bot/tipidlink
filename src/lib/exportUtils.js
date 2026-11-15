@@ -22,69 +22,373 @@ const escapeCSV = (value) => {
 };
 
 /**
+ * Universal PDF Action Modal / Bottom Sheet
+ * Provides instant Open/View, Download, Share, and Print for all devices.
+ */
+const showPDFActionModal = ({ doc, pdfBlob, pdfUrl, filename, title }) => {
+  if (typeof document === 'undefined') return;
+
+  // Ensure CSS animations exist
+  if (!document.getElementById('tipidlink-pdf-modal-styles')) {
+    const styleEl = document.createElement('style');
+    styleEl.id = 'tipidlink-pdf-modal-styles';
+    styleEl.textContent = `
+      @keyframes tipidlinkFadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes tipidlinkSlideUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+    `;
+    document.head.appendChild(styleEl);
+  }
+
+  // Remove any pre-existing modal
+  const existing = document.getElementById('tipidlink-pdf-export-modal');
+  if (existing) {
+    existing.remove();
+  }
+
+  const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent || '');
+  const isAndroid = typeof navigator !== 'undefined' && /Android/.test(navigator.userAgent || '');
+  const isInAppBrowser = typeof navigator !== 'undefined' && /FBAN|FBAV|Instagram|Line|Viber|TikTok/i.test(navigator.userAgent || '');
+  const canShareFiles = typeof navigator !== 'undefined' && typeof navigator.share === 'function' && typeof navigator.canShare === 'function';
+
+  // Format file size
+  const sizeKB = Math.round((pdfBlob.size || 0) / 1024);
+  const sizeDisplay = sizeKB > 0 ? `${sizeKB} KB` : 'PDF Document';
+
+  // Determine device guidance note
+  let deviceTip = '';
+  if (isInAppBrowser) {
+    deviceTip = '⚠️ <strong>In-app browser detected:</strong> If direct download doesn\'t start, tap <strong>"Open & View PDF"</strong> or tap the three dots (⋮) to open in Chrome or Safari.';
+  } else if (isIOS) {
+    deviceTip = '🍏 <strong>Apple iPhone/iPad:</strong> Tap <strong>"Open & View PDF"</strong> to view in Safari, or tap <strong>"Share / Save to Files"</strong> to save to your Apple Files app.';
+  } else if (isAndroid) {
+    deviceTip = '🤖 <strong>Android:</strong> File saved to your <strong>"Downloads"</strong> folder. Tap <strong>"Open & View PDF"</strong> to preview it immediately on your screen.';
+  } else {
+    deviceTip = '💻 <strong>Desktop PC:</strong> File downloaded to your <strong>Downloads</strong> folder. Tap <strong>"Open & View PDF"</strong> to preview or print.';
+  }
+
+  // Create modal container
+  const modal = document.createElement('div');
+  modal.id = 'tipidlink-pdf-export-modal';
+  modal.style.cssText = `
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 12px;
+    background-color: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    animation: tipidlinkFadeIn 0.2s ease-out;
+  `;
+
+  // Centered on tablets and desktop
+  const checkDesktop = () => {
+    if (window.innerWidth >= 640) {
+      modal.style.alignItems = 'center';
+    } else {
+      modal.style.alignItems = 'flex-end';
+    }
+  };
+  checkDesktop();
+
+  modal.innerHTML = `
+    <div style="
+      position: relative;
+      width: 100%;
+      max-width: 440px;
+      background: #ffffff;
+      border-radius: 24px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      border: 1px solid #e2e8f0;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      animation: tipidlinkSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    ">
+      <!-- Header Banner -->
+      <div style="background: linear-gradient(135deg, #059669, #047857); padding: 18px 20px; color: #ffffff; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="background: rgba(255,255,255,0.2); width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+            📄
+          </div>
+          <div>
+            <div style="font-weight: 800; font-size: 16px; letter-spacing: -0.02em;">PDF Statement Ready!</div>
+            <div style="font-size: 11px; color: #d1fae5; font-weight: 500;">TipidLink Smart Financial Statement</div>
+          </div>
+        </div>
+        <button id="pdf-modal-close-top" style="background: rgba(0,0,0,0.15); border: none; color: #ffffff; width: 30px; height: 30px; border-radius: 50%; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+          ✕
+        </button>
+      </div>
+
+      <!-- Content Body -->
+      <div style="padding: 18px 20px; display: flex; flex-direction: column; gap: 12px;">
+        <!-- File Name & Meta -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 700; color: #1e293b; max-width: 280px;">
+            ${filename}
+          </div>
+          <span style="font-size: 10px; font-weight: 700; background: #e2e8f0; color: #475569; padding: 2px 7px; border-radius: 6px; white-space: nowrap;">
+            ${sizeDisplay}
+          </span>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <!-- 1. Open / View Fullscreen PDF (Direct Synchronous User Click - Never blocked by Safari or Chrome) -->
+          <button id="pdf-btn-open" style="
+            background: #059669;
+            color: #ffffff;
+            border: none;
+            border-radius: 14px;
+            padding: 13px 16px;
+            font-size: 13px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(5, 150, 105, 0.25);
+            transition: all 0.15s ease;
+          ">
+            <span>👁️</span> Open & View PDF Now
+          </button>
+
+          <!-- 2. Direct Download Button -->
+          <button id="pdf-btn-download" style="
+            background: #ffffff;
+            color: #0f172a;
+            border: 1px solid #cbd5e1;
+            border-radius: 14px;
+            padding: 11px 16px;
+            font-size: 12px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+          ">
+            <span>⬇️</span> Download File to Device
+          </button>
+
+          <!-- 3. Share to Apps / Save to Files -->
+          <button id="pdf-btn-share" style="
+            background: #f1f5f9;
+            color: #334155;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 11px 16px;
+            font-size: 12px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+          ">
+            <span>📤</span> Share (Messenger, Viber, Save to Files)
+          </button>
+
+          <!-- 4. Print -->
+          <button id="pdf-btn-print" style="
+            background: #ffffff;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 9px 14px;
+            font-size: 11px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            cursor: pointer;
+          ">
+            <span>🖨️</span> Print Document
+          </button>
+        </div>
+
+        <!-- Device-Specific Guidance Note -->
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 10px 12px; font-size: 11px; color: #166534; line-height: 1.45;">
+          ${deviceTip}
+        </div>
+
+        <!-- Done / Close Button -->
+        <button id="pdf-btn-close-bottom" style="
+          background: #f8fafc;
+          color: #64748b;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 10px;
+          font-size: 12px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        ">
+          Done
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const closeModal = () => {
+    modal.remove();
+  };
+
+  // Close triggers
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+  const topClose = modal.querySelector('#pdf-modal-close-top');
+  const bottomClose = modal.querySelector('#pdf-btn-close-bottom');
+  if (topClose) topClose.onclick = closeModal;
+  if (bottomClose) bottomClose.onclick = closeModal;
+
+  // 1. Open & View PDF button
+  const openBtn = modal.querySelector('#pdf-btn-open');
+  if (openBtn) {
+    openBtn.onclick = () => {
+      const openedWin = window.open(pdfUrl, '_blank');
+      if (!openedWin) {
+        window.location.href = pdfUrl;
+      }
+    };
+  }
+
+  // 2. Download File button
+  const downloadBtn = modal.querySelector('#pdf-btn-download');
+  if (downloadBtn) {
+    downloadBtn.onclick = () => {
+      try {
+        doc.save(filename);
+      } catch (saveErr) {
+        const a = document.createElement('a');
+        a.href = pdfUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => a.remove(), 1000);
+      }
+    };
+  }
+
+  // 3. Share Button
+  const shareBtn = modal.querySelector('#pdf-btn-share');
+  if (shareBtn) {
+    shareBtn.onclick = async () => {
+      try {
+        if (canShareFiles) {
+          const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: title,
+              text: `${title} - TipidLink PDF Statement`,
+            });
+            return;
+          }
+        }
+        if (navigator.share) {
+          await navigator.share({
+            title: title,
+            text: `${title} - TipidLink PDF Statement`,
+            url: window.location.href,
+          });
+        } else {
+          alert('Web Share is not supported in this browser. Please use "Open & View" or "Download".');
+        }
+      } catch (shareErr) {
+        if (shareErr.name !== 'AbortError') {
+          console.warn('Share error:', shareErr);
+        }
+      }
+    };
+  }
+
+  // 4. Print Button
+  const printBtn = modal.querySelector('#pdf-btn-print');
+  if (printBtn) {
+    printBtn.onclick = () => {
+      const printWin = window.open(pdfUrl, '_blank');
+      if (printWin) {
+        setTimeout(() => {
+          try {
+            printWin.print();
+          } catch (e) {
+            console.warn('Print trigger:', e);
+          }
+        }, 500);
+      }
+    };
+  }
+};
+
+/**
  * Universal PDF Saver / Downloader
  * - Android & PC: Direct file download directly to "Downloads" folder (/sdcard/Download)
  * - iOS: Direct preview in native Safari PDF viewer with 1-tap "Save to Files" / Share
+ * - Universal: Displays an instant 1-tap Action Sheet modal on all devices for foolproof viewing
  */
 export const saveOrOpenPDF = async (doc, filename, title = 'TipidLink PDF Report') => {
   const cleanFilename = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
   const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent || '');
 
-  // 1. On iOS (iPhone / iPad):
-  if (isIOS) {
-    try {
-      const pdfBlob = doc.output('blob');
-      
-      // Try Web Share if file sharing is supported
-      if (typeof navigator.share === 'function' && typeof navigator.canShare === 'function') {
-        const file = new File([pdfBlob], cleanFilename, { type: 'application/pdf' });
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: title,
-            text: `${title} - TipidLink PDF Document`,
-          });
-          return { success: true, method: 'ios_share', filename: cleanFilename };
+  try {
+    const pdfBlob = doc.output('blob');
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+
+    // 1. On Android & Desktop PC, trigger automatic background download to Downloads folder
+    if (!isIOS) {
+      try {
+        doc.save(cleanFilename);
+      } catch (saveErr) {
+        console.warn('Auto doc.save fallback:', saveErr);
+        try {
+          const a = document.createElement('a');
+          a.href = pdfUrl;
+          a.download = cleanFilename;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => a.remove(), 1000);
+        } catch (linkErr) {
+          console.warn('Auto download anchor fallback:', linkErr);
         }
       }
-
-      // iOS Safari fallback: Open blob in new tab for instant native viewing & Save to Files
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-      const newWin = window.open(pdfUrl, '_blank');
-      if (!newWin) {
-        doc.save(cleanFilename);
-      }
-      return { success: true, method: 'ios_tab_open', filename: cleanFilename };
-    } catch (err) {
-      if (err.name === 'AbortError') return { success: true, method: 'cancelled' };
-      console.warn('iOS PDF handler fallback to doc.save:', err);
     }
-  }
 
-  // 2. On Android & Desktop PC:
-  // Direct file download straight into Android "Downloads" folder
-  try {
-    doc.save(cleanFilename);
-    return { success: true, method: 'direct_download', filename: cleanFilename };
+    // 2. Always display the Universal PDF Action Sheet Modal
+    // This gives all members immediate visual feedback, 1-tap Open & View, Share, and Print
+    showPDFActionModal({
+      doc,
+      pdfBlob,
+      pdfUrl,
+      filename: cleanFilename,
+      title,
+    });
+
+    return { success: true, method: 'action_modal', filename: cleanFilename };
   } catch (err) {
-    console.error('PDF save error, fallback to blob URL:', err);
+    console.error('Universal PDF export error:', err);
     try {
-      const pdfBlob = doc.output('blob');
-      const url = URL.createObjectURL(pdfBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', cleanFilename);
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => {
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-      }, 1000);
-      return { success: true, method: 'blob_download', filename: cleanFilename };
-    } catch (fallbackErr) {
-      alert(`Could not download PDF: ${fallbackErr.message}`);
-      return { success: false, error: fallbackErr };
+      doc.save(cleanFilename);
+      return { success: true, method: 'fallback_save', filename: cleanFilename };
+    } catch (finalErr) {
+      alert(`Could not export PDF: ${err.message || finalErr.message}`);
+      return { success: false, error: err };
     }
   }
 };
@@ -206,15 +510,19 @@ export const exportTransactionsPDF = async (transactions = [], householdName = '
   doc.text(formatPDFMoney(netCashflow), 142, 56);
 
   // Table
-  const tableData = transactions.map(t => [
-    t.transaction_date || '-',
-    t.description || 'Transaction',
-    t.category_name || (t.categories?.name) || 'General',
-    (t.type || 'expense').toUpperCase(),
-    (t.payment_method || 'cash').toUpperCase(),
-    formatPDFMoney(t.amount || 0),
-    t.user_name || (t.profiles?.full_name) || 'Member',
-  ]);
+  const tableData = transactions.length > 0
+    ? transactions.map(t => [
+        t.transaction_date || '-',
+        t.description || 'Transaction',
+        t.category_name || (t.categories?.name) || 'General',
+        (t.type || 'expense').toUpperCase(),
+        (t.payment_method || 'cash').toUpperCase(),
+        formatPDFMoney(t.amount || 0),
+        t.user_name || (t.profiles?.full_name) || 'Member',
+      ])
+    : [
+        ['-', 'No transactions recorded for this period / filter', '-', '-', '-', 'PHP 0.00', '-']
+      ];
 
   autoTable(doc, {
     startY: 65,
@@ -493,7 +801,7 @@ export const exportBillsPDF = async (bills = [], householdName = 'Household') =>
   autoTable(doc, {
     startY: 65,
     head: [['Bill Name', 'Biller / Provider', 'Account No.', 'Amount', 'Paid', 'Balance', 'Due Date', 'Status']],
-    body: tableData,
+    body: tableData.length > 0 ? tableData : [['No bills registered in this household', '-', '-', 'PHP 0.00', 'PHP 0.00', 'PHP 0.00', '-', 'NO BILLS']],
     headStyles: {
       fillColor: [5, 150, 105],
       textColor: 255,
@@ -607,7 +915,7 @@ export const exportSavingsPDF = async (savingsGoals = [], householdName = 'House
   autoTable(doc, {
     startY: 65,
     head: [['Goal Name', 'Category', 'Target', 'Current Saved', 'Remaining', 'Progress', 'Target Date', 'Status']],
-    body: tableData,
+    body: tableData.length > 0 ? tableData : [['No savings goals created yet', '-', 'PHP 0.00', 'PHP 0.00', 'PHP 0.00', '0%', '-', 'EMPTY']],
     headStyles: {
       fillColor: [5, 150, 105],
       textColor: 255,

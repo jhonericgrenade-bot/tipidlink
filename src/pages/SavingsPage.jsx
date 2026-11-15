@@ -147,7 +147,7 @@ export const SavingsPage = () => {
           {/* Primary PDF Export Button */}
           <button
             onClick={handleExportPDF}
-            disabled={isExporting || savingsGoals.length === 0}
+            disabled={isExporting}
             className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/70 px-3.5 py-2 text-xs font-bold text-rose-700 shadow-xs hover:bg-rose-100 active-press hover-lift transition cursor-pointer disabled:opacity-50"
             title="Download formatted PDF Savings Statement"
           >
