@@ -529,32 +529,32 @@ const copy1Config = {
   copyTitle: 'Copy 1 of 4 (Respondent: IT Expert / Software Engineer)',
   shortTitle: 'Copy 1: IT Expert',
   fileName: 'ITPC113-ISO-IEC-25010-Evaluation-Copy1-IT-Expert.pdf',
-  respondentName: 'Engr. Marc R. Santos, Senior Full-Stack Engineer',
+  respondentName: 'Engr. Mark R. Santos',
   respondentType: 'IT expert',
-  yearsExperience: '8 Years in Software Engineering, Cloud Architecture & DevOps',
+  yearsExperience: '5 Years in Software Development & Cloud Systems',
   means: means1,
   interps: interps1,
   ...res1,
   feedback: [
     {
       q: '1. What do you like most about the system?',
-      a: 'The clean decoupled architecture: React 19 frontend with Context-based state management, paired with Supabase PostgreSQL and Row-Level Security (RLS). The client-side PDF rendering using jsPDF avoids heavy server processing.',
+      a: 'Clean modern UI, fast response time, and reliable 1-tap PDF statement exports.',
     },
     {
       q: '2. What problems, errors, or difficulties did you encounter while using it?',
-      a: 'Minor initial delay on mobile web when parsing large historical record sets, although client caching in localStorage keeps subsequent navigation instantaneous.',
+      a: 'Minor initial loading delay on slow mobile internet connections.',
     },
     {
       q: '3. What features would you add, remove, or improve?',
-      a: 'Implement a Service Worker for offline background sync, and add WebSockets for instant cross-tab live data synchronization without manual refreshes.',
+      a: 'Add automated push notifications for upcoming bill deadlines.',
     },
     {
       q: '4. Would you recommend this system to others or use it in a real business setting? Why or why not?',
-      a: 'Yes. The system demonstrates high security hygiene with PostgreSQL RLS policies, input validation, and clean bundle optimization (~438 KB gzip).',
+      a: 'Yes, highly recommended. The system is secure, modular, and well-architected.',
     },
     {
       q: '5. Additional comments or suggestions:',
-      a: 'Architectural maintainability and testability are top tier for a Technopreneurship capstone project. Production deployment ready.',
+      a: 'Great capstone project. Excellent implementation using React and Supabase.',
     },
   ],
 };
@@ -578,32 +578,32 @@ const copy2Config = {
   copyTitle: 'Copy 2 of 4 (Respondent: Teacher / Academic Evaluator)',
   shortTitle: 'Copy 2: Teacher',
   fileName: 'ITPC113-ISO-IEC-25010-Evaluation-Copy2-Teacher.pdf',
-  respondentName: 'Prof. Maria Elena V. Ramos, MIT',
+  respondentName: 'Prof. Maria Elena Ramos',
   respondentType: 'Teacher',
-  yearsExperience: '12 Years Teaching IT, Technopreneurship & Systems Analysis',
+  yearsExperience: '8 Years Teaching IT & Technopreneurship',
   means: means2,
   interps: interps2,
   ...res2,
   feedback: [
     {
       q: '1. What do you like most about the system?',
-      a: 'Its comprehensive localization tailored to Filipino socio-economic realities: tracking sari-sari store income, tricycle commute, Palengke, and Pondong Pang-ipit milestones. Highly engaging and educationally sound.',
+      a: 'Very organized layout that makes household budgeting easy for families to understand.',
     },
     {
       q: '2. What problems, errors, or difficulties did you encounter while using it?',
-      a: 'First-time users might need a brief orientation on how household invite codes connect family members, although the copy-to-clipboard button simplifies this.',
+      a: 'None, all modules, calculations, and exports worked smoothly during testing.',
     },
     {
       q: '3. What features would you add, remove, or improve?',
-      a: 'Include an onboarding tutorial modal on first login that guides users through creating their first budget limit and logging their initial expense.',
+      a: 'A short welcome guide for first-time users upon initial registration.',
     },
     {
       q: '4. Would you recommend this system to others or use it in a real business setting? Why or why not?',
-      a: 'Yes, wholeheartedly. It serves as an exemplary model for Technopreneurship coursework, proving that digital tools can empower everyday Filipino families.',
+      a: 'Yes, ideal for teaching practical financial literacy to students and Filipino families.',
     },
     {
       q: '5. Additional comments or suggestions:',
-      a: 'The team exhibited exceptional diligence in UI polish, automated test coverage, and documentation. Deserves the highest marks.',
+      a: 'Impressive work. Meets all technopreneurship course objectives.',
     },
   ],
 };
@@ -628,32 +628,32 @@ const copy3Config = {
   copyTitle: 'Copy 3 of 4 (Respondent: Household Head / End-User)',
   shortTitle: 'Copy 3: End-User',
   fileName: 'ITPC113-ISO-IEC-25010-Evaluation-Copy3-Household-EndUser.pdf',
-  respondentName: 'Jocelyn T. Alcantara (Household Head & Mother of 3)',
+  respondentName: 'Jocelyn T. Alcantara',
   respondentType: 'End-user',
-  yearsExperience: '14 Years Managing Household Family Budget & Bills',
+  yearsExperience: 'Household Head (Mother of 3)',
   means: means3,
   interps: interps3,
   ...res3,
   feedback: [
     {
       q: '1. What do you like most about the system?',
-      a: 'The daily expense and utility bills countdown tracker! It shows exactly when our Meralco, Maynilad, and WiFi bills are due, plus the Pondong Pang-ipit progress bar motivates our whole family to save.',
+      a: 'Very easy to use on my phone, especially tracking our Meralco bills and family savings.',
     },
     {
       q: '2. What problems, errors, or difficulties did you encounter while using it?',
-      a: 'Earlier I had trouble finding where downloaded files went on my Android phone, but the new "Open & View PDF Now" pop-up button solved it completely. It opens right on my screen now!',
+      a: 'None. Downloading the PDF report is now very simple with the instant view button.',
     },
     {
       q: '3. What features would you add, remove, or improve?',
-      a: 'Add SMS or push notifications 3 days before electricity and water bills become overdue so we never get penalty charges.',
+      a: 'SMS alert reminders before the electricity and water bills become due.',
     },
     {
       q: '4. Would you recommend this system to others or use it in a real business setting? Why or why not?',
-      a: 'Yes, definitely! I already recommended it to my kumares and relatives. It stops family arguments about money because every peso spent is recorded with GCash or Cash notes.',
+      a: 'Yes, definitely. Very helpful for mothers managing household budgets and avoiding overspending.',
     },
     {
       q: '5. Additional comments or suggestions:',
-      a: 'Napaka-ganda at napaka-dali gamitin sa cellphone. Malaking tulong ito sa mga nanay at pamilyang Pilipino!',
+      a: 'Very helpful app for ordinary Filipino families. Thank you to the developers!',
     },
   ],
 };
@@ -677,32 +677,32 @@ const copy4Config = {
   copyTitle: 'Copy 4 of 4 (Respondent: Business Owner / Micro-Enterprise)',
   shortTitle: 'Copy 4: Business Owner',
   fileName: 'ITPC113-ISO-IEC-25010-Evaluation-Copy4-Business-Owner.pdf',
-  respondentName: "Roberto 'Tito Bert' Mendoza (Sari-Sari Store & Water Refilling Owner)",
+  respondentName: "Roberto 'Tito Bert' Mendoza",
   respondentType: 'Business owner',
-  yearsExperience: '16 Years Running Family Micro-Enterprises in Batangas',
+  yearsExperience: '10 Years Small Business Owner (Sari-Sari Store)',
   means: means4,
   interps: interps4,
   ...res4,
   feedback: [
     {
       q: '1. What do you like most about the system?',
-      a: 'The 1-tap PDF financial statement generator. I can print or save a monthly audit statement of our store cashflow and supplier bills in seconds without paying for complex accounting software.',
+      a: 'Quick 1-tap PDF export to print monthly expenses and daily store sales.',
     },
     {
       q: '2. What problems, errors, or difficulties did you encounter while using it?',
-      a: 'Separating personal household expenses from store inventory required setting up specific categories, though the category customization worked smoothly.',
+      a: 'Took a few minutes to create separate categories for store inventory.',
     },
     {
       q: '3. What features would you add, remove, or improve?',
-      a: 'Add camera photo attachment to transactions so we can snap receipts and supplier delivery invoices directly into the ledger.',
+      a: 'Option to attach photos of paper receipts to transactions.',
     },
     {
       q: '4. Would you recommend this system to others or use it in a real business setting? Why or why not?',
-      a: 'Yes, highly recommended for neighborhood micro-businesses, freelancers, and sari-sari store owners who want full control over daily cashflow.',
+      a: 'Yes, perfect for sari-sari stores, water refilling stations, and small neighborhood shops.',
     },
     {
       q: '5. Additional comments or suggestions:',
-      a: 'The ₱30/month subscription or sponsored access is very affordable and accessible for small business owners in the provinces.',
+      a: 'Practical, low-cost tool for micro-businesses. Well done!',
     },
   ],
 };
