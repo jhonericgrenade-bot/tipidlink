@@ -3992,7 +3992,7 @@ endobj
 endobj
 14 0 obj
 <<
-/Length 13135
+/Length 13003
 >>
 stream
 0.5670000000000001 w
@@ -4030,7 +4030,7 @@ BT
 8.625 TL
 0.059 0.09 0.165 rg
 39.6850393700787407 740.4096850393700606 Td
-(Clean modern UI, fast response time, and reliable 1-tap PDF statement exports.) Tj
+(Fast performance, clean UI, and reliable PDF export.) Tj
 ET
 BT
 /F2 8 Tf
@@ -4044,7 +4044,7 @@ BT
 8.625 TL
 0.059 0.09 0.165 rg
 39.6850393700787407 712.6301574803148924 Td
-(Minor initial loading delay on slow mobile internet connections.) Tj
+(Minor delay on slow mobile internet.) Tj
 ET
 BT
 /F2 8 Tf
@@ -4058,7 +4058,7 @@ BT
 8.625 TL
 0.059 0.09 0.165 rg
 39.6850393700787407 684.8506299212598378 Td
-(Add automated push notifications for upcoming bill deadlines.) Tj
+(Push notifications for bill due dates.) Tj
 ET
 BT
 /F2 8 Tf
@@ -4072,7 +4072,7 @@ BT
 8.625 TL
 0.059 0.09 0.165 rg
 39.6850393700787407 657.0711023622047833 Td
-(Yes, highly recommended. The system is secure, modular, and well-architected.) Tj
+(Yes, it is secure, well-structured, and works properly.) Tj
 ET
 BT
 /F2 8 Tf
@@ -4086,7 +4086,7 @@ BT
 8.625 TL
 0.059 0.09 0.165 rg
 39.6850393700787407 629.291574803149615 Td
-(Great capstone project. Excellent implementation using React and Supabase.) Tj
+(Great project. Ready for real deployment.) Tj
 ET
 BT
 /F2 11 Tf
@@ -4786,7 +4786,7 @@ endobj
 29 0 obj
 <<
 /Producer (jsPDF 4.2.1)
-/CreationDate (D:20261116230515+08'00')
+/CreationDate (D:20261116230723+08'00')
 >>
 endobj
 30 0 obj
@@ -4800,8 +4800,8 @@ endobj
 xref
 0 31
 0000000000 65535 f 
-0000102968 00000 n 
-0000104822 00000 n 
+0000102836 00000 n 
+0000104690 00000 n 
 0000000015 00000 n 
 0000000152 00000 n 
 0000010946 00000 n 
@@ -4814,29 +4814,29 @@ xref
 0000071819 00000 n 
 0000089640 00000 n 
 0000089779 00000 n 
-0000103057 00000 n 
-0000103183 00000 n 
-0000103314 00000 n 
-0000103448 00000 n 
-0000103586 00000 n 
-0000103710 00000 n 
+0000102925 00000 n 
+0000103051 00000 n 
+0000103182 00000 n 
+0000103316 00000 n 
+0000103454 00000 n 
+0000103578 00000 n 
+0000103707 00000 n 
 0000103839 00000 n 
-0000103971 00000 n 
-0000104107 00000 n 
-0000104235 00000 n 
-0000104362 00000 n 
-0000104491 00000 n 
-0000104624 00000 n 
-0000104726 00000 n 
-0000105075 00000 n 
-0000105161 00000 n 
+0000103975 00000 n 
+0000104103 00000 n 
+0000104230 00000 n 
+0000104359 00000 n 
+0000104492 00000 n 
+0000104594 00000 n 
+0000104943 00000 n 
+0000105029 00000 n 
 trailer
 <<
 /Size 31
 /Root 30 0 R
 /Info 29 0 R
-/ID [ <59EE5F8B98311255156AC7A1AD9C9F7B> <59EE5F8B98311255156AC7A1AD9C9F7B> ]
+/ID [ <BF42E13059C95D29FA59E44B2CC7A8DD> <BF42E13059C95D29FA59E44B2CC7A8DD> ]
 >>
 startxref
-105265
+105133
 %%EOF

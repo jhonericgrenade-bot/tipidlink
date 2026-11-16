@@ -3992,7 +3992,7 @@ endobj
 endobj
 14 0 obj
 <<
-/Length 13136
+/Length 12996
 >>
 stream
 0.5670000000000001 w
@@ -4030,7 +4030,7 @@ BT
 8.625 TL
 0.059 0.09 0.165 rg
 39.6850393700787407 740.4096850393700606 Td
-(Quick 1-tap PDF export to print monthly expenses and daily store sales.) Tj
+(Quick PDF reports for daily store sales and expenses.) Tj
 ET
 BT
 /F2 8 Tf
@@ -4044,7 +4044,7 @@ BT
 8.625 TL
 0.059 0.09 0.165 rg
 39.6850393700787407 712.6301574803148924 Td
-(Took a few minutes to create separate categories for store inventory.) Tj
+(None encountered so far.) Tj
 ET
 BT
 /F2 8 Tf
@@ -4058,7 +4058,7 @@ BT
 8.625 TL
 0.059 0.09 0.165 rg
 39.6850393700787407 684.8506299212598378 Td
-(Option to attach photos of paper receipts to transactions.) Tj
+(Attach receipt photos to transactions.) Tj
 ET
 BT
 /F2 8 Tf
@@ -4072,7 +4072,7 @@ BT
 8.625 TL
 0.059 0.09 0.165 rg
 39.6850393700787407 657.0711023622047833 Td
-(Yes, perfect for sari-sari stores, water refilling stations, and small neighborhood shops.) Tj
+(Yes, great for small shops and sari-sari stores.) Tj
 ET
 BT
 /F2 8 Tf
@@ -4086,7 +4086,7 @@ BT
 8.625 TL
 0.059 0.09 0.165 rg
 39.6850393700787407 629.291574803149615 Td
-(Practical, low-cost tool for micro-businesses. Well done!) Tj
+(Affordable, fast, and practical. Good job!) Tj
 ET
 BT
 /F2 11 Tf
@@ -4786,7 +4786,7 @@ endobj
 29 0 obj
 <<
 /Producer (jsPDF 4.2.1)
-/CreationDate (D:20261116230515+08'00')
+/CreationDate (D:20261116230723+08'00')
 >>
 endobj
 30 0 obj
@@ -4800,8 +4800,8 @@ endobj
 xref
 0 31
 0000000000 65535 f 
-0000103033 00000 n 
-0000104887 00000 n 
+0000102893 00000 n 
+0000104747 00000 n 
 0000000015 00000 n 
 0000000152 00000 n 
 0000010970 00000 n 
@@ -4814,29 +4814,29 @@ xref
 0000071872 00000 n 
 0000089704 00000 n 
 0000089843 00000 n 
-0000103122 00000 n 
-0000103248 00000 n 
-0000103379 00000 n 
-0000103513 00000 n 
-0000103651 00000 n 
-0000103775 00000 n 
-0000103904 00000 n 
-0000104036 00000 n 
-0000104172 00000 n 
-0000104300 00000 n 
-0000104427 00000 n 
-0000104556 00000 n 
-0000104689 00000 n 
-0000104791 00000 n 
-0000105140 00000 n 
-0000105226 00000 n 
+0000102982 00000 n 
+0000103108 00000 n 
+0000103239 00000 n 
+0000103373 00000 n 
+0000103511 00000 n 
+0000103635 00000 n 
+0000103764 00000 n 
+0000103896 00000 n 
+0000104032 00000 n 
+0000104160 00000 n 
+0000104287 00000 n 
+0000104416 00000 n 
+0000104549 00000 n 
+0000104651 00000 n 
+0000105000 00000 n 
+0000105086 00000 n 
 trailer
 <<
 /Size 31
 /Root 30 0 R
 /Info 29 0 R
-/ID [ <BFF7C15F00BF96E3A3D957D86DAAAD2E> <BFF7C15F00BF96E3A3D957D86DAAAD2E> ]
+/ID [ <35A09727FBF4C045029C50F556CC7267> <35A09727FBF4C045029C50F556CC7267> ]
 >>
 startxref
-105330
+105190
 %%EOF

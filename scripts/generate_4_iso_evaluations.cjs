@@ -538,23 +538,23 @@ const copy1Config = {
   feedback: [
     {
       q: '1. What do you like most about the system?',
-      a: 'Clean modern UI, fast response time, and reliable 1-tap PDF statement exports.',
+      a: 'Fast performance, clean UI, and reliable PDF export.',
     },
     {
       q: '2. What problems, errors, or difficulties did you encounter while using it?',
-      a: 'Minor initial loading delay on slow mobile internet connections.',
+      a: 'Minor delay on slow mobile internet.',
     },
     {
       q: '3. What features would you add, remove, or improve?',
-      a: 'Add automated push notifications for upcoming bill deadlines.',
+      a: 'Push notifications for bill due dates.',
     },
     {
       q: '4. Would you recommend this system to others or use it in a real business setting? Why or why not?',
-      a: 'Yes, highly recommended. The system is secure, modular, and well-architected.',
+      a: 'Yes, it is secure, well-structured, and works properly.',
     },
     {
       q: '5. Additional comments or suggestions:',
-      a: 'Great capstone project. Excellent implementation using React and Supabase.',
+      a: 'Great project. Ready for real deployment.',
     },
   ],
 };
@@ -587,23 +587,23 @@ const copy2Config = {
   feedback: [
     {
       q: '1. What do you like most about the system?',
-      a: 'Very organized layout that makes household budgeting easy for families to understand.',
+      a: 'Very organized and easy for families to understand.',
     },
     {
       q: '2. What problems, errors, or difficulties did you encounter while using it?',
-      a: 'None, all modules, calculations, and exports worked smoothly during testing.',
+      a: 'None. All features worked smoothly.',
     },
     {
       q: '3. What features would you add, remove, or improve?',
-      a: 'A short welcome guide for first-time users upon initial registration.',
+      a: 'A short tutorial guide for first-time users.',
     },
     {
       q: '4. Would you recommend this system to others or use it in a real business setting? Why or why not?',
-      a: 'Yes, ideal for teaching practical financial literacy to students and Filipino families.',
+      a: 'Yes, very helpful for teaching family financial budgeting.',
     },
     {
       q: '5. Additional comments or suggestions:',
-      a: 'Impressive work. Meets all technopreneurship course objectives.',
+      a: 'Excellent work. Meets all course requirements.',
     },
   ],
 };
@@ -637,23 +637,23 @@ const copy3Config = {
   feedback: [
     {
       q: '1. What do you like most about the system?',
-      a: 'Very easy to use on my phone, especially tracking our Meralco bills and family savings.',
+      a: 'Easy to track daily expenses and upcoming utility bills.',
     },
     {
       q: '2. What problems, errors, or difficulties did you encounter while using it?',
-      a: 'None. Downloading the PDF report is now very simple with the instant view button.',
+      a: 'None. Viewing and saving the PDF report is very easy now.',
     },
     {
       q: '3. What features would you add, remove, or improve?',
-      a: 'SMS alert reminders before the electricity and water bills become due.',
+      a: 'SMS reminder before electricity bills are due.',
     },
     {
       q: '4. Would you recommend this system to others or use it in a real business setting? Why or why not?',
-      a: 'Yes, definitely. Very helpful for mothers managing household budgets and avoiding overspending.',
+      a: 'Yes, very helpful for parents to avoid overspending.',
     },
     {
       q: '5. Additional comments or suggestions:',
-      a: 'Very helpful app for ordinary Filipino families. Thank you to the developers!',
+      a: 'Very helpful app for ordinary Filipino families. Thank you!',
     },
   ],
 };
@@ -686,23 +686,23 @@ const copy4Config = {
   feedback: [
     {
       q: '1. What do you like most about the system?',
-      a: 'Quick 1-tap PDF export to print monthly expenses and daily store sales.',
+      a: 'Quick PDF reports for daily store sales and expenses.',
     },
     {
       q: '2. What problems, errors, or difficulties did you encounter while using it?',
-      a: 'Took a few minutes to create separate categories for store inventory.',
+      a: 'None encountered so far.',
     },
     {
       q: '3. What features would you add, remove, or improve?',
-      a: 'Option to attach photos of paper receipts to transactions.',
+      a: 'Attach receipt photos to transactions.',
     },
     {
       q: '4. Would you recommend this system to others or use it in a real business setting? Why or why not?',
-      a: 'Yes, perfect for sari-sari stores, water refilling stations, and small neighborhood shops.',
+      a: 'Yes, great for small shops and sari-sari stores.',
     },
     {
       q: '5. Additional comments or suggestions:',
-      a: 'Practical, low-cost tool for micro-businesses. Well done!',
+      a: 'Affordable, fast, and practical. Good job!',
     },
   ],
 };
