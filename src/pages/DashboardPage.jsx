@@ -241,26 +241,6 @@ export const DashboardPage = () => {
         </div>
       </div>
 
-      {/* Empty Month Notice with 1-click restore for presentation */}
-      {calculations.monthlyTransactions.length === 0 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl bg-amber-50 border border-amber-200/90 p-4 text-amber-900 shadow-xs animate-slide-up">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
-            <div className="text-xs sm:text-sm">
-              <span className="font-bold">No transactions recorded for {months[selectedMonth - 1]} {selectedYear}.</span>
-              <span className="text-amber-800 ml-1">Load the official Santos Family records (₱71,000 Income / ₱19,700 Expenses) for your presentation?</span>
-            </div>
-          </div>
-          <button
-            onClick={resetToDemoData}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 active-press text-white px-3.5 py-2 text-xs font-bold transition shadow-xs cursor-pointer"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            Load Santos Family Records
-          </button>
-        </div>
-      )}
-
       {/* Primary KPI Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
