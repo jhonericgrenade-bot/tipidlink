@@ -171,7 +171,9 @@ export const AuthProvider = ({ children }) => {
     // Clear any previous demo state
     localStorage.removeItem('tipidlink_demo_user');
     localStorage.removeItem('tipidlink_demo_active');
-    localStorage.removeItem('tipidlink_active_household_id');
+    if (localStorage.getItem('tipidlink_active_household_id') === 'hh-santos-family' && !cleanEmail.endsWith('@tipidlink.ph')) {
+      localStorage.removeItem('tipidlink_active_household_id');
+    }
     setIsDemoMode(false);
 
     if (!isSupabaseConfigured) {
@@ -226,7 +228,9 @@ export const AuthProvider = ({ children }) => {
     // Clear any previous demo state
     localStorage.removeItem('tipidlink_demo_user');
     localStorage.removeItem('tipidlink_demo_active');
-    localStorage.removeItem('tipidlink_active_household_id');
+    if (localStorage.getItem('tipidlink_active_household_id') === 'hh-santos-family' && !cleanEmail.endsWith('@tipidlink.ph')) {
+      localStorage.removeItem('tipidlink_active_household_id');
+    }
     setIsDemoMode(false);
 
     if (!isSupabaseConfigured) {

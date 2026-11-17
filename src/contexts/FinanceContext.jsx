@@ -1,8 +1,28 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { useHousehold } from './HouseholdContext';
 import { INITIAL_DEMO_DATA } from '../lib/mockData';
+import { broadcastSyncEvent } from '../lib/realtimeSync';
+
+const isUuid = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+// Instant warm-cache hydration on initial page open to prevent data disappearing
+const getInitialFinanceData = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const activeId = localStorage.getItem('tipidlink_active_household_id') || 'hh-santos-family';
+    const storageKey = `tipidlink_finance_${activeId}`;
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed.transactions)) {
+        return parsed;
+      }
+    }
+  } catch {}
+  return null;
+};
 
 const FinanceContext = createContext(null);
 
@@ -10,37 +30,38 @@ export const FinanceProvider = ({ children }) => {
   const { user, profile, isDemoMode } = useAuth();
   const { currentHousehold, isOwnerOrAdmin } = useHousehold();
 
-  const [transactions, setTransactions] = useState([]);
-  const [budgets, setBudgets] = useState([]);
-  const [bills, setBills] = useState([]);
-  const [savingsGoals, setSavingsGoals] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Instant Stale-While-Revalidate hydration: warm cache displays at 0ms so data never disappears
+  const initialCache = useMemo(() => getInitialFinanceData(), []);
+
+  const [transactions, setTransactions] = useState(() => initialCache?.transactions || []);
+  const [budgets, setBudgets] = useState(() => initialCache?.budgets || []);
+  const [bills, setBills] = useState(() => initialCache?.bills || []);
+  const [savingsGoals, setSavingsGoals] = useState(() => initialCache?.savingsGoals || []);
+  const [categories, setCategories] = useState(() => initialCache?.categories || INITIAL_DEMO_DATA.categories);
+  const [loading, setLoading] = useState(() => !initialCache);
 
   // Selected period for dashboard & budget tracking (defaults to November 2026 for consistent multi-browser presentation demo)
   const [selectedMonth, setSelectedMonth] = useState(11);
   const [selectedYear, setSelectedYear] = useState(2026);
 
-  // Load all financial records when current household changes
+  // Load financial records when current household changes (non-destructive)
   useEffect(() => {
     if (!currentHousehold) {
-      setTransactions([]);
-      setBudgets([]);
-      setBills([]);
-      setSavingsGoals([]);
-      setCategories([]);
-      setLoading(false);
+      const cachedActiveId = localStorage.getItem('tipidlink_active_household_id');
+      if (cachedActiveId) {
+        loadHouseholdData(cachedActiveId, { silent: true });
+      }
       return;
     }
 
-    loadHouseholdData(currentHousehold.id);
-  }, [currentHousehold, isDemoMode]);
+    loadHouseholdData(currentHousehold.id, { silent: transactions.length > 0 });
+  }, [currentHousehold?.id, isDemoMode]);
 
-  // Real-time refresh when tab or mobile browser gains focus
+  // Real-time refresh when tab or mobile browser gains focus / screen unlock
   useEffect(() => {
     const handleFocus = () => {
       if (document.visibilityState === 'visible' && currentHousehold?.id) {
-        loadHouseholdData(currentHousehold.id);
+        loadHouseholdData(currentHousehold.id, { silent: true });
       }
     };
     window.addEventListener('focus', handleFocus);
@@ -51,12 +72,93 @@ export const FinanceProvider = ({ children }) => {
     };
   }, [currentHousehold?.id]);
 
-  const loadHouseholdData = async (householdId) => {
-    setLoading(true);
+  // AUTOMATIC REALTIME SYNC (Cross-device, cross-tab, cross-window)
+  useEffect(() => {
+    if (!currentHousehold?.id) return;
+    const householdId = currentHousehold.id;
 
-    if (isDemoMode || householdId === 'hh-santos-family') {
-      // Load from localStorage or mockData for demo mode
-      const storageKey = `tipidlink_finance_${householdId}`;
+    // 1. Supabase WebSocket Broadcast and Postgres Table Changes (multi-unit: CP, PC, Tablet)
+    let sbChannel = null;
+    if (isSupabaseConfigured) {
+      sbChannel = supabase.channel(`tipidlink-finance-sync-${householdId}`, {
+        config: { broadcast: { ack: false, self: false } },
+      });
+
+      // Handle broadcast from other units
+      sbChannel.on('broadcast', { event: 'finance_updated' }, (msg) => {
+        if (!msg.payload?.householdId || msg.payload.householdId === householdId) {
+          loadHouseholdData(householdId, { silent: true });
+        }
+      });
+
+      // Handle direct PostgreSQL changes if UUID household
+      if (isUuid(householdId)) {
+        sbChannel
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `household_id=eq.${householdId}` }, () => {
+            loadHouseholdData(householdId, { silent: true });
+          })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'budgets', filter: `household_id=eq.${householdId}` }, () => {
+            loadHouseholdData(householdId, { silent: true });
+          })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'bills', filter: `household_id=eq.${householdId}` }, () => {
+            loadHouseholdData(householdId, { silent: true });
+          })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'savings_goals', filter: `household_id=eq.${householdId}` }, () => {
+            loadHouseholdData(householdId, { silent: true });
+          });
+      }
+
+      sbChannel.subscribe();
+    }
+
+    // 2. BroadcastChannel API (cross-tab in same browser)
+    let bc = null;
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        bc = new BroadcastChannel('tipidlink_realtime_sync');
+        bc.onmessage = (event) => {
+          if (event.data?.event === 'finance_updated') {
+            if (!event.data.householdId || event.data.householdId === householdId) {
+              loadHouseholdData(householdId, { silent: true });
+            }
+          }
+        };
+      } catch {}
+    }
+
+    // 3. Storage event fallback (cross-window)
+    const handleStorage = (e) => {
+      if (e.key === 'tipidlink_last_sync_event' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (parsed.event === 'finance_updated') {
+            loadHouseholdData(householdId, { silent: true });
+          }
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      if (sbChannel) supabase.removeChannel(sbChannel);
+      if (bc) bc.close();
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [currentHousehold?.id]);
+
+  const loadHouseholdData = async (householdId, options = {}) => {
+    if (!householdId) return;
+
+    const isSilent = options.silent === true;
+    if (!isSilent && transactions.length === 0) {
+      setLoading(true);
+    }
+
+    const storageKey = `tipidlink_finance_${householdId}`;
+    const isNonUuid = !isUuid(householdId);
+
+    if (isDemoMode || householdId === 'hh-santos-family' || isNonUuid || !isSupabaseConfigured) {
+      // Safe local/cache loader: never query Postgres with invalid UUID
       const savedData = localStorage.getItem(storageKey);
 
       if (savedData) {
@@ -66,41 +168,39 @@ export const FinanceProvider = ({ children }) => {
           let loadedBudgets = parsed.budgets || [];
           let loadedBills = parsed.bills || [];
 
-          // Auto-migration: Check if November 2026 demo transactions exist.
-          // If missing, automatically merge INITIAL_DEMO_DATA November transactions and budgets so active month is never empty!
-          const hasNovTx = loadedTx.some(t => t.transaction_date && t.transaction_date.startsWith('2026-11'));
-          if (!hasNovTx) {
-            const novTx = INITIAL_DEMO_DATA.transactions.filter(t => t.transaction_date && t.transaction_date.startsWith('2026-11'));
-            loadedTx = [...loadedTx, ...novTx];
-          }
+          if (householdId === 'hh-santos-family' || isDemoMode) {
+            const hasNovTx = loadedTx.some(t => t.transaction_date && t.transaction_date.startsWith('2026-11'));
+            if (!hasNovTx) {
+              const novTx = INITIAL_DEMO_DATA.transactions.filter(t => t.transaction_date && t.transaction_date.startsWith('2026-11'));
+              loadedTx = [...loadedTx, ...novTx];
+            }
 
-          const hasNovBudgets = loadedBudgets.some(b => b.month === 11 && b.year === 2026);
-          if (!hasNovBudgets) {
-            const novBudgets = INITIAL_DEMO_DATA.budgets.filter(b => b.month === 11 && b.year === 2026);
-            loadedBudgets = [...loadedBudgets, ...novBudgets];
-          }
+            const hasNovBudgets = loadedBudgets.some(b => b.month === 11 && b.year === 2026);
+            if (!hasNovBudgets) {
+              const novBudgets = INITIAL_DEMO_DATA.budgets.filter(b => b.month === 11 && b.year === 2026);
+              loadedBudgets = [...loadedBudgets, ...novBudgets];
+            }
 
-          // Ensure bills have up-to-date November schedule if older bills were cached
-          if (householdId === 'hh-santos-family') {
-            const hasNovBills = loadedBills.some(b => b.due_date && b.due_date.startsWith('2026-11'));
-            if (!hasNovBills) {
-              loadedBills = INITIAL_DEMO_DATA.bills;
+            if (householdId === 'hh-santos-family') {
+              const hasNovBills = loadedBills.some(b => b.due_date && b.due_date.startsWith('2026-11'));
+              if (!hasNovBills) {
+                loadedBills = INITIAL_DEMO_DATA.bills;
+              }
             }
           }
 
-          // Persist the migrated data
           localStorage.setItem(storageKey, JSON.stringify({
             transactions: loadedTx,
             budgets: loadedBudgets,
             bills: loadedBills,
-            savingsGoals: INITIAL_DEMO_DATA.savingsGoals,
+            savingsGoals: parsed.savingsGoals || INITIAL_DEMO_DATA.savingsGoals,
             categories: parsed.categories || INITIAL_DEMO_DATA.categories,
           }));
 
           setTransactions(loadedTx);
           setBudgets(loadedBudgets);
           setBills(loadedBills);
-          setSavingsGoals(INITIAL_DEMO_DATA.savingsGoals);
+          setSavingsGoals(parsed.savingsGoals || INITIAL_DEMO_DATA.savingsGoals);
           setCategories(parsed.categories || INITIAL_DEMO_DATA.categories);
           setLoading(false);
           return;
@@ -109,21 +209,27 @@ export const FinanceProvider = ({ children }) => {
         }
       }
 
-      // Default mock data for Santos Family in demo mode
-      setTransactions(INITIAL_DEMO_DATA.transactions);
-      setBudgets(INITIAL_DEMO_DATA.budgets);
-      setBills(INITIAL_DEMO_DATA.bills);
-      setSavingsGoals(INITIAL_DEMO_DATA.savingsGoals);
-      setCategories(INITIAL_DEMO_DATA.categories);
+      if (householdId === 'hh-santos-family' || isDemoMode) {
+        setTransactions(INITIAL_DEMO_DATA.transactions);
+        setBudgets(INITIAL_DEMO_DATA.budgets);
+        setBills(INITIAL_DEMO_DATA.bills);
+        setSavingsGoals(INITIAL_DEMO_DATA.savingsGoals);
+        setCategories(INITIAL_DEMO_DATA.categories);
 
-      // Persist to storage
-      localStorage.setItem(storageKey, JSON.stringify({
-        transactions: INITIAL_DEMO_DATA.transactions,
-        budgets: INITIAL_DEMO_DATA.budgets,
-        bills: INITIAL_DEMO_DATA.bills,
-        savingsGoals: INITIAL_DEMO_DATA.savingsGoals,
-        categories: INITIAL_DEMO_DATA.categories,
-      }));
+        localStorage.setItem(storageKey, JSON.stringify({
+          transactions: INITIAL_DEMO_DATA.transactions,
+          budgets: INITIAL_DEMO_DATA.budgets,
+          bills: INITIAL_DEMO_DATA.bills,
+          savingsGoals: INITIAL_DEMO_DATA.savingsGoals,
+          categories: INITIAL_DEMO_DATA.categories,
+        }));
+      } else {
+        setTransactions([]);
+        setBudgets([]);
+        setBills([]);
+        setSavingsGoals([]);
+        setCategories(INITIAL_DEMO_DATA.categories);
+      }
 
       setLoading(false);
       return;
@@ -247,13 +353,36 @@ export const FinanceProvider = ({ children }) => {
         contributions: g.savings_contributions || [],
       }));
 
-      setCategories(catData || INITIAL_DEMO_DATA.categories);
+      const categoriesList = catData || INITIAL_DEMO_DATA.categories;
+      setCategories(categoriesList);
       setTransactions(formattedTx);
       setBudgets(bgData || []);
       setBills(formattedBills);
       setSavingsGoals(formattedGoals);
+
+      // Persist to warm cache for instant 0ms load on next visit
+      localStorage.setItem(storageKey, JSON.stringify({
+        transactions: formattedTx,
+        budgets: bgData || [],
+        bills: formattedBills,
+        savingsGoals: formattedGoals,
+        categories: categoriesList,
+      }));
     } catch (err) {
       console.error('Error fetching household financial data:', err);
+      // Graceful fallback: do NOT wipe existing transactions on network drop!
+      const savedData = localStorage.getItem(storageKey);
+      if (savedData) {
+        try {
+          const parsed = JSON.parse(savedData);
+          if (Array.isArray(parsed.transactions) && parsed.transactions.length > 0) {
+            setTransactions(parsed.transactions);
+            if (parsed.budgets) setBudgets(parsed.budgets);
+            if (parsed.bills) setBills(parsed.bills);
+            if (parsed.savingsGoals) setSavingsGoals(parsed.savingsGoals);
+          }
+        } catch {}
+      }
     } finally {
       setLoading(false);
     }
@@ -274,7 +403,7 @@ export const FinanceProvider = ({ children }) => {
     localStorage.setItem(storageKey, JSON.stringify(current));
   };
 
-  const isLocalFinance = isDemoMode || !isSupabaseConfigured || currentHousehold?.id === 'hh-santos-family';
+  const isLocalFinance = isDemoMode || !isSupabaseConfigured || !isUuid(currentHousehold?.id) || currentHousehold?.id === 'hh-santos-family';
 
   // ----------------------------------------------------------------------------
   // TRANSACTIONS CRUD
@@ -303,11 +432,11 @@ export const FinanceProvider = ({ children }) => {
       const updated = [createdTx, ...transactions];
       setTransactions(updated);
       persistDemoData({ transactions: updated });
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true, transaction: createdTx };
     }
 
     try {
-      const isUuid = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
       const safeCategoryId = isUuid(tx.category_id) ? tx.category_id : null;
 
       const { data, error } = await supabase
@@ -340,7 +469,10 @@ export const FinanceProvider = ({ children }) => {
         user_name: data.profiles?.full_name || profile?.full_name || 'Member',
       };
 
-      setTransactions(prev => [formatted, ...prev]);
+      const updated = [formatted, ...transactions];
+      setTransactions(updated);
+      persistDemoData({ transactions: updated });
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true, transaction: formatted };
     } catch (err) {
       console.error('Add transaction failed:', err);
@@ -365,6 +497,7 @@ export const FinanceProvider = ({ children }) => {
       });
       setTransactions(updated);
       persistDemoData({ transactions: updated });
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true };
     }
 
@@ -380,7 +513,8 @@ export const FinanceProvider = ({ children }) => {
 
       if (error) throw error;
 
-      await loadHouseholdData(currentHousehold.id);
+      await loadHouseholdData(currentHousehold.id, { silent: true });
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -392,6 +526,7 @@ export const FinanceProvider = ({ children }) => {
       const updated = transactions.filter(t => t.id !== id);
       setTransactions(updated);
       persistDemoData({ transactions: updated });
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true };
     }
 
@@ -399,6 +534,7 @@ export const FinanceProvider = ({ children }) => {
       const { error } = await supabase.from('transactions').delete().eq('id', id);
       if (error) throw error;
       setTransactions(prev => prev.filter(t => t.id !== id));
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -437,6 +573,7 @@ export const FinanceProvider = ({ children }) => {
 
       setBudgets(updated);
       persistDemoData({ budgets: updated });
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true };
     }
 
@@ -456,7 +593,8 @@ export const FinanceProvider = ({ children }) => {
         );
 
       if (error) throw error;
-      await loadHouseholdData(currentHousehold.id);
+      await loadHouseholdData(currentHousehold.id, { silent: true });
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -470,6 +608,7 @@ export const FinanceProvider = ({ children }) => {
       const updated = budgets.filter(b => b.id !== id);
       setBudgets(updated);
       persistDemoData({ budgets: updated });
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true };
     }
 
@@ -477,6 +616,7 @@ export const FinanceProvider = ({ children }) => {
       const { error } = await supabase.from('budgets').delete().eq('id', id);
       if (error) throw error;
       setBudgets(prev => prev.filter(b => b.id !== id));
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -513,6 +653,7 @@ export const FinanceProvider = ({ children }) => {
       const updated = [...bills, createdBill];
       setBills(updated);
       persistDemoData({ bills: updated });
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true, bill: createdBill };
     }
 
@@ -535,6 +676,8 @@ export const FinanceProvider = ({ children }) => {
       };
 
       setBills(prev => [...prev, formatted]);
+      persistDemoData({ bills: [...bills, formatted] });
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true, bill: formatted };
     } catch (err) {
       return { success: false, error: err.message };
@@ -546,6 +689,7 @@ export const FinanceProvider = ({ children }) => {
       const updated = bills.map(b => b.id === id ? { ...b, ...updates, amount: Number(updates.amount ?? b.amount) } : b);
       setBills(updated);
       persistDemoData({ bills: updated });
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true };
     }
 
@@ -557,7 +701,8 @@ export const FinanceProvider = ({ children }) => {
       }).eq('id', id);
 
       if (error) throw error;
-      await loadHouseholdData(currentHousehold.id);
+      await loadHouseholdData(currentHousehold.id, { silent: true });
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -615,6 +760,7 @@ export const FinanceProvider = ({ children }) => {
       setBills(updatedBills);
       setTransactions(updatedTx);
       persistDemoData({ bills: updatedBills, transactions: updatedTx });
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
 
       return { success: true };
     }
@@ -651,7 +797,8 @@ export const FinanceProvider = ({ children }) => {
           notes: `Ref: ${payment.reference_number || 'N/A'}`,
         });
 
-      await loadHouseholdData(currentHousehold.id);
+      await loadHouseholdData(currentHousehold.id, { silent: true });
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -663,6 +810,7 @@ export const FinanceProvider = ({ children }) => {
       const updated = bills.filter(b => b.id !== id);
       setBills(updated);
       persistDemoData({ bills: updated });
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true };
     }
 
@@ -670,6 +818,7 @@ export const FinanceProvider = ({ children }) => {
       const { error } = await supabase.from('bills').delete().eq('id', id);
       if (error) throw error;
       setBills(prev => prev.filter(b => b.id !== id));
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -703,6 +852,7 @@ export const FinanceProvider = ({ children }) => {
       const updated = [createdGoal, ...savingsGoals];
       setSavingsGoals(updated);
       persistDemoData({ savingsGoals: updated });
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true, goal: createdGoal };
     }
 
@@ -720,6 +870,8 @@ export const FinanceProvider = ({ children }) => {
 
       const formatted = { ...data, contributions: [] };
       setSavingsGoals(prev => [formatted, ...prev]);
+      persistDemoData({ savingsGoals: [formatted, ...savingsGoals] });
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true, goal: formatted };
     } catch (err) {
       return { success: false, error: err.message };
@@ -752,6 +904,7 @@ export const FinanceProvider = ({ children }) => {
 
       setSavingsGoals(updatedGoals);
       persistDemoData({ savingsGoals: updatedGoals });
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true };
     }
 
@@ -769,7 +922,8 @@ export const FinanceProvider = ({ children }) => {
 
       if (error) throw error;
 
-      await loadHouseholdData(currentHousehold.id);
+      await loadHouseholdData(currentHousehold.id, { silent: true });
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -781,6 +935,7 @@ export const FinanceProvider = ({ children }) => {
       const updated = savingsGoals.filter(g => g.id !== id);
       setSavingsGoals(updated);
       persistDemoData({ savingsGoals: updated });
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true };
     }
 
@@ -788,6 +943,7 @@ export const FinanceProvider = ({ children }) => {
       const { error } = await supabase.from('savings_goals').delete().eq('id', id);
       if (error) throw error;
       setSavingsGoals(prev => prev.filter(g => g.id !== id));
+      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -823,9 +979,7 @@ export const FinanceProvider = ({ children }) => {
     setSelectedMonth(11);
     setSelectedYear(2026);
 
-    const storageKey = (isDemoMode || currentHousehold.id === 'hh-santos-family')
-      ? `tipidlink_finance_${currentHousehold.id}`
-      : `tipidlink_user_finance_${currentHousehold.id}`;
+    const storageKey = `tipidlink_finance_${currentHousehold.id}`;
 
     localStorage.setItem(storageKey, JSON.stringify({
       transactions: updatedTx,
@@ -834,6 +988,8 @@ export const FinanceProvider = ({ children }) => {
       savingsGoals: updatedGoals,
       categories: INITIAL_DEMO_DATA.categories,
     }));
+
+    broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
   };
 
   // ----------------------------------------------------------------------------

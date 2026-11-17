@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { INITIAL_DEMO_DATA } from '../lib/mockData';
+import { broadcastSyncEvent } from '../lib/realtimeSync';
 
 // Safe Base64URL encoder/decoder for household share codes
 export const encodeHouseholdCode = (uuid) => {
@@ -53,12 +54,47 @@ const HouseholdContext = createContext(null);
 
 export const HouseholdProvider = ({ children }) => {
   const { user, profile, isDemoMode } = useAuth();
-  const [households, setHouseholds] = useState([]);
-  const [currentHousehold, setCurrentHousehold] = useState(null);
+
+  // Instant warm cache initialization so current household is never temporarily null on open
+  const [households, setHouseholds] = useState(() => {
+    try {
+      const activeId = localStorage.getItem('tipidlink_active_household_id');
+      const userHH = user?.id ? localStorage.getItem(`tipidlink_user_households_${user.id}`) : null;
+      const demoHH = localStorage.getItem('tipidlink_demo_households');
+      const source = userHH || demoHH;
+      if (source) {
+        const list = JSON.parse(source);
+        if (Array.isArray(list) && list.length > 0) return list;
+      }
+      if (activeId === 'hh-santos-family') {
+        return [INITIAL_DEMO_DATA.household];
+      }
+    } catch {}
+    return [];
+  });
+
+  const [currentHousehold, setCurrentHousehold] = useState(() => {
+    try {
+      const activeId = localStorage.getItem('tipidlink_active_household_id') || 'hh-santos-family';
+      const userHH = user?.id ? localStorage.getItem(`tipidlink_user_households_${user.id}`) : null;
+      const demoHH = localStorage.getItem('tipidlink_demo_households');
+      const source = userHH || demoHH;
+      if (source) {
+        const list = JSON.parse(source);
+        const found = list.find(h => h.id === activeId);
+        if (found) return found;
+      }
+      if (activeId === 'hh-santos-family') {
+        return INITIAL_DEMO_DATA.household;
+      }
+    } catch {}
+    return null;
+  });
+
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Load households whenever user or demo status changes
+  // Load households whenever user, demo status, or profile changes
   useEffect(() => {
     if (!user) {
       setHouseholds([]);
@@ -69,7 +105,7 @@ export const HouseholdProvider = ({ children }) => {
     }
 
     loadHouseholds();
-  }, [user, isDemoMode]);
+  }, [user?.id, isDemoMode, profile?.phone]);
 
   // Load members whenever current household changes
   useEffect(() => {
@@ -917,6 +953,7 @@ export const HouseholdProvider = ({ children }) => {
       setCurrentHousehold(updated);
       const list = households.map(h => h.id === updated.id ? updated : h);
       setHouseholds(list);
+      broadcastSyncEvent('household_updated', { householdId: currentHousehold.id });
       return { success: true };
     }
 
@@ -929,6 +966,7 @@ export const HouseholdProvider = ({ children }) => {
       if (error) throw error;
       setCurrentHousehold(prev => ({ ...prev, ...updates }));
       setHouseholds(prev => prev.map(h => h.id === currentHousehold.id ? { ...h, ...updates } : h));
+      broadcastSyncEvent('household_updated', { householdId: currentHousehold.id });
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -954,6 +992,7 @@ export const HouseholdProvider = ({ children }) => {
     if (isDemoMode || !isSupabaseConfigured) {
       const updated = members.map(m => m.id === memberId ? { ...m, role: newRole } : m);
       setMembers(updated);
+      broadcastSyncEvent('member_updated', { householdId: currentHousehold.id });
       return { success: true };
     }
 
@@ -965,6 +1004,7 @@ export const HouseholdProvider = ({ children }) => {
 
       if (error) throw error;
       setMembers(prev => prev.map(m => m.id === memberId ? { ...m, role: newRole } : m));
+      broadcastSyncEvent('member_updated', { householdId: currentHousehold.id });
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -986,6 +1026,7 @@ export const HouseholdProvider = ({ children }) => {
     if (isDemoMode || !isSupabaseConfigured) {
       const updated = members.filter(m => m.id !== memberId);
       setMembers(updated);
+      broadcastSyncEvent('member_updated', { householdId: currentHousehold.id });
       return { success: true };
     }
 
@@ -997,6 +1038,7 @@ export const HouseholdProvider = ({ children }) => {
 
       if (error) throw error;
       setMembers(prev => prev.filter(m => m.id !== memberId));
+      broadcastSyncEvent('member_updated', { householdId: currentHousehold.id });
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -1127,18 +1169,81 @@ export const HouseholdProvider = ({ children }) => {
     };
   }, [currentHousehold?.id, user?.id]);
 
-  // Realtime cross-unit sync: when any user joins from mobile/CP or another device, immediately refresh member list!
+  // Universal Realtime cross-unit sync (multi-device, cross-tab, cross-window)
   useEffect(() => {
-    if (!isSupabaseConfigured) return;
-    const channel = supabase.channel('tipidlink-household-sync');
-    channel.on('broadcast', { event: 'member_joined' }, () => {
-      if (currentHousehold?.id) {
-        loadMembers(currentHousehold.id);
+    if (!currentHousehold?.id) return;
+    const householdId = currentHousehold.id;
+
+    // 1. Supabase WebSocket channel
+    let channel = null;
+    if (isSupabaseConfigured) {
+      channel = supabase.channel(`tipidlink-household-sync-${householdId}`, {
+        config: { broadcast: { ack: false, self: false } },
+      });
+
+      channel
+        .on('broadcast', { event: 'member_joined' }, () => {
+          loadMembers(householdId);
+          loadHouseholds();
+        })
+        .on('broadcast', { event: 'member_updated' }, () => {
+          loadMembers(householdId);
+        })
+        .on('broadcast', { event: 'household_updated' }, () => {
+          loadHouseholds();
+        });
+
+      const isUuidId = typeof householdId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(householdId);
+      if (isUuidId) {
+        channel
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'household_members', filter: `household_id=eq.${householdId}` }, () => {
+            loadMembers(householdId);
+            loadHouseholds();
+          })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'households', filter: `id=eq.${householdId}` }, () => {
+            loadHouseholds();
+          });
       }
-    });
-    channel.subscribe();
+
+      channel.subscribe();
+    }
+
+    // 2. BroadcastChannel (Cross-tab)
+    let bc = null;
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        bc = new BroadcastChannel('tipidlink_realtime_sync');
+        bc.onmessage = (event) => {
+          if (event.data?.event === 'member_joined' || event.data?.event === 'member_updated') {
+            loadMembers(householdId);
+            if (event.data?.event === 'member_joined') loadHouseholds();
+          } else if (event.data?.event === 'household_updated') {
+            loadHouseholds();
+          }
+        };
+      } catch {}
+    }
+
+    // 3. Storage event fallback
+    const handleStorage = (e) => {
+      if (e.key === 'tipidlink_last_sync_event' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (parsed.event === 'member_joined' || parsed.event === 'member_updated') {
+            loadMembers(householdId);
+            if (parsed.event === 'member_joined') loadHouseholds();
+          } else if (parsed.event === 'household_updated') {
+            loadHouseholds();
+          }
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
+      if (bc) bc.close();
+      window.removeEventListener('storage', handleStorage);
     };
   }, [currentHousehold?.id]);
 
