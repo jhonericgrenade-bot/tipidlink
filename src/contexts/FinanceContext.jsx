@@ -353,19 +353,42 @@ export const FinanceProvider = ({ children }) => {
         contributions: g.savings_contributions || [],
       }));
 
+      const isSantosTarget = householdId === '0d37e235-c9dd-4876-a54a-9acb36516599' ||
+        householdId === 'hh-santos-family' ||
+        isDemoMode ||
+        user?.email?.endsWith('@tipidlink.ph') ||
+        (user?.id && localStorage.getItem(`tipidlink_user_joined_santos_${user.id}`) === 'true') ||
+        (profile?.phone && profile.phone.includes('JOINED:SANTOS2026'));
+
+      const finalTx = (formattedTx.length === 0 && isSantosTarget)
+        ? INITIAL_DEMO_DATA.transactions
+        : formattedTx;
+
+      const finalBudgets = (bgData?.length === 0 && isSantosTarget)
+        ? INITIAL_DEMO_DATA.budgets
+        : (bgData || []);
+
+      const finalBills = (formattedBills.length === 0 && isSantosTarget)
+        ? INITIAL_DEMO_DATA.bills
+        : formattedBills;
+
+      const finalGoals = (formattedGoals.length === 0 && isSantosTarget)
+        ? INITIAL_DEMO_DATA.savingsGoals
+        : formattedGoals;
+
       const categoriesList = catData || INITIAL_DEMO_DATA.categories;
       setCategories(categoriesList);
-      setTransactions(formattedTx);
-      setBudgets(bgData || []);
-      setBills(formattedBills);
-      setSavingsGoals(formattedGoals);
+      setTransactions(finalTx);
+      setBudgets(finalBudgets);
+      setBills(finalBills);
+      setSavingsGoals(finalGoals);
 
       // Persist to warm cache for instant 0ms load on next visit
       localStorage.setItem(storageKey, JSON.stringify({
-        transactions: formattedTx,
-        budgets: bgData || [],
-        bills: formattedBills,
-        savingsGoals: formattedGoals,
+        transactions: finalTx,
+        budgets: finalBudgets,
+        bills: finalBills,
+        savingsGoals: finalGoals,
         categories: categoriesList,
       }));
     } catch (err) {

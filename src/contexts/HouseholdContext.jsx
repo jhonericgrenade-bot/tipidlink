@@ -316,6 +316,7 @@ export const HouseholdProvider = ({ children }) => {
 
       // A user only has Santos Family if in demo mode OR explicitly joined via code SANTOS2026
       const hasJoinedSantos = isDemoMode
+        || (user?.email && user.email.endsWith('@tipidlink.ph'))
         || (user?.id && localStorage.getItem(`tipidlink_user_joined_santos_${user.id}`) === 'true')
         || (user?.user_metadata?.joined_santos === true)
         || (profile?.phone && profile.phone.includes('JOINED:SANTOS2026'));
@@ -323,9 +324,23 @@ export const HouseholdProvider = ({ children }) => {
       if (hasJoinedSantos) {
         const santosWithRole = {
           ...INITIAL_DEMO_DATA.household,
-          user_role: 'member',
+          id: '0d37e235-c9dd-4876-a54a-9acb36516599',
+          name: 'Santos Family Household',
+          monthly_budget_target: 65000,
+          invite_code: 'SANTOS2026',
+          user_role: user?.email?.startsWith('maria.santos') ? 'owner' : (user?.email?.startsWith('juan.santos') ? 'admin' : 'member'),
         };
-        if (!hhList.some(h => h.id === santosWithRole.id)) {
+
+        const existingSantosIndex = hhList.findIndex(h => h.id === '0d37e235-c9dd-4876-a54a-9acb36516599' || h.id === 'hh-santos-family' || h.invite_code === 'SANTOS2026');
+        if (existingSantosIndex >= 0) {
+          hhList[existingSantosIndex] = {
+            ...hhList[existingSantosIndex],
+            name: 'Santos Family Household',
+            monthly_budget_target: 65000,
+            invite_code: 'SANTOS2026',
+            user_role: hhList[existingSantosIndex].user_role || santosWithRole.user_role,
+          };
+        } else {
           hhList.unshift(santosWithRole);
         }
       }
@@ -389,6 +404,7 @@ export const HouseholdProvider = ({ children }) => {
 
       // A user only has Santos Family if in demo mode OR explicitly joined via code SANTOS2026
       const hasJoinedSantos = isDemoMode
+        || (user?.email && user.email.endsWith('@tipidlink.ph'))
         || (user?.id && localStorage.getItem(`tipidlink_user_joined_santos_${user.id}`) === 'true')
         || (user?.user_metadata?.joined_santos === true)
         || (profile?.phone && profile.phone.includes('JOINED:SANTOS2026'));
@@ -396,9 +412,23 @@ export const HouseholdProvider = ({ children }) => {
       if (hasJoinedSantos) {
         const santosWithRole = {
           ...INITIAL_DEMO_DATA.household,
-          user_role: 'member',
+          id: '0d37e235-c9dd-4876-a54a-9acb36516599',
+          name: 'Santos Family Household',
+          monthly_budget_target: 65000,
+          invite_code: 'SANTOS2026',
+          user_role: user?.email?.startsWith('maria.santos') ? 'owner' : (user?.email?.startsWith('juan.santos') ? 'admin' : 'member'),
         };
-        if (!hhList.some(h => h.id === santosWithRole.id)) {
+
+        const existingSantosIndex = hhList.findIndex(h => h.id === '0d37e235-c9dd-4876-a54a-9acb36516599' || h.id === 'hh-santos-family' || h.invite_code === 'SANTOS2026');
+        if (existingSantosIndex >= 0) {
+          hhList[existingSantosIndex] = {
+            ...hhList[existingSantosIndex],
+            name: 'Santos Family Household',
+            monthly_budget_target: 65000,
+            invite_code: 'SANTOS2026',
+            user_role: hhList[existingSantosIndex].user_role || santosWithRole.user_role,
+          };
+        } else {
           hhList.unshift(santosWithRole);
         }
       }
@@ -476,7 +506,7 @@ export const HouseholdProvider = ({ children }) => {
         }
 
         // Fallback default: if user belongs to a joined household (admin/member), default to it!
-        if (!activeId) {
+        if (!activeId || isDemoMode || user?.email?.endsWith('@tipidlink.ph')) {
           activeId = joinedHousehold ? joinedHousehold.id : hhList[0].id;
         }
 
@@ -767,6 +797,14 @@ export const HouseholdProvider = ({ children }) => {
             full_name: user?.user_metadata?.full_name || profile?.full_name || dbProf?.full_name || (user.email ? user.email.split('@')[0] : 'Member'),
             updated_at: new Date().toISOString(),
           }).eq('id', user.id);
+
+          // Register membership in official Santos Supabase household
+          await supabase.from('household_members').upsert({
+            household_id: '0d37e235-c9dd-4876-a54a-9acb36516599',
+            user_id: user.id,
+            role: 'member',
+            nickname: userFullName.split(' ')[0] || 'Member',
+          }, { onConflict: 'household_id,user_id' });
         } catch (dbErr) {
           console.warn('Could not update profile join status:', dbErr);
         }

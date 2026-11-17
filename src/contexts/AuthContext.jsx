@@ -35,9 +35,15 @@ export const AuthProvider = ({ children }) => {
         .maybeSingle();
 
       if (!error && data && data.full_name) {
+        if (data.phone && data.phone.includes('JOINED:SANTOS2026')) {
+          localStorage.setItem(`tipidlink_user_joined_santos_${userId}`, 'true');
+        }
         setProfile(data);
         return data;
       } else {
+        if (data?.phone && data.phone.includes('JOINED:SANTOS2026')) {
+          localStorage.setItem(`tipidlink_user_joined_santos_${userId}`, 'true');
+        }
         const fallback = {
           id: userId,
           email: authUser.email,
@@ -146,7 +152,8 @@ export const AuthProvider = ({ children }) => {
         if (session?.user) {
           localStorage.removeItem('tipidlink_demo_user');
           localStorage.removeItem('tipidlink_demo_active');
-          setIsDemoMode(false);
+          const isSantos = session.user.email?.endsWith('@tipidlink.ph');
+          setIsDemoMode(Boolean(isSantos));
           setUser(session.user);
           await fetchUserProfile(session.user);
         } else if (!localStorage.getItem('tipidlink_demo_active')) {
@@ -167,14 +174,15 @@ export const AuthProvider = ({ children }) => {
   // Sign in with Supabase Auth or offline fallback
   const signIn = async (email, password) => {
     const cleanEmail = (email || '').trim().toLowerCase();
+    const isSantos = cleanEmail.endsWith('@tipidlink.ph');
 
     // Clear any previous demo state
     localStorage.removeItem('tipidlink_demo_user');
     localStorage.removeItem('tipidlink_demo_active');
-    if (localStorage.getItem('tipidlink_active_household_id') === 'hh-santos-family' && !cleanEmail.endsWith('@tipidlink.ph')) {
+    if (localStorage.getItem('tipidlink_active_household_id') === 'hh-santos-family' && !isSantos) {
       localStorage.removeItem('tipidlink_active_household_id');
     }
-    setIsDemoMode(false);
+    setIsDemoMode(isSantos);
 
     if (!isSupabaseConfigured) {
       const fallbackName = cleanEmail.split('@')[0];
@@ -197,6 +205,7 @@ export const AuthProvider = ({ children }) => {
       if (error) throw error;
 
       if (data?.user) {
+        setIsDemoMode(isSantos);
         setUser(data.user);
         await fetchUserProfile(data.user);
       }
@@ -217,6 +226,7 @@ export const AuthProvider = ({ children }) => {
   const signInWithPin = async (email, pin) => {
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanPin = (pin || '').trim();
+    const isSantos = cleanEmail.endsWith('@tipidlink.ph');
 
     if (!cleanEmail) {
       return { success: false, error: 'Pakilagay ang iyong rehistradong email address.' };
@@ -228,10 +238,10 @@ export const AuthProvider = ({ children }) => {
     // Clear any previous demo state
     localStorage.removeItem('tipidlink_demo_user');
     localStorage.removeItem('tipidlink_demo_active');
-    if (localStorage.getItem('tipidlink_active_household_id') === 'hh-santos-family' && !cleanEmail.endsWith('@tipidlink.ph')) {
+    if (localStorage.getItem('tipidlink_active_household_id') === 'hh-santos-family' && !isSantos) {
       localStorage.removeItem('tipidlink_active_household_id');
     }
-    setIsDemoMode(false);
+    setIsDemoMode(isSantos);
 
     if (!isSupabaseConfigured) {
       const fallbackName = cleanEmail.split('@')[0];
