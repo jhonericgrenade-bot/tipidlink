@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Lock, Mail, User, AlertCircle, ArrowRight, CheckCircle2, Circle, Eye, EyeOff, Sparkles, KeyRound, ShieldCheck } from 'lucide-react';
+import { Lock, Mail, User, AlertCircle, ArrowRight, CheckCircle2, Circle, Eye, EyeOff, Sparkles, KeyRound, ShieldCheck, Smartphone, Download } from 'lucide-react';
 
 export const RegisterPage = () => {
   const { signUp } = useAuth();
@@ -119,6 +119,20 @@ export const RegisterPage = () => {
             <p className="text-xs text-emerald-100/75 mt-1 font-medium">
               Join TipidLink and manage your shared family budget
             </p>
+
+            {/* Install App Quick Pill */}
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('tipidlink-open-install-modal'));
+                }
+              }}
+              className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/25 px-3 py-1 text-[11px] font-bold text-emerald-200 border border-emerald-400/30 hover:bg-emerald-500/40 transition cursor-pointer"
+            >
+              <Smartphone className="h-3 w-3 text-emerald-300" />
+              <span>Install App on Phone (Android/iOS)</span>
+            </button>
           </div>
 
           {/* Feedback Notices */}

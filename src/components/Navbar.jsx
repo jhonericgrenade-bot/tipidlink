@@ -16,6 +16,7 @@ import {
   ChevronDown,
   Settings,
   Crown,
+  Smartphone,
 } from 'lucide-react';
 
 export const Navbar = ({ onOpenCreateHousehold, onOpenJoinHousehold }) => {
@@ -78,6 +79,21 @@ export const Navbar = ({ onOpenCreateHousehold, onOpenJoinHousehold }) => {
 
         {/* Right side: Mode Pill + Premium + Profile */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Install App on Phone Button */}
+          <button
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('tipidlink-open-install-modal'));
+              }
+            }}
+            className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 text-white px-3 py-1.5 text-xs font-bold transition shadow-xs hover:bg-slate-800 cursor-pointer"
+            title="Install TipidLink app on your phone (Android & iOS)"
+          >
+            <Smartphone className="h-3.5 w-3.5 text-emerald-400" />
+            <span className="hidden sm:inline">Install App</span>
+            <span className="sm:hidden">Install</span>
+          </button>
+
           {/* PHP 30 Premium Plan Button / Active Badge */}
           <button
             onClick={openUpgradeModal}
@@ -183,6 +199,18 @@ export const Navbar = ({ onOpenCreateHousehold, onOpenJoinHousehold }) => {
                 )}
 
                 <div className="pt-1">
+                  <button
+                    onClick={() => {
+                      setProfileOpen(false);
+                      if (typeof window !== 'undefined') {
+                        window.dispatchEvent(new CustomEvent('tipidlink-open-install-modal'));
+                      }
+                    }}
+                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 transition cursor-pointer"
+                  >
+                    <Smartphone className="h-4 w-4 text-emerald-600" />
+                    <span>Install Mobile App (Android/iOS)</span>
+                  </button>
                   <button
                     onClick={() => {
                       setProfileOpen(false);
