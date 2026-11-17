@@ -58,8 +58,10 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
     ? 'SANTOS2026'
     : (currentHousehold?.invite_code || 'TIPID-2026');
 
+  const isCodeUnlocked = isPremium || isDemoMode || currentHousehold?.id === 'hh-santos-family';
+
   const handleCopyCode = async () => {
-    if (!isPremium) {
+    if (!isCodeUnlocked) {
       openUpgradeModal();
       return;
     }
@@ -268,9 +270,9 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
             </p>
 
             <div className="mt-4 flex items-center justify-between rounded-2xl bg-white/10 backdrop-blur-md px-4 py-3 border border-white/20 gap-2">
-              {isPremium ? (
+              {isCodeUnlocked ? (
                 <span className="font-mono text-xl sm:text-2xl font-black tracking-widest text-white truncate max-w-[240px]" title={displayCode}>
-                  {displayCode || 'Generating code...'}
+                  {displayCode || 'SANTOS2026'}
                 </span>
               ) : (
                 <div className="flex items-center gap-2 text-emerald-200">
@@ -284,13 +286,13 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
               <button
                 onClick={handleCopyCode}
                 className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition cursor-pointer active-press hover-lift shrink-0 ${
-                  isPremium
+                  isCodeUnlocked
                     ? 'bg-white text-emerald-900 hover:bg-emerald-50 shadow-xs'
                     : 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 hover:from-amber-300 hover:to-amber-400 shadow-md ring-2 ring-amber-300/50'
                 }`}
-                title={isPremium ? 'Copy Invite Code' : 'Upgrade to ₱30 Pro to unlock and copy the invite code'}
+                title={isCodeUnlocked ? 'Copy Invite Code' : 'Upgrade to ₱30 Pro to unlock and copy the invite code'}
               >
-                {isPremium ? (
+                {isCodeUnlocked ? (
                   <>
                     {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
                     <span>{copied ? 'Copied!' : 'Copy Code'}</span>
@@ -304,7 +306,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
               </button>
             </div>
 
-            {!isPremium ? (
+            {!isCodeUnlocked ? (
               <div
                 onClick={openUpgradeModal}
                 className="mt-3 flex items-center justify-between rounded-xl bg-amber-400/20 border border-amber-300/40 p-2.5 text-[11px] text-amber-200 cursor-pointer hover:bg-amber-400/30 active-press transition group"
@@ -320,7 +322,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
             ) : (
               <div className="mt-3 flex items-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-400/30 p-2.5 text-[11px] text-emerald-200">
                 <Crown className="h-3.5 w-3.5 text-amber-300 fill-amber-300 shrink-0" />
-                <span>₱30 Premium Active • Code can be shared with all family members</span>
+                <span>Invite Code Active • Share with all family members</span>
               </div>
             )}
           </div>

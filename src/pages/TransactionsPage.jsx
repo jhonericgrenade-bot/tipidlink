@@ -355,9 +355,12 @@ export const TransactionsPage = () => {
                         </div>
                         <div>
                           <p className="font-bold text-slate-900 leading-tight group-hover:text-emerald-950 transition-colors">{tx.description}</p>
-                          <p className="text-[10px] text-slate-400">
-                            Logged by: <span className="font-medium text-slate-600">{tx.user_name || 'Member'}</span>
-                            {tx.notes && ` • "${tx.notes}"`}
+                          <p className="text-[10px] text-slate-500 mt-0.5">
+                            Logged by <span className="font-semibold text-slate-700">{tx.user_name || 'Member'}</span>
+                            {tx.payment_method && (
+                              <span> • <strong className="text-emerald-700">{tx.payment_method === 'gcash' ? 'GCash' : tx.payment_method === 'maya' ? 'Maya' : tx.payment_method.replace('_', ' ')}</strong></span>
+                            )}
+                            {tx.notes && <span className="text-slate-400"> • &ldquo;{tx.notes}&rdquo;</span>}
                           </p>
                         </div>
                       </div>

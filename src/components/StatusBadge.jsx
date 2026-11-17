@@ -40,22 +40,22 @@ export const StatusBadge = ({ status, type = 'bill' }) => {
     switch (status) {
       case 'owner':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200">
-            <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
             Owner
           </span>
         );
       case 'admin':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800 border border-indigo-200">
-            <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+            <UserCheck className="w-3.5 h-3.5 text-amber-600" />
             Admin
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-            <User className="w-3.5 h-3.5 text-slate-500" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 border border-sky-200">
+            <User className="w-3.5 h-3.5 text-sky-600" />
             Member
           </span>
         );

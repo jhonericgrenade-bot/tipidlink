@@ -378,8 +378,10 @@ export const BudgetsPage = () => {
                         Overspent
                       </span>
                     ) : (
-                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                        {b.percent.toFixed(0)}% used
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                        b.percent > 80 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-50 text-emerald-700'
+                      }`}>
+                        {b.percent.toFixed(1)}% used
                       </span>
                     )}
 
@@ -409,7 +411,7 @@ export const BudgetsPage = () => {
                   <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden p-0.5">
                     <div
                       className={`relative h-full rounded-full overflow-hidden transition-all duration-500 ${
-                        b.isOver ? 'bg-rose-500' : b.percent > 85 ? 'bg-amber-500' : 'bg-gradient-to-r from-emerald-500 to-teal-500'
+                        b.isOver ? 'bg-rose-500' : b.percent > 80 ? 'bg-amber-400' : 'bg-gradient-to-r from-emerald-500 to-teal-500'
                       }`}
                       style={{ width: `${Math.min(100, b.percent)}%` }}
                     >

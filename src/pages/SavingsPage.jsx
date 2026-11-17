@@ -35,7 +35,7 @@ export const SavingsPage = () => {
     }
   };
 
-  const [activeTab, setActiveTab] = useState('active'); // active, completed
+  const [activeTab, setActiveTab] = useState('all'); // all, active, completed
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isContributeOpen, setIsContributeOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -59,6 +59,7 @@ export const SavingsPage = () => {
   const [contribLoading, setContribLoading] = useState(false);
 
   // Goals categorized
+  const allGoals = useMemo(() => savingsGoals, [savingsGoals]);
   const activeGoals = useMemo(() => savingsGoals.filter((g) => !g.is_completed), [savingsGoals]);
   const completedGoals = useMemo(() => savingsGoals.filter((g) => g.is_completed), [savingsGoals]);
 
@@ -128,7 +129,11 @@ export const SavingsPage = () => {
     setSelectedGoal(null);
   };
 
-  const displayedGoals = activeTab === 'active' ? activeGoals : completedGoals;
+  const displayedGoals = activeTab === 'all'
+    ? allGoals
+    : activeTab === 'active'
+    ? activeGoals
+    : completedGoals;
 
   return (
     <div className="space-y-6 pb-20 lg:pb-12 animate-page-enter">
@@ -209,6 +214,16 @@ export const SavingsPage = () => {
       <div className="flex items-center justify-between border-b border-slate-200">
         <div className="flex items-center gap-4">
           <button
+            onClick={() => setActiveTab('all')}
+            className={`pb-3 text-sm font-bold transition border-b-2 cursor-pointer ${
+              activeTab === 'all'
+                ? 'border-emerald-600 text-emerald-800'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            All Goals ({allGoals.length})
+          </button>
+          <button
             onClick={() => setActiveTab('active')}
             className={`pb-3 text-sm font-bold transition border-b-2 cursor-pointer ${
               activeTab === 'active'
@@ -275,11 +290,11 @@ export const SavingsPage = () => {
                     </div>
                     {goal.is_completed ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800 animate-pulse-subtle">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Achieved
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> 100% Completed
                       </span>
                     ) : (
-                      <span className="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700">
-                        {percent.toFixed(0)}%
+                      <span className="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-bold text-sky-700">
+                        {percent % 1 === 0 ? percent.toFixed(0) : percent.toFixed(1)}%
                       </span>
                     )}
                   </div>
