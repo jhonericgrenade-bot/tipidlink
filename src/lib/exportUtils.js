@@ -21,6 +21,17 @@ const escapeCSV = (value) => {
   return `"${str}"`;
 };
 
+// Safe alert helper across browser, mobile webview, and headless environments
+const safeAlert = (message) => {
+  if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+    window.alert(message);
+  } else if (typeof alert === 'function') {
+    alert(message);
+  } else {
+    console.warn(`[TipidLink Alert] ${message}`);
+  }
+};
+
 /**
  * Universal PDF Action Modal / Bottom Sheet
  * Provides instant Open/View, Download, Share, and Print for all devices.
@@ -308,7 +319,7 @@ const showPDFActionModal = ({ doc, pdfBlob, pdfUrl, filename, title }) => {
             url: window.location.href,
           });
         } else {
-          alert('Web Share is not supported in this browser. Please use "Open & View" or "Download".');
+          safeAlert('Web Share is not supported in this browser. Please use "Open & View" or "Download".');
         }
       } catch (shareErr) {
         if (shareErr.name !== 'AbortError') {
@@ -387,7 +398,7 @@ export const saveOrOpenPDF = async (doc, filename, title = 'TipidLink PDF Report
       doc.save(cleanFilename);
       return { success: true, method: 'fallback_save', filename: cleanFilename };
     } catch (finalErr) {
-      alert(`Could not export PDF: ${err.message || finalErr.message}`);
+      safeAlert(`Could not export PDF: ${err.message || finalErr.message}`);
       return { success: false, error: err };
     }
   }
@@ -466,7 +477,7 @@ const renderPDFFooters = (doc) => {
  */
 export const exportTransactionsPDF = async (transactions = [], householdName = 'Household') => {
   if (!transactions || transactions.length === 0) {
-    alert('No transactions available to export.');
+    safeAlert('No transactions available to export.');
     return { success: false };
   }
 
@@ -725,7 +736,7 @@ export const exportBudgetsPDF = async ({
  */
 export const exportBillsPDF = async (bills = [], householdName = 'Household') => {
   if (!bills || bills.length === 0) {
-    alert('No bills available to export.');
+    safeAlert('No bills available to export.');
     return { success: false };
   }
 
@@ -849,7 +860,7 @@ export const exportBillsPDF = async (bills = [], householdName = 'Household') =>
  */
 export const exportSavingsPDF = async (savingsGoals = [], householdName = 'Household') => {
   if (!savingsGoals || savingsGoals.length === 0) {
-    alert('No savings goals available to export.');
+    safeAlert('No savings goals available to export.');
     return { success: false };
   }
 
@@ -1175,7 +1186,7 @@ export const exportFullFinancialStatementPDF = async ({
  */
 export const exportToCSV = async ({ filename, headers, rows, title = 'TipidLink Export' }) => {
   if (!rows || rows.length === 0) {
-    alert('No records available to export.');
+    safeAlert('No records available to export.');
     return { success: false, reason: 'empty' };
   }
 
@@ -1226,7 +1237,7 @@ export const exportToJSON = async ({ filename, data, title = 'TipidLink Backup' 
     }, 1000);
     return { success: true, method: 'direct_download', filename: cleanFilename };
   } catch (err) {
-    alert(`Could not download backup file.`);
+    safeAlert(`Could not download backup file.`);
     return { success: false };
   }
 };

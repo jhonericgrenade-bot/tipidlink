@@ -1,0 +1,256 @@
+import test from 'node:test';
+import assert from 'node:assert';
+import fs from 'node:fs';
+import path from 'node:path';
+import { INITIAL_DEMO_DATA } from '../src/lib/mockData.js';
+import {
+  formatPDFMoney,
+  exportTransactionsPDF,
+  exportBudgetsPDF,
+  exportBillsPDF,
+  exportSavingsPDF,
+  exportFullFinancialStatementPDF,
+  exportToJSON
+} from '../src/lib/exportUtils.js';
+
+test.after(() => {
+  // Clean up any temporary PDFs written during test execution
+  const files = fs.readdirSync(process.cwd());
+  for (const f of files) {
+    if (f.startsWith('tipidlink_') && f.endsWith('.pdf')) {
+      try {
+        fs.unlinkSync(path.join(process.cwd(), f));
+      } catch {}
+    }
+  }
+});
+
+test('1. INITIAL_DEMO_DATA structure and integrity', () => {
+  const data = INITIAL_DEMO_DATA;
+  assert.ok(data.profile, 'Profile must exist');
+  assert.strictEqual(data.profile.full_name, 'Maria Santos');
+  assert.strictEqual(data.household.name, 'Santos Family Household');
+  assert.strictEqual(data.household.currency, 'PHP');
+  assert.strictEqual(data.household.monthly_budget_target, 65000);
+  assert.strictEqual(data.household.invite_code, 'SANTOS2026');
+
+  // Verify members
+  assert.strictEqual(data.members.length, 3);
+  const roles = data.members.map(m => m.role);
+  assert.ok(roles.includes('owner'), 'Must have owner role');
+  assert.ok(roles.includes('admin'), 'Must have admin role');
+  assert.ok(roles.includes('member'), 'Must have member role');
+
+  // Verify categories
+  assert.ok(data.categories.length >= 10, 'Must have at least 10 starter categories');
+  const expenseCats = data.categories.filter(c => c.type === 'expense');
+  const incomeCats = data.categories.filter(c => c.type === 'income');
+  assert.ok(expenseCats.length > 0, 'Expense categories must exist');
+  assert.ok(incomeCats.length > 0, 'Income categories must exist');
+});
+
+test('2. Financial Dashboard Math: Income, Expenses, and Net Savings', () => {
+  const { transactions } = INITIAL_DEMO_DATA;
+
+  // Filter for October 2026
+  const octTransactions = transactions.filter(t => {
+    const d = new Date(t.transaction_date);
+    return (d.getMonth() + 1) === 10 && d.getFullYear() === 2026;
+  });
+
+  const totalIncome = octTransactions
+    .filter(t => t.type === 'income')
+    .reduce((sum, t) => sum + Number(t.amount), 0);
+
+  const totalExpenses = octTransactions
+    .filter(t => t.type === 'expense')
+    .reduce((sum, t) => sum + Number(t.amount), 0);
+
+  const netSavings = totalIncome - totalExpenses;
+
+  // Expected values from Santos family mock seed:
+  // Income: 48,000 (Juan salary) + 14,500 (Angela ESL/design) + 8,500 (Maria store) = 71,000
+  // Expense: 6,850 + 4,200 + 1,500 + 2,400 + 3,500 + 1,250 = 19,700
+  // Net: 71,000 - 19,700 = 51,300
+  assert.strictEqual(totalIncome, 71000, 'Total income should equal 71,000 PHP');
+  assert.strictEqual(totalExpenses, 19700, 'Total expenses should equal 19,700 PHP');
+  assert.strictEqual(netSavings, 51300, 'Net savings should equal 51,300 PHP');
+});
+
+test('3. Budget Allocation, Remaining Balance, and Utilization Math', () => {
+  const { household, budgets, transactions } = INITIAL_DEMO_DATA;
+  const target = household.monthly_budget_target; // 65000
+  const totalExpenses = 19700;
+
+  const remainingBudget = target - totalExpenses;
+  const budgetUsagePercent = (totalExpenses / target) * 100;
+  const isOverspent = totalExpenses > target;
+
+  assert.strictEqual(remainingBudget, 45300, 'Remaining budget should be 45,300 PHP');
+  assert.ok(Math.abs(budgetUsagePercent - 30.307) < 0.01, 'Budget usage should be ~30.3%');
+  assert.strictEqual(isOverspent, false, 'Household should not be overspent');
+
+  // Verify category budget fallback when household target is zero
+  const sumCategoryBudgets = budgets
+    .filter(b => b.month === 10 && b.year === 2026)
+    .reduce((sum, b) => sum + Number(b.amount), 0);
+  // 16,000 + 4,500 + 1,200 + 1,600 + 5,000 + 6,000 + 3,000 = 37,300
+  assert.strictEqual(sumCategoryBudgets, 37300, 'Sum of category budgets should equal 37,300 PHP');
+});
+
+test('4. Category Expense Breakdown grouping and ranking', () => {
+  const { transactions } = INITIAL_DEMO_DATA;
+  const octExpenses = transactions.filter(t => {
+    const d = new Date(t.transaction_date);
+    return (d.getMonth() + 1) === 10 && d.getFullYear() === 2026 && t.type === 'expense';
+  });
+
+  const categoryMap = {};
+  octExpenses.forEach(t => {
+    categoryMap[t.category_name] = (categoryMap[t.category_name] || 0) + Number(t.amount);
+  });
+
+  const breakdown = Object.entries(categoryMap).map(([name, amount]) => ({
+    name,
+    amount,
+    percentage: (amount / 19700) * 100,
+  })).sort((a, b) => b.amount - a.amount);
+
+  assert.strictEqual(breakdown[0].name, 'Groceries & Palengke', 'Top expense should be Groceries');
+  assert.strictEqual(breakdown[0].amount, 6850, 'Groceries amount should be 6,850 PHP');
+  assert.ok(Math.abs(breakdown[0].percentage - 34.77) < 0.05, 'Groceries share should be ~34.8%');
+});
+
+test('5. Bills and Partial Payments calculation logic', () => {
+  const { bills } = INITIAL_DEMO_DATA;
+  assert.strictEqual(bills.length, 4);
+
+  // Bill 4: University tuition (8000 with 4000 payment)
+  const tuitionBill = bills.find(b => b.id === 'bill-4');
+  assert.ok(tuitionBill, 'Tuition bill must exist');
+  const totalPaid = (tuitionBill.payments || []).reduce((acc, p) => acc + Number(p.amount), 0);
+  const remaining = tuitionBill.amount - totalPaid;
+  assert.strictEqual(totalPaid, 4000, 'Total paid on tuition should be 4,000 PHP');
+  assert.strictEqual(remaining, 4000, 'Remaining balance should be 4,000 PHP');
+
+  // Verify computed status
+  const computedStatus = remaining <= 0 ? 'paid' : (totalPaid > 0 ? 'partially_paid' : 'unpaid');
+  assert.strictEqual(computedStatus, 'partially_paid');
+});
+
+test('6. Savings Goals milestones and overall progress', () => {
+  const { savingsGoals } = INITIAL_DEMO_DATA;
+  assert.strictEqual(savingsGoals.length, 3);
+
+  const totalSaved = savingsGoals.reduce((s, g) => s + Number(g.current_amount), 0);
+  const totalTarget = savingsGoals.reduce((s, g) => s + Number(g.target_amount), 0);
+  const progressPercent = (totalSaved / totalTarget) * 100;
+
+  // 68,500 + 14,200 + 28,000 = 110,700
+  // 100,000 + 20,000 + 28,000 = 148,000
+  assert.strictEqual(totalSaved, 110700, 'Total saved across all goals should equal 110,700 PHP');
+  assert.strictEqual(totalTarget, 148000, 'Total target across all goals should equal 148,000 PHP');
+  assert.ok(Math.abs(progressPercent - 74.797) < 0.01, 'Progress should be ~74.8%');
+
+  // Check completed goal
+  const completedGoal = savingsGoals.find(g => g.is_completed);
+  assert.ok(completedGoal, 'Must have at least one completed goal');
+  assert.strictEqual(completedGoal.current_amount, completedGoal.target_amount);
+});
+
+test('7. PDF Money Formatter (formatPDFMoney)', () => {
+  assert.strictEqual(formatPDFMoney(0), 'PHP 0.00');
+  assert.strictEqual(formatPDFMoney(12500), 'PHP 12,500.00');
+  assert.strictEqual(formatPDFMoney(3456.789), 'PHP 3,456.79');
+  assert.strictEqual(formatPDFMoney(-1500), 'PHP -1,500.00');
+  assert.strictEqual(formatPDFMoney(null), 'PHP 0.00');
+});
+
+test('8. PDF Export Generation for all modules (Non-crashing & valid output)', async () => {
+  const { transactions, budgets, bills, savingsGoals, categories, household } = INITIAL_DEMO_DATA;
+
+  // 1. Transactions PDF
+  const txResult = await exportTransactionsPDF(transactions, household.name);
+  assert.ok(txResult.success, 'Transactions PDF should export successfully');
+
+  // 2. Budgets PDF
+  const bgResult = await exportBudgetsPDF({
+    budgets,
+    categories,
+    transactions,
+    householdName: household.name,
+    month: 10,
+    year: 2026,
+    overallMonthlyTarget: household.monthly_budget_target,
+  });
+  assert.ok(bgResult.success, 'Budgets PDF should export successfully');
+
+  // 3. Bills PDF
+  const billResult = await exportBillsPDF(bills, household.name);
+  assert.ok(billResult.success, 'Bills PDF should export successfully');
+
+  // 4. Savings PDF
+  const saveResult = await exportSavingsPDF(savingsGoals, household.name);
+  assert.ok(saveResult.success, 'Savings PDF should export successfully');
+
+  // 5. Full Statement PDF
+  const statementResult = await exportFullFinancialStatementPDF({
+    household,
+    calculations: {
+      totalIncome: 71000,
+      totalExpenses: 19700,
+      netSavings: 51300,
+      activeBudgetTarget: 65000,
+      remainingBudget: 45300,
+      totalOverdueAmount: 1150,
+      totalUpcomingAmount: 9700,
+      totalSavedAllGoals: 110700,
+      totalTargetAllGoals: 148000,
+      overallSavingsProgress: 74.8,
+      categoryBreakdown: [
+        { name: 'Groceries & Palengke', amount: 6850, percentage: 34.8 },
+        { name: 'Electricity (Meralco)', amount: 4200, percentage: 21.3 },
+      ],
+    },
+    transactions,
+    budgets,
+    bills,
+    savingsGoals,
+    categories,
+    month: 10,
+    year: 2026,
+  });
+  assert.ok(statementResult.success, 'Full Financial Statement PDF should export successfully');
+});
+
+test('9. PDF Exporter Graceful Empty Data Handling', async () => {
+  const emptyTx = await exportTransactionsPDF([], 'Empty Household');
+  assert.strictEqual(emptyTx.success, false, 'Empty transactions should return success: false without crashing');
+
+  const emptyBills = await exportBillsPDF([], 'Empty Household');
+  assert.strictEqual(emptyBills.success, false, 'Empty bills should return success: false without crashing');
+
+  const emptySavings = await exportSavingsPDF([], 'Empty Household');
+  assert.strictEqual(emptySavings.success, false, 'Empty savings should return success: false without crashing');
+});
+
+test('10. JSON Backup Serialization & Roundtrip Integrity', async () => {
+  const backupPayload = {
+    version: '1.0.0',
+    export_date: new Date().toISOString(),
+    household: INITIAL_DEMO_DATA.household,
+    transactions: INITIAL_DEMO_DATA.transactions,
+    budgets: INITIAL_DEMO_DATA.budgets,
+    bills: INITIAL_DEMO_DATA.bills,
+    savingsGoals: INITIAL_DEMO_DATA.savingsGoals,
+  };
+
+  const serialized = JSON.stringify(backupPayload);
+  const parsed = JSON.parse(serialized);
+
+  assert.strictEqual(parsed.household.id, 'hh-santos-family');
+  assert.strictEqual(parsed.transactions.length, INITIAL_DEMO_DATA.transactions.length);
+  assert.strictEqual(parsed.budgets.length, INITIAL_DEMO_DATA.budgets.length);
+  assert.strictEqual(parsed.bills.length, INITIAL_DEMO_DATA.bills.length);
+  assert.strictEqual(parsed.savingsGoals.length, INITIAL_DEMO_DATA.savingsGoals.length);
+});

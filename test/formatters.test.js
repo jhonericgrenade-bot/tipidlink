@@ -28,6 +28,12 @@ test('getDueDateStatus detects upcoming dates', () => {
   assert.strictEqual(status.daysRemaining, 5);
 });
 
+test('formatDate formats YYYY-MM-DD to readable English string', () => {
+  assert.strictEqual(formatDate('2026-10-26'), 'Oct 26, 2026');
+  assert.strictEqual(formatDate(null), 'N/A');
+  assert.strictEqual(formatDate(''), 'N/A');
+});
+
 test('parseLocalDate parses YYYY-MM-DD correctly without shift', () => {
   const d = parseLocalDate('2026-10-26');
   assert.strictEqual(d.getFullYear(), 2026);
