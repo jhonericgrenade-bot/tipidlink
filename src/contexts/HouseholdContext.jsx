@@ -277,6 +277,21 @@ export const HouseholdProvider = ({ children }) => {
         hhList = [defaultHH];
         localStorage.setItem(storageKey, JSON.stringify(hhList));
       }
+
+      // Check if user has joined Santos Family (via code SANTOS2026)
+      const hasJoinedSantos = (user?.id && localStorage.getItem(`tipidlink_user_joined_santos_${user.id}`) === 'true')
+        || localStorage.getItem('tipidlink_active_household_id') === 'hh-santos-family';
+
+      if (hasJoinedSantos) {
+        const santosWithRole = {
+          ...INITIAL_DEMO_DATA.household,
+          user_role: 'member',
+        };
+        if (!hhList.some(h => h.id === santosWithRole.id)) {
+          hhList.unshift(santosWithRole);
+        }
+      }
+
       // Sort hhList so joined households appear first
       hhList.sort((a, b) => {
         const aIsJoined = (a.created_by !== user?.id) || (a.user_role === 'member' || a.user_role === 'admin');
@@ -333,6 +348,21 @@ export const HouseholdProvider = ({ children }) => {
           };
         })
         .filter(Boolean);
+
+      // Check if user has joined Santos Family (via code SANTOS2026)
+      const hasJoinedSantos = (user?.id && localStorage.getItem(`tipidlink_user_joined_santos_${user.id}`) === 'true')
+        || localStorage.getItem('tipidlink_active_household_id') === 'hh-santos-family'
+        || (user?.id && localStorage.getItem(`tipidlink_active_household_${user.id}`) === 'hh-santos-family');
+
+      if (hasJoinedSantos) {
+        const santosWithRole = {
+          ...INITIAL_DEMO_DATA.household,
+          user_role: 'member',
+        };
+        if (!hhList.some(h => h.id === santosWithRole.id)) {
+          hhList.unshift(santosWithRole);
+        }
+      }
 
       // If user signed up with a pending invite code, join that household first
       const pendingJoinCode = localStorage.getItem('tipidlink_pending_join_code');
@@ -449,8 +479,10 @@ export const HouseholdProvider = ({ children }) => {
   };
 
   const loadMembers = async (householdId) => {
-    if (isDemoMode) {
-      const savedMembers = localStorage.getItem(`tipidlink_demo_members_${householdId}`);
+    // If it's Santos Family or demo mode, load from local storage or INITIAL_DEMO_DATA
+    if (householdId === 'hh-santos-family' || isDemoMode) {
+      const savedMembers = localStorage.getItem(`tipidlink_members_${householdId}`)
+        || localStorage.getItem(`tipidlink_demo_members_${householdId}`);
       if (savedMembers) {
         try {
           setMembers(JSON.parse(savedMembers));
@@ -535,6 +567,9 @@ export const HouseholdProvider = ({ children }) => {
     if (target) {
       setCurrentHousehold(target);
       localStorage.setItem('tipidlink_active_household_id', target.id);
+      if (user?.id) {
+        localStorage.setItem(`tipidlink_active_household_${user.id}`, target.id);
+      }
     }
   };
 
@@ -553,30 +588,69 @@ export const HouseholdProvider = ({ children }) => {
       return { success: false, error: 'Please enter the household invite code.' };
     }
 
-    if (isDemoMode) {
-      const cleanUpper = rawCode.toUpperCase();
-      if (cleanUpper === 'SANTOS2026' || cleanUpper.startsWith('TIPID')) {
-        const target = households.find(h => h.invite_code === cleanUpper) || INITIAL_DEMO_DATA.household;
-        const alreadyIn = members.some(m => m.user_id === user.id && m.household_id === target.id);
-        if (alreadyIn) {
-          return { success: false, error: 'You are already a member of this household!' };
+    const cleanUpper = rawCode.toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
+
+    // Universal handling for Santos Family demo & presentation code SANTOS2026 across ALL accounts
+    if (cleanUpper === 'SANTOS2026' || cleanUpper.includes('SANTOS') || (isDemoMode && cleanUpper.startsWith('TIPID'))) {
+      const target = households.find(h => h.invite_code === cleanUpper || h.id === 'hh-santos-family') || INITIAL_DEMO_DATA.household;
+      const santosWithRole = {
+        ...target,
+        user_role: 'member',
+      };
+
+      let currentMembersList = INITIAL_DEMO_DATA.members;
+      const savedMembers = localStorage.getItem(`tipidlink_members_${target.id}`) || localStorage.getItem(`tipidlink_demo_members_${target.id}`);
+      if (savedMembers) {
+        try {
+          currentMembersList = JSON.parse(savedMembers);
+        } catch (e) {
+          console.error(e);
         }
+      }
+
+      const userId = user?.id || 'usr-registered-member';
+      const userFullName = user?.user_metadata?.full_name || profile?.full_name || (user?.email ? user.email.split('@')[0] : 'Family Member');
+      const userEmail = profile?.email || user?.email || 'member@tipidlink.ph';
+
+      const alreadyIn = currentMembersList.some(m => m.user_id === userId);
+      let updatedMembers = currentMembersList;
+      if (!alreadyIn) {
         const newMember = {
           id: `mem-${Date.now()}`,
           household_id: target.id,
-          user_id: user.id,
-          full_name: user?.user_metadata?.full_name || profile?.full_name || 'New Member',
-          email: profile?.email || user.email,
+          user_id: userId,
+          full_name: userFullName,
+          email: userEmail,
           role: 'member',
-          nickname: user?.user_metadata?.full_name || profile?.full_name || 'Member',
+          nickname: userFullName.split(' ')[0] || 'Member',
           joined_at: new Date().toISOString(),
         };
-        const updatedMembers = [...members, newMember];
-        setMembers(updatedMembers);
-        localStorage.setItem(`tipidlink_demo_members_${target.id}`, JSON.stringify(updatedMembers));
-        setCurrentHousehold(target);
-        return { success: true, household: target };
+        updatedMembers = [...currentMembersList, newMember];
       }
+
+      setMembers(updatedMembers);
+      localStorage.setItem(`tipidlink_members_${target.id}`, JSON.stringify(updatedMembers));
+      localStorage.setItem(`tipidlink_demo_members_${target.id}`, JSON.stringify(updatedMembers));
+
+      setHouseholds(prev => {
+        const exists = prev.some(h => h.id === target.id);
+        if (exists) {
+          return prev.map(h => h.id === target.id ? santosWithRole : h);
+        }
+        return [santosWithRole, ...prev];
+      });
+
+      setCurrentHousehold(santosWithRole);
+      localStorage.setItem('tipidlink_active_household_id', target.id);
+      if (user?.id) {
+        localStorage.setItem(`tipidlink_active_household_${user.id}`, target.id);
+        localStorage.setItem(`tipidlink_user_joined_santos_${user.id}`, 'true');
+      }
+
+      return { success: true, household: santosWithRole };
+    }
+
+    if (isDemoMode) {
       return { success: false, error: 'Invalid invite code.' };
     }
 
@@ -865,6 +939,21 @@ export const HouseholdProvider = ({ children }) => {
 
   const leaveHousehold = async (householdId) => {
     if (!householdId || !user) return { success: false, error: 'No household ID or user' };
+
+    if (householdId === 'hh-santos-family') {
+      localStorage.removeItem(`tipidlink_user_joined_santos_${user.id}`);
+      if (localStorage.getItem('tipidlink_active_household_id') === 'hh-santos-family') {
+        localStorage.removeItem('tipidlink_active_household_id');
+      }
+      if (localStorage.getItem(`tipidlink_active_household_${user.id}`) === 'hh-santos-family') {
+        localStorage.removeItem(`tipidlink_active_household_${user.id}`);
+      }
+      const remaining = households.filter(h => h.id !== householdId);
+      setHouseholds(remaining);
+      const nextActive = remaining[0] || null;
+      setCurrentHousehold(nextActive);
+      return { success: true };
+    }
 
     if (isDemoMode || !isSupabaseConfigured) {
       const remaining = households.filter(h => h.id !== householdId);

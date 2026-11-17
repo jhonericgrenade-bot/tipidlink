@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal } from './Modal';
 import { useHousehold } from '../contexts/HouseholdContext';
-import { Home, KeyRound, AlertCircle } from 'lucide-react';
+import { Home, KeyRound, AlertCircle, Sparkles } from 'lucide-react';
 
 export const CreateHouseholdModal = ({ isOpen, onClose }) => {
   const { createHousehold } = useHousehold();
@@ -142,6 +142,10 @@ export const JoinHouseholdModal = ({ isOpen, onClose }) => {
     }
   };
 
+  const handleQuickJoinSantos = () => {
+    setInviteCode('SANTOS2026');
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Join Family Household">
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -156,6 +160,21 @@ export const JoinHouseholdModal = ({ isOpen, onClose }) => {
           Ask your family budget manager or breadwinner for the unique TipidLink household code to securely join and view your shared budget.
         </p>
 
+        {/* Quick Demo Helper */}
+        <div className="rounded-xl bg-emerald-50 border border-emerald-200/80 p-2.5 text-xs text-emerald-900 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span>Demo presentation code: <strong>SANTOS2026</strong></span>
+          </div>
+          <button
+            type="button"
+            onClick={handleQuickJoinSantos}
+            className="rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-emerald-700 transition cursor-pointer shadow-xs"
+          >
+            Auto Fill
+          </button>
+        </div>
+
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
             Household Code *
@@ -165,7 +184,7 @@ export const JoinHouseholdModal = ({ isOpen, onClose }) => {
             <input
               type="text"
               required
-              placeholder="Paste Family Invite Code here (e.g. KALAB-4211)"
+              placeholder="Paste Family Invite Code here (e.g. SANTOS2026)"
               value={inviteCode}
               onChange={(e) => setInviteCode(e.target.value.trim().toUpperCase())}
               className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm tracking-wider font-mono font-bold focus:border-indigo-500 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"

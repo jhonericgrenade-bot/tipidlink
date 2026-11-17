@@ -54,7 +54,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
     }
   }, [currentHousehold]);
 
-  const displayCode = isDemoMode
+  const displayCode = (isDemoMode || currentHousehold?.id === 'hh-santos-family')
     ? 'SANTOS2026'
     : (currentHousehold?.invite_code || 'TIPID-2026');
 
