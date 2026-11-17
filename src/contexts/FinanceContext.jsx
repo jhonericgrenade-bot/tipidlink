@@ -17,9 +17,9 @@ export const FinanceProvider = ({ children }) => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Selected period for dashboard & budget tracking (defaults to current month/year)
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  // Selected period for dashboard & budget tracking (defaults to November 2026 for consistent multi-browser presentation demo)
+  const [selectedMonth, setSelectedMonth] = useState(11);
+  const [selectedYear, setSelectedYear] = useState(2026);
 
   // Load all financial records when current household changes
   useEffect(() => {
@@ -792,20 +792,44 @@ export const FinanceProvider = ({ children }) => {
     }
   };
 
-  // Seed sample Filipino family data button action (permitted in demo mode or Santos family demo household)
+  // Seed sample Filipino family data button action (works reliably in any browser or account)
   const resetToDemoData = () => {
-    if ((!isDemoMode && currentHousehold?.id !== 'hh-santos-family') || !currentHousehold) return;
-    setTransactions(INITIAL_DEMO_DATA.transactions);
-    setBudgets(INITIAL_DEMO_DATA.budgets);
-    setBills(INITIAL_DEMO_DATA.bills);
-    setSavingsGoals(INITIAL_DEMO_DATA.savingsGoals);
-    setCategories(INITIAL_DEMO_DATA.categories);
+    if (!currentHousehold) return;
 
-    localStorage.setItem(`tipidlink_finance_${currentHousehold.id}`, JSON.stringify({
-      transactions: INITIAL_DEMO_DATA.transactions,
-      budgets: INITIAL_DEMO_DATA.budgets,
-      bills: INITIAL_DEMO_DATA.bills,
-      savingsGoals: INITIAL_DEMO_DATA.savingsGoals,
+    const updatedTx = INITIAL_DEMO_DATA.transactions.map(t => ({
+      ...t,
+      household_id: currentHousehold.id,
+    }));
+    const updatedBudgets = INITIAL_DEMO_DATA.budgets.map(b => ({
+      ...b,
+      household_id: currentHousehold.id,
+    }));
+    const updatedBills = INITIAL_DEMO_DATA.bills.map(b => ({
+      ...b,
+      household_id: currentHousehold.id,
+    }));
+    const updatedGoals = INITIAL_DEMO_DATA.savingsGoals.map(g => ({
+      ...g,
+      household_id: currentHousehold.id,
+    }));
+
+    setTransactions(updatedTx);
+    setBudgets(updatedBudgets);
+    setBills(updatedBills);
+    setSavingsGoals(updatedGoals);
+    setCategories(INITIAL_DEMO_DATA.categories);
+    setSelectedMonth(11);
+    setSelectedYear(2026);
+
+    const storageKey = (isDemoMode || currentHousehold.id === 'hh-santos-family')
+      ? `tipidlink_finance_${currentHousehold.id}`
+      : `tipidlink_user_finance_${currentHousehold.id}`;
+
+    localStorage.setItem(storageKey, JSON.stringify({
+      transactions: updatedTx,
+      budgets: updatedBudgets,
+      bills: updatedBills,
+      savingsGoals: updatedGoals,
       categories: INITIAL_DEMO_DATA.categories,
     }));
   };

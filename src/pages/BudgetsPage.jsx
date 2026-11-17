@@ -216,7 +216,7 @@ export const BudgetsPage = () => {
             onChange={(e) => setSelectedYear(Number(e.target.value))}
             className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-800 focus:border-emerald-500 focus:outline-hidden"
           >
-            {[2025, 2026, 2027].map((yr) => (
+            {[2024, 2025, 2026, 2027].map((yr) => (
               <option key={yr} value={yr}>
                 {yr}
               </option>

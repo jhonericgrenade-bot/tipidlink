@@ -241,17 +241,30 @@ export const LoginPage = () => {
             </p>
 
             {/* Install App Quick Pill */}
+            <div className="mt-2.5 flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('tipidlink-open-install-modal'));
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/25 px-3 py-1 text-[11px] font-bold text-emerald-200 border border-emerald-400/30 hover:bg-emerald-500/40 transition cursor-pointer"
+              >
+                <Smartphone className="h-3 w-3 text-emerald-300" />
+                <span>Install App on Phone</span>
+              </button>
+            </div>
+
+            {/* Quick 1-Tap Presentation Demo Button */}
             <button
               type="button"
-              onClick={() => {
-                if (typeof window !== 'undefined') {
-                  window.dispatchEvent(new CustomEvent('tipidlink-open-install-modal'));
-                }
-              }}
-              className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/25 px-3 py-1 text-[11px] font-bold text-emerald-200 border border-emerald-400/30 hover:bg-emerald-500/40 transition cursor-pointer"
+              onClick={() => handleDemoLogin('maria')}
+              className="mt-3.5 w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500/30 via-teal-400/25 to-emerald-500/30 border border-emerald-400/50 py-2.5 px-4 text-xs font-black text-emerald-200 hover:text-white hover:bg-emerald-500/40 transition cursor-pointer shadow-md group active-press"
+              title="Launch instant live demo with official presentation data"
             >
-              <Smartphone className="h-3 w-3 text-emerald-300" />
-              <span>Install App on Phone (Android/iOS)</span>
+              <Sparkles className="h-4 w-4 text-emerald-300 group-hover:scale-125 transition-transform" />
+              <span>Launch Live Demo (Santos Family) &rarr;</span>
             </button>
           </div>
 
