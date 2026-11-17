@@ -351,17 +351,27 @@ export const SettingsPage = () => {
             </div>
           </div>
 
-          <button
-            onClick={() => {
-              if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('tipidlink-open-install-modal'));
-              }
-            }}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white px-4 py-2.5 text-xs font-black shadow-md transition active:scale-95 cursor-pointer whitespace-nowrap"
-          >
-            <Download className="h-4 w-4" />
-            <span>Open Install Guide</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <a
+              href="/presentation-video.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30 px-3.5 py-2.5 text-xs font-bold transition active:scale-95 cursor-pointer whitespace-nowrap"
+            >
+              <span>▶ Play Video Demo</span>
+            </a>
+            <button
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('tipidlink-open-install-modal'));
+                }
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white px-4 py-2.5 text-xs font-black shadow-md transition active:scale-95 cursor-pointer whitespace-nowrap"
+            >
+              <Download className="h-4 w-4" />
+              <span>Open Install Guide</span>
+            </button>
+          </div>
         </div>
       </div>
 

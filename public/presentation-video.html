@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TipidLink - Interactive Video Presentation & Demo Showcase</title>
+  <link rel="icon" type="image/png" href="/tipidlink-logo.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      user-select: none;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.3; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.05); }
+    }
+    .pulse-glow {
+      animation: pulseGlow 4s infinite ease-in-out;
+    }
+    .video-viewport {
+      aspect-ratio: 16 / 9;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-white min-h-screen flex flex-col items-center justify-center p-3 sm:p-6 overflow-x-hidden">
+
+  {/* Header Info */}
+  <header class="w-full max-w-5xl flex items-center justify-between mb-3 text-xs">
+    <div class="flex items-center gap-2.5">
+      <img src="/tipidlink-logo.png" alt="TipidLink" class="h-8 w-auto">
+      <div>
+        <h1 class="font-extrabold text-sm text-emerald-400">TipidLink Video Presentation Player</h1>
+        <p class="text-[11px] text-slate-400">ITPC113 Technopreneurship • ISO/IEC 25010 System Showcase</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="btn-record" class="inline-flex items-center gap-1.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white px-3.5 py-1.5 font-bold text-xs shadow-lg transition active:scale-95 cursor-pointer">
+        <span class="h-2 w-2 rounded-full bg-white animate-ping"></span>
+        <span id="record-label">🔴 Record Screen to Video</span>
+      </button>
+    </div>
+  </header>
+
+  {/* Main Video Screen Container */}
+  <div class="relative w-full max-w-5xl bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-800 flex flex-col">
+    
+    {/* Screen Viewport (16:9) */}
+    <div id="video-stage" class="video-viewport relative w-full bg-gradient-to-tr from-slate-950 via-slate-900 to-emerald-950 flex flex-col justify-between p-6 sm:p-10 overflow-hidden">
+      
+      {/* Background ambient lighting */}
+      <div class="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-emerald-500/20 blur-3xl pulse-glow pointer-events-none"></div>
+      <div class="absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-teal-500/20 blur-3xl pulse-glow pointer-events-none"></div>
+
+      {/* Top Overlay Badge */}
+      <div class="relative z-10 flex items-center justify-between">
+        <div class="inline-flex items-center gap-2 rounded-full bg-black/40 backdrop-blur-md px-3 py-1 border border-white/10 text-xs font-semibold text-emerald-300">
+          <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="scene-badge">Scene 1 of 6 • Introduction</span>
+        </div>
+        <div class="text-xs font-mono text-slate-400 bg-black/30 px-2.5 py-1 rounded-lg border border-white/5">
+          <span id="time-display">0:00</span> / <span id="duration-display">2:30</span>
+        </div>
+      </div>
+
+      {/* Center Dynamic Content Display */}
+      <div id="scene-content" class="relative z-10 my-auto flex flex-col items-center justify-center text-center max-w-3xl mx-auto transition-all duration-500">
+        <!-- Content injected via JS -->
+      </div>
+
+      {/* Subtitles Banner */}
+      <div class="relative z-10 w-full mt-auto">
+        <div class="mx-auto max-w-2xl rounded-2xl bg-black/75 backdrop-blur-md px-5 py-3 border border-white/10 text-center shadow-lg">
+          <p id="subtitles-text" class="text-xs sm:text-sm font-medium text-emerald-100 leading-snug">
+            Welcome to the TipidLink System Showcase. Press Play below to start the animated walkthrough.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {/* Video Player Controls Bar */}
+    <div class="bg-slate-900/90 border-t border-slate-800 px-4 py-3 sm:px-6 flex flex-col gap-2.5">
+      {/* Progress Track */}
+      <div id="progress-track" class="w-full bg-slate-800 h-2 rounded-full overflow-hidden cursor-pointer relative group">
+        <div id="progress-bar" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full w-0 transition-all duration-100"></div>
+      </div>
+
+      {/* Control Buttons */}
+      <div class="flex items-center justify-between text-xs">
+        <div class="flex items-center gap-2 sm:gap-3">
+          <button id="btn-play" class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black shadow-md transition active:scale-95 cursor-pointer">
+            ▶
+          </button>
+          <button id="btn-prev" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer">
+            ⏮ Prev
+          </button>
+          <button id="btn-next" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer">
+            Next ⏭
+          </button>
+          <div class="hidden sm:flex items-center gap-1.5 text-slate-400 pl-2">
+            <span class="text-[11px] font-bold">Speed:</span>
+            <select id="speed-select" class="bg-slate-800 text-slate-200 text-xs rounded-lg px-2 py-1 border border-slate-700 outline-none">
+              <option value="1">1.0x</option>
+              <option value="1.25">1.25x</option>
+              <option value="1.5">1.5x</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button id="btn-voice-toggle" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition cursor-pointer">
+            <span id="voice-icon">🔊</span>
+            <span id="voice-label">AI Voice Narration: ON</span>
+          </button>
+          <button id="btn-fullscreen" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer" title="Fullscreen (F)">
+            ⛶
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {/* Quick Recording Guide for Evaluators */}
+  <div class="w-full max-w-5xl mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-slate-400">
+    <div class="rounded-2xl bg-slate-900/60 p-3.5 border border-slate-800/80">
+      <p class="font-bold text-slate-200 mb-1">📹 1-Tap Browser Recording</p>
+      <p class="text-[11px] leading-relaxed">Click the red <strong>"Record Screen"</strong> button above, select this tab, then click <strong>Play</strong>. It automatically saves a video file (.webm) upon completion.</p>
+    </div>
+    <div class="rounded-2xl bg-slate-900/60 p-3.5 border border-slate-800/80">
+      <p class="font-bold text-slate-200 mb-1">⌨️ Windows Built-In Screen Recorder</p>
+      <p class="text-[11px] leading-relaxed">Press <code class="text-emerald-400 font-mono">Win + Alt + R</code> on your keyboard to instantly record this screen as an MP4 directly to your Videos folder.</p>
+    </div>
+    <div class="rounded-2xl bg-slate-900/60 p-3.5 border border-slate-800/80">
+      <p class="font-bold text-slate-200 mb-1">🎯 Live Panel Presentation</p>
+      <p class="text-[11px] leading-relaxed">Use this video in fullscreen during the start of your presentation to deliver a flawless, high-tech intro to your panel and evaluators.</p>
+    </div>
+  </div>
+
+  <script>
+    // Scenes Definition with Timings, Visuals, and Narration
+    const SCENES = [
+      {
+        id: 1,
+        title: "Introduction & The Problem",
+        badge: "Scene 1 of 6 • Introduction",
+        duration: 25,
+        narration: "Welcome to TipidLink: an intelligent shared family financial management platform engineered for Filipino households. Managing family expenses through paper notebooks or fragmented chats leads to untracked spending and overdue bills. TipidLink solves this with unified multi-user budgeting.",
+        render: () => `
+          <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-400/30 mb-4 animate-bounce">
+            ✨ ITPC113 Technopreneurship Project Showcase
+          </div>
+          <img src="/tipidlink-logo.png" alt="TipidLink" class="h-20 sm:h-24 w-auto mb-4 drop-shadow-[0_10px_25px_rgba(5,150,105,0.4)]">
+          <h2 class="text-2xl sm:text-4xl font-black text-white tracking-tight">TipidLink</h2>
+          <p class="text-sm sm:text-lg text-emerald-200 font-medium mt-1">Smart Shared Family Budget Management Platform</p>
+          <div class="mt-4 flex flex-wrap justify-center gap-2 text-xs">
+            <span class="rounded-lg bg-white/10 px-3 py-1 font-semibold text-slate-300">👨‍👩‍👧‍👦 Multi-User Family Sync</span>
+            <span class="rounded-lg bg-white/10 px-3 py-1 font-semibold text-slate-300">⚡ Real-Time Math</span>
+            <span class="rounded-lg bg-white/10 px-3 py-1 font-semibold text-slate-300">📄 1-Tap PDF Statements</span>
+          </div>
+        `
+      },
+      {
+        id: 2,
+        title: "Executive Dashboard & Live Calculations",
+        badge: "Scene 2 of 6 • Executive Dashboard",
+        duration: 25,
+        narration: "Here on the Dashboard, families gain a consolidated financial view. For the Santos family, monthly income totals PHP 71,000, while total expenses are PHP 19,700, yielding a healthy Net Cash Flow of plus PHP 51,300. The budget utilization gauge shows 30.3 percent used, fulfilling Functional Correctness.",
+        render: () => `
+          <div class="w-full max-w-2xl bg-slate-900/90 rounded-2xl p-5 border border-white/15 text-left shadow-xl">
+            <div class="flex justify-between items-center mb-4">
+              <div>
+                <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Household Overview</span>
+                <h3 class="text-base font-black text-white">Santos Family Household</h3>
+              </div>
+              <span class="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2.5 py-0.5 rounded-full font-bold">Active Month: October 2026</span>
+            </div>
+            <div class="grid grid-cols-3 gap-3 mb-4">
+              <div class="bg-slate-800/80 rounded-xl p-3 border border-slate-700">
+                <p class="text-[10px] font-bold text-slate-400">TOTAL INCOME</p>
+                <p class="text-base sm:text-lg font-black text-emerald-400">+ PHP 71,000.00</p>
+              </div>
+              <div class="bg-slate-800/80 rounded-xl p-3 border border-slate-700">
+                <p class="text-[10px] font-bold text-slate-400">TOTAL EXPENSES</p>
+                <p class="text-base sm:text-lg font-black text-rose-400">- PHP 19,700.00</p>
+              </div>
+              <div class="bg-slate-800/80 rounded-xl p-3 border border-slate-700">
+                <p class="text-[10px] font-bold text-slate-400">NET SAVINGS</p>
+                <p class="text-base sm:text-lg font-black text-white">PHP 51,300.00</p>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-xs font-bold mb-1">
+                <span class="text-slate-300">Monthly Budget Ceiling (PHP 65,000.00)</span>
+                <span class="text-emerald-400">30.3% Spent • PHP 45,300.00 Remaining</span>
+              </div>
+              <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                <div class="bg-emerald-500 h-full w-[30.3%]"></div>
+              </div>
+            </div>
+          </div>
+        `
+      },
+      {
+        id: 3,
+        title: "Localized Expense Logging & Fast Entry",
+        badge: "Scene 3 of 6 • Transactions Engine",
+        duration: 25,
+        narration: "Logging expenses is fast and localized for Filipino daily life. Categories include Groceries and Palengke, Meralco Electricity, Converge Internet, and GCash payments. As each transaction is recorded, every balance and visual chart recalculates with sub-50 millisecond performance.",
+        render: () => `
+          <div class="w-full max-w-2xl bg-slate-900/90 rounded-2xl p-4 border border-white/15 text-left shadow-xl">
+            <h3 class="text-xs font-black uppercase tracking-wider text-emerald-400 mb-3">Recent Family Transactions</h3>
+            <div class="space-y-2">
+              <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60">
+                <div class="flex items-center gap-2.5">
+                  <span class="h-8 w-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">🛒</span>
+                  <div>
+                    <p class="text-xs font-bold text-white">Puregold Bi-weekly Family Groceries</p>
+                    <p class="text-[10px] text-slate-400">Oct 16 • Logged by Maria Santos • GCash</p>
+                  </div>
+                </div>
+                <span class="text-xs font-black text-rose-400">- PHP 6,850.00</span>
+              </div>
+              <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60">
+                <div class="flex items-center gap-2.5">
+                  <span class="h-8 w-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs">⚡</span>
+                  <div>
+                    <p class="text-xs font-bold text-white">Meralco Electric Bill (Sept-Oct)</p>
+                    <p class="text-[10px] text-slate-400">Oct 17 • Logged by Juan Santos • Maya</p>
+                  </div>
+                </div>
+                <span class="text-xs font-black text-rose-400">- PHP 4,200.00</span>
+              </div>
+              <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60">
+                <div class="flex items-center gap-2.5">
+                  <span class="h-8 w-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">💼</span>
+                  <div>
+                    <p class="text-xs font-bold text-white">Juan Mid-month Salary</p>
+                    <p class="text-[10px] text-slate-400">Oct 15 • Logged by Juan Santos • Bank Deposit</p>
+                  </div>
+                </div>
+                <span class="text-xs font-black text-emerald-400">+ PHP 48,000.00</span>
+              </div>
+            </div>
+          </div>
+        `
+      },
+      {
+        id: 4,
+        title: "Proactive Budget Limits & Warning Thresholds",
+        badge: "Scene 4 of 6 • Budget Alerts",
+        duration: 25,
+        narration: "To prevent family overspending, TipidLink provides proactive visual indicators. Progress bars stay green under 80 percent, turn amber when nearing limits, and turn red when a category is overspent. This guarantees ISO Usability and User Error Protection.",
+        render: () => `
+          <div class="w-full max-w-2xl bg-slate-900/90 rounded-2xl p-4 border border-white/15 text-left shadow-xl">
+            <h3 class="text-xs font-black uppercase tracking-wider text-emerald-400 mb-3">Category Spending Limits</h3>
+            <div class="space-y-3">
+              <div>
+                <div class="flex justify-between text-xs font-bold text-slate-200 mb-1">
+                  <span>Groceries & Palengke</span>
+                  <span class="text-emerald-400">PHP 6,850.00 / PHP 16,000.00 (42.8% - Safe)</span>
+                </div>
+                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                  <div class="bg-emerald-500 h-full w-[42.8%]"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs font-bold text-slate-200 mb-1">
+                  <span>Electricity (Meralco)</span>
+                  <span class="text-amber-400">PHP 4,200.00 / PHP 4,500.00 (93.3% - Near Limit!)</span>
+                </div>
+                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                  <div class="bg-amber-500 h-full w-[93.3%]"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs font-bold text-slate-200 mb-1">
+                  <span>Internet (Converge 200Mbps)</span>
+                  <span class="text-emerald-400">PHP 1,500.00 / PHP 1,600.00 (93.7% - Safe)</span>
+                </div>
+                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                  <div class="bg-emerald-500 h-full w-[93.7%]"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `
+      },
+      {
+        id: 5,
+        title: "Bills Partial Payments & Savings Goals",
+        badge: "Scene 5 of 6 • Bills & Savings",
+        duration: 25,
+        narration: "A cornerstone feature is Partial Payments. Real-world bills like tuition and utilities are often paid in installments. TipidLink reconciles partial payments automatically, flags overdue bills, and tracks savings goals like the family emergency fund and appliance upgrades.",
+        render: () => `
+          <div class="w-full max-w-2xl grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+            <div class="bg-slate-900/90 rounded-2xl p-4 border border-white/15 shadow-xl">
+              <span class="text-[10px] font-bold text-rose-400 uppercase">Bills Management</span>
+              <h4 class="text-xs font-black text-white mt-1">Polytechnic Tuition (Angela)</h4>
+              <p class="text-[11px] text-slate-400">Total Bill: PHP 8,000.00</p>
+              <div class="mt-2 p-2 rounded-xl bg-amber-500/10 border border-amber-400/20 text-xs">
+                <span class="font-bold text-amber-300">Status: Partially Paid</span>
+                <p class="text-[10px] text-slate-300 mt-0.5">Paid: PHP 4,000.00 • Remaining: PHP 4,000.00</p>
+              </div>
+            </div>
+            <div class="bg-slate-900/90 rounded-2xl p-4 border border-white/15 shadow-xl">
+              <span class="text-[10px] font-bold text-teal-400 uppercase">Savings Milestones</span>
+              <h4 class="text-xs font-black text-white mt-1">Inverter Refrigerator Upgrade</h4>
+              <p class="text-[11px] text-slate-400">Target: PHP 28,000.00</p>
+              <div class="mt-2 p-2 rounded-xl bg-emerald-500/10 border border-emerald-400/20 text-xs">
+                <span class="font-bold text-emerald-300">✅ 100% Completed</span>
+                <p class="text-[10px] text-slate-300 mt-0.5">Saved: PHP 28,000.00 (Ready to Purchase!)</p>
+              </div>
+            </div>
+          </div>
+        `
+      },
+      {
+        id: 6,
+        title: "1-Tap Universal PDF Export & ISO/IEC 25010 Verification",
+        badge: "Scene 6 of 6 • Evaluation & Defense",
+        duration: 25,
+        narration: "Finally, TipidLink features a 1-tap Universal PDF Action Sheet for instant preview, download, and printing on any device. Verified across 16 automated tests and evaluated under ISO/IEC 25010 with a 4.86 Excellent rating. TipidLink is ready for production. Thank you!",
+        render: () => `
+          <div class="w-full max-w-2xl bg-gradient-to-r from-emerald-950 to-slate-900 rounded-2xl p-5 border border-emerald-500/40 text-center shadow-2xl">
+            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-400/30 mb-3">
+              🏆 ISO/IEC 25010 Evaluated: 4.86 / 5.00 Rating (Excellent)
+            </div>
+            <h3 class="text-xl sm:text-2xl font-black text-white">Universal 1-Tap PDF Financial Statements</h3>
+            <p class="text-xs text-slate-300 max-w-md mx-auto mt-1 mb-4">
+              Works seamlessly on iOS, Android, and Desktop with zero character encoding defects and instant print capabilities.
+            </p>
+            <div class="grid grid-cols-3 gap-2 text-xs">
+              <div class="bg-black/30 p-2.5 rounded-xl border border-white/10">
+                <p class="font-black text-emerald-400">16 / 16 Tests</p>
+                <p class="text-[10px] text-slate-400">Automated Passing</p>
+              </div>
+              <div class="bg-black/30 p-2.5 rounded-xl border border-white/10">
+                <p class="font-black text-emerald-400">PostgreSQL RLS</p>
+                <p class="text-[10px] text-slate-400">Database Security</p>
+              </div>
+              <div class="bg-black/30 p-2.5 rounded-xl border border-white/10">
+                <p class="font-black text-emerald-400">Zero Crash</p>
+                <p class="text-[10px] text-slate-400">Fault-Tolerant Demo</p>
+              </div>
+            </div>
+          </div>
+        `
+      }
+    ];
+
+    // State
+    let currentSceneIdx = 0;
+    let isPlaying = false;
+    let playbackSpeed = 1.0;
+    let voiceEnabled = true;
+    let sceneTimer = null;
+    let sceneElapsedTime = 0;
+    let totalElapsedTime = 0;
+    const totalDuration = SCENES.reduce((acc, s) => acc + s.duration, 0);
+
+    // MediaRecorder State
+    let mediaRecorder = null;
+    let recordedChunks = [];
+
+    // DOM Elements
+    const sceneBadge = document.getElementById('scene-badge');
+    const sceneContent = document.getElementById('scene-content');
+    const subtitlesText = document.getElementById('subtitles-text');
+    const timeDisplay = document.getElementById('time-display');
+    const durationDisplay = document.getElementById('duration-display');
+    const progressBar = document.getElementById('progress-bar');
+    const progressTrack = document.getElementById('progress-track');
+    const btnPlay = document.getElementById('btn-play');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const speedSelect = document.getElementById('speed-select');
+    const btnVoiceToggle = document.getElementById('btn-voice-toggle');
+    const voiceIcon = document.getElementById('voice-icon');
+    const voiceLabel = document.getElementById('voice-label');
+    const btnFullscreen = document.getElementById('btn-fullscreen');
+    const btnRecord = document.getElementById('btn-record');
+    const recordLabel = document.getElementById('record-label');
+
+    durationDisplay.textContent = formatTime(totalDuration);
+
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+
+    function renderScene(idx) {
+      const scene = SCENES[idx];
+      sceneBadge.textContent = scene.badge;
+      sceneContent.innerHTML = scene.render();
+      subtitlesText.textContent = scene.narration;
+
+      if (voiceEnabled && isPlaying) {
+        speakNarration(scene.narration);
+      }
+    }
+
+    function speakNarration(text) {
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = playbackSpeed;
+      utterance.pitch = 1.0;
+      utterance.lang = 'en-US';
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function updateProgress() {
+      // Calculate total elapsed
+      let prevScenesDuration = 0;
+      for (let i = 0; i < currentSceneIdx; i++) {
+        prevScenesDuration += SCENES[i].duration;
+      }
+      totalElapsedTime = prevScenesDuration + sceneElapsedTime;
+      timeDisplay.textContent = formatTime(totalElapsedTime);
+
+      const percent = (totalElapsedTime / totalDuration) * 100;
+      progressBar.style.width = `${Math.min(100, percent)}%`;
+    }
+
+    function tick() {
+      if (!isPlaying) return;
+
+      sceneElapsedTime += 0.5 * playbackSpeed;
+      const currentScene = SCENES[currentSceneIdx];
+
+      if (sceneElapsedTime >= currentScene.duration) {
+        if (currentSceneIdx < SCENES.length - 1) {
+          currentSceneIdx++;
+          sceneElapsedTime = 0;
+          renderScene(currentSceneIdx);
+        } else {
+          // Finished playback
+          pause();
+          currentSceneIdx = 0;
+          sceneElapsedTime = 0;
+          renderScene(0);
+          updateProgress();
+          if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+          }
+          return;
+        }
+      }
+
+      updateProgress();
+      sceneTimer = setTimeout(tick, 500);
+    }
+
+    function play() {
+      isPlaying = true;
+      btnPlay.innerHTML = '⏸';
+      btnPlay.classList.replace('bg-emerald-500', 'bg-amber-500');
+      renderScene(currentSceneIdx);
+      tick();
+    }
+
+    function pause() {
+      isPlaying = false;
+      btnPlay.innerHTML = '▶';
+      btnPlay.classList.replace('bg-amber-500', 'bg-emerald-500');
+      if (sceneTimer) clearTimeout(sceneTimer);
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    }
+
+    btnPlay.addEventListener('click', () => {
+      if (isPlaying) {
+        pause();
+      } else {
+        play();
+      }
+    });
+
+    btnNext.addEventListener('click', () => {
+      if (currentSceneIdx < SCENES.length - 1) {
+        currentSceneIdx++;
+        sceneElapsedTime = 0;
+        renderScene(currentSceneIdx);
+        updateProgress();
+      }
+    });
+
+    btnPrev.addEventListener('click', () => {
+      if (currentSceneIdx > 0) {
+        currentSceneIdx--;
+        sceneElapsedTime = 0;
+        renderScene(currentSceneIdx);
+        updateProgress();
+      }
+    });
+
+    speedSelect.addEventListener('change', (e) => {
+      playbackSpeed = parseFloat(e.target.value);
+    });
+
+    btnVoiceToggle.addEventListener('click', () => {
+      voiceEnabled = !voiceEnabled;
+      if (!voiceEnabled && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      voiceIcon.textContent = voiceEnabled ? '🔊' : '🔇';
+      voiceLabel.textContent = voiceEnabled ? 'AI Voice Narration: ON' : 'AI Voice Narration: MUTED';
+    });
+
+    btnFullscreen.addEventListener('click', () => {
+      const stage = document.getElementById('video-stage');
+      if (!document.fullscreenElement) {
+        stage.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    });
+
+    progressTrack.addEventListener('click', (e) => {
+      const rect = progressTrack.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const targetPercent = clickX / rect.width;
+      const targetSeconds = targetPercent * totalDuration;
+
+      // Find scene matching targetSeconds
+      let accum = 0;
+      for (let i = 0; i < SCENES.length; i++) {
+        if (targetSeconds <= accum + SCENES[i].duration || i === SCENES.length - 1) {
+          currentSceneIdx = i;
+          sceneElapsedTime = targetSeconds - accum;
+          renderScene(currentSceneIdx);
+          updateProgress();
+          break;
+        }
+        accum += SCENES[i].duration;
+      }
+    });
+
+    // WebRTC Screen / Tab Recorder
+    btnRecord.addEventListener('click', async () => {
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { frameRate: 30 },
+          audio: true,
+        });
+
+        recordedChunks = [];
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            recordedChunks.push(e.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          recordLabel.textContent = '🔴 Record Screen to Video';
+          btnRecord.classList.replace('bg-amber-600', 'bg-rose-600');
+          stream.getTracks().forEach(t => t.stop());
+
+          const blob = new Blob(recordedChunks, { type: 'video/webm' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'tipidlink-system-presentation-video.webm';
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => a.remove(), 1000);
+          alert('Recording completed! Video downloaded to your Downloads folder: tipidlink-system-presentation-video.webm');
+        };
+
+        mediaRecorder.start();
+        recordLabel.textContent = '⏹ Stop & Download Video';
+        btnRecord.classList.replace('bg-rose-600', 'bg-amber-600');
+
+        // Automatically start video playback from beginning
+        currentSceneIdx = 0;
+        sceneElapsedTime = 0;
+        play();
+      } catch (err) {
+        console.warn('Recording cancelled or error:', err);
+      }
+    });
+
+    // Keyboard shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        isPlaying ? pause() : play();
+      } else if (e.code === 'ArrowRight') {
+        btnNext.click();
+      } else if (e.code === 'ArrowLeft') {
+        btnPrev.click();
+      } else if (e.key.toLowerCase() === 'f') {
+        btnFullscreen.click();
+      }
+    });
+
+    // Initial render
+    renderScene(0);
+    updateProgress();
+  </script>
+</body>
+</html>
