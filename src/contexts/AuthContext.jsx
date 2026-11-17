@@ -81,10 +81,15 @@ export const AuthProvider = ({ children }) => {
           if (error) throw error;
 
           if (session?.user) {
-            // A verified user session is active: strictly turn off demo mode
-            localStorage.removeItem('tipidlink_demo_user');
-            localStorage.removeItem('tipidlink_demo_active');
-            setIsDemoMode(false);
+            // Check if this session is one of the demo users (maria, juan, angela)
+            const isSantosDemo = session.user.email?.endsWith('@tipidlink.ph');
+            if (isSantosDemo) {
+              setIsDemoMode(true);
+            } else {
+              localStorage.removeItem('tipidlink_demo_user');
+              localStorage.removeItem('tipidlink_demo_active');
+              setIsDemoMode(false);
+            }
             setUser(session.user);
             await fetchUserProfile(session.user);
             setLoading(false);
@@ -102,6 +107,18 @@ export const AuthProvider = ({ children }) => {
             setUser({ id: parsed.id, email: parsed.email });
             setProfile(parsed);
             setIsDemoMode(true);
+
+            // Establish authenticated session for demo persona so cross-unit queries succeed
+            if (isSupabaseConfigured) {
+              try {
+                await supabase.auth.signInWithPassword({
+                  email: parsed.email || 'maria.santos@tipidlink.ph',
+                  password: 'TipidLink2026!'
+                });
+              } catch (e) {
+                console.warn('Demo background auth note:', e);
+              }
+            }
           } catch {
             localStorage.removeItem('tipidlink_demo_user');
             localStorage.removeItem('tipidlink_demo_active');
@@ -357,14 +374,18 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Log in immediately as demo user
-  const loginAsDemo = (demoUserKey = 'maria') => {
+  const loginAsDemo = async (demoUserKey = 'maria') => {
     let selectedUser;
+    let demoEmail = 'maria.santos@tipidlink.ph';
     if (demoUserKey === 'juan') {
       selectedUser = INITIAL_DEMO_DATA.members[1];
+      demoEmail = 'juan.santos@tipidlink.ph';
     } else if (demoUserKey === 'angela') {
       selectedUser = INITIAL_DEMO_DATA.members[2];
+      demoEmail = 'angela.santos@tipidlink.ph';
     } else {
       selectedUser = INITIAL_DEMO_DATA.profile;
+      demoEmail = 'maria.santos@tipidlink.ph';
     }
 
     const demoProfile = {
@@ -380,6 +401,18 @@ export const AuthProvider = ({ children }) => {
     setUser({ id: demoProfile.id, email: demoProfile.email });
     setProfile(demoProfile);
     setIsDemoMode(true);
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.auth.signInWithPassword({
+          email: demoEmail,
+          password: 'TipidLink2026!'
+        });
+      } catch (e) {
+        console.warn('Demo cloud session signin note:', e);
+      }
+    }
+
     return { success: true };
   };
 

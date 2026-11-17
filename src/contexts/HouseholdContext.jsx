@@ -726,16 +726,34 @@ export const HouseholdProvider = ({ children }) => {
             ? dbPhone
             : (dbPhone ? `${dbPhone}|JOINED:SANTOS2026` : 'JOINED:SANTOS2026');
 
-          await supabase.from('profiles').upsert({
-            id: user.id,
-            email: user.email,
-            full_name: user?.user_metadata?.full_name || profile?.full_name || dbProf?.full_name || (user.email ? user.email.split('@')[0] : 'Member'),
-            avatar_url: profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.email || user.id)}`,
+          await supabase.from('profiles').update({
             phone: updatedPhone,
+            full_name: user?.user_metadata?.full_name || profile?.full_name || dbProf?.full_name || (user.email ? user.email.split('@')[0] : 'Member'),
             updated_at: new Date().toISOString(),
-          });
+          }).eq('id', user.id);
         } catch (dbErr) {
           console.warn('Could not update profile join status:', dbErr);
+        }
+
+        // Broadcast to all active units immediately via Realtime WebSocket!
+        try {
+          const syncChannel = supabase.channel('tipidlink-household-sync');
+          syncChannel.subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              syncChannel.send({
+                type: 'broadcast',
+                event: 'member_joined',
+                payload: {
+                  householdId: target.id,
+                  user_id: user.id,
+                  name: userFullName,
+                  email: userEmail,
+                }
+              });
+            }
+          });
+        } catch (rtErr) {
+          console.warn('Realtime broadcast notice:', rtErr);
         }
       }
 
@@ -1108,6 +1126,21 @@ export const HouseholdProvider = ({ children }) => {
       document.removeEventListener('visibilitychange', handleFocus);
     };
   }, [currentHousehold?.id, user?.id]);
+
+  // Realtime cross-unit sync: when any user joins from mobile/CP or another device, immediately refresh member list!
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    const channel = supabase.channel('tipidlink-household-sync');
+    channel.on('broadcast', { event: 'member_joined' }, () => {
+      if (currentHousehold?.id) {
+        loadMembers(currentHousehold.id);
+      }
+    });
+    channel.subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentHousehold?.id]);
 
   const currentMember = members.find(m => m.user_id === user?.id);
   const currentUserRole = currentMember?.role || (currentHousehold?.created_by === user?.id ? 'owner' : 'member');
