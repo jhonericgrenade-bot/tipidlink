@@ -484,7 +484,7 @@ export const HouseholdProvider = ({ children }) => {
   const loadMembers = async (householdId) => {
     // If it's Santos Family or demo mode, load from local storage or INITIAL_DEMO_DATA
     if (householdId === 'hh-santos-family' || isDemoMode) {
-      let baseList = INITIAL_DEMO_DATA.members;
+      let baseList = [...INITIAL_DEMO_DATA.members];
       const savedMembers = localStorage.getItem(`tipidlink_members_${householdId}`)
         || localStorage.getItem(`tipidlink_demo_members_${householdId}`);
       if (savedMembers) {
@@ -514,7 +514,41 @@ export const HouseholdProvider = ({ children }) => {
         }
       }
 
+      // CLOUD SYNC: Fetch all real registered users who joined SANTOS2026 from Supabase!
+      // This ensures the Owner (Maria) and Admin (Juan) on PC can see all members who joined on mobile/other devices!
+      if (isSupabaseConfigured) {
+        try {
+          const { data: joinedProfiles, error: fetchErr } = await supabase
+            .from('profiles')
+            .select('id, email, full_name, avatar_url, phone, created_at')
+            .ilike('phone', '%JOINED:SANTOS2026%');
+
+          if (!fetchErr && joinedProfiles && joinedProfiles.length > 0) {
+            for (const jp of joinedProfiles) {
+              const alreadyIn = baseList.some(m => m.user_id === jp.id || (jp.email && m.email === jp.email));
+              if (!alreadyIn) {
+                const memberName = jp.full_name || jp.email?.split('@')[0] || 'Family Member';
+                baseList.push({
+                  id: `mem-${jp.id}`,
+                  household_id: 'hh-santos-family',
+                  user_id: jp.id,
+                  full_name: memberName,
+                  email: jp.email || '',
+                  avatar_url: jp.avatar_url || '',
+                  role: 'member',
+                  nickname: memberName.split(' ')[0] || 'Member',
+                  joined_at: jp.created_at || new Date().toISOString(),
+                });
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Error fetching joined members from Supabase:', e);
+        }
+      }
+
       setMembers(baseList);
+      localStorage.setItem(`tipidlink_members_${householdId}`, JSON.stringify(baseList));
       return;
     }
 
@@ -681,11 +715,25 @@ export const HouseholdProvider = ({ children }) => {
         }
 
         try {
-          const currentPhone = profile?.phone || '';
-          if (!currentPhone.includes('JOINED:SANTOS2026')) {
-            const updatedPhone = currentPhone ? `${currentPhone}|JOINED:SANTOS2026` : 'JOINED:SANTOS2026';
-            await supabase.from('profiles').update({ phone: updatedPhone }).eq('id', user.id);
-          }
+          const { data: dbProf } = await supabase
+            .from('profiles')
+            .select('phone, full_name, email')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          const dbPhone = dbProf?.phone || profile?.phone || '';
+          const updatedPhone = dbPhone.includes('JOINED:SANTOS2026')
+            ? dbPhone
+            : (dbPhone ? `${dbPhone}|JOINED:SANTOS2026` : 'JOINED:SANTOS2026');
+
+          await supabase.from('profiles').upsert({
+            id: user.id,
+            email: user.email,
+            full_name: user?.user_metadata?.full_name || profile?.full_name || dbProf?.full_name || (user.email ? user.email.split('@')[0] : 'Member'),
+            avatar_url: profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.email || user.id)}`,
+            phone: updatedPhone,
+            updated_at: new Date().toISOString(),
+          });
         } catch (dbErr) {
           console.warn('Could not update profile join status:', dbErr);
         }

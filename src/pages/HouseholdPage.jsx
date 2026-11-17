@@ -20,6 +20,7 @@ import {
   ShieldAlert,
   Users,
   AlertTriangle,
+  RefreshCw,
 } from 'lucide-react';
 
 export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
@@ -35,6 +36,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
     deleteHousehold,
     leaveHousehold,
     loading,
+    refreshMembers,
   } = useHousehold();
   const { user, isDemoMode } = useAuth();
   const { isPremium, openUpgradeModal } = usePremium();
@@ -45,6 +47,17 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
   const [editDesc, setEditDesc] = useState('');
   const [editBudget, setEditBudget] = useState('0');
   const [formLoading, setFormLoading] = useState(false);
+
+  // Auto-refresh member list periodically while viewing the Family page so newly joined members from mobile or other units appear live!
+  useEffect(() => {
+    if (refreshMembers && currentHousehold?.id) {
+      refreshMembers();
+      const interval = setInterval(() => {
+        refreshMembers();
+      }, 4000);
+      return () => clearInterval(interval);
+    }
+  }, [currentHousehold?.id]);
 
   useEffect(() => {
     if (currentHousehold) {
@@ -336,13 +349,22 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
 
       {/* Members List */}
       <div className="rounded-3xl bg-white p-6 shadow-xs border border-slate-200/80">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div>
             <h3 className="text-base font-bold text-slate-900">Family Members</h3>
             <p className="text-xs text-slate-500">
               Assigned roles define who can manage budgets, invite users, or record transactions.
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => refreshMembers && refreshMembers()}
+            className="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition cursor-pointer active-press shadow-2xs"
+            title="Refresh family members list from cloud"
+          >
+            <RefreshCw className="h-3.5 w-3.5 text-emerald-600" />
+            <span>Refresh Members</span>
+          </button>
         </div>
 
         {/* Role Permissions & Security Policy Warning Banner */}
