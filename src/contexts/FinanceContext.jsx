@@ -54,7 +54,7 @@ export const FinanceProvider = ({ children }) => {
   const loadHouseholdData = async (householdId) => {
     setLoading(true);
 
-    if (isDemoMode || householdId === 'hh-santos-family') {
+    if (isDemoMode) {
       // Load from localStorage or mockData for demo mode
       const storageKey = `tipidlink_finance_${householdId}`;
       const savedData = localStorage.getItem(storageKey);
@@ -62,45 +62,10 @@ export const FinanceProvider = ({ children }) => {
       if (savedData) {
         try {
           const parsed = JSON.parse(savedData);
-          let loadedTx = parsed.transactions || [];
-          let loadedBudgets = parsed.budgets || [];
-          let loadedBills = parsed.bills || [];
-
-          // Auto-migration: Check if November 2026 demo transactions exist.
-          // If missing, automatically merge INITIAL_DEMO_DATA November transactions and budgets so active month is never empty!
-          const hasNovTx = loadedTx.some(t => t.transaction_date && t.transaction_date.startsWith('2026-11'));
-          if (!hasNovTx) {
-            const novTx = INITIAL_DEMO_DATA.transactions.filter(t => t.transaction_date && t.transaction_date.startsWith('2026-11'));
-            loadedTx = [...loadedTx, ...novTx];
-          }
-
-          const hasNovBudgets = loadedBudgets.some(b => b.month === 11 && b.year === 2026);
-          if (!hasNovBudgets) {
-            const novBudgets = INITIAL_DEMO_DATA.budgets.filter(b => b.month === 11 && b.year === 2026);
-            loadedBudgets = [...loadedBudgets, ...novBudgets];
-          }
-
-          // Ensure bills have up-to-date November schedule if older bills were cached
-          if (householdId === 'hh-santos-family') {
-            const hasNovBills = loadedBills.some(b => b.due_date && b.due_date.startsWith('2026-11'));
-            if (!hasNovBills) {
-              loadedBills = INITIAL_DEMO_DATA.bills;
-            }
-          }
-
-          // Persist the migrated data
-          localStorage.setItem(storageKey, JSON.stringify({
-            transactions: loadedTx,
-            budgets: loadedBudgets,
-            bills: loadedBills,
-            savingsGoals: parsed.savingsGoals || INITIAL_DEMO_DATA.savingsGoals,
-            categories: parsed.categories || INITIAL_DEMO_DATA.categories,
-          }));
-
-          setTransactions(loadedTx);
-          setBudgets(loadedBudgets);
-          setBills(loadedBills);
-          setSavingsGoals(parsed.savingsGoals || INITIAL_DEMO_DATA.savingsGoals);
+          setTransactions(parsed.transactions || []);
+          setBudgets(parsed.budgets || []);
+          setBills(parsed.bills || []);
+          setSavingsGoals(parsed.savingsGoals || []);
           setCategories(parsed.categories || INITIAL_DEMO_DATA.categories);
           setLoading(false);
           return;
@@ -792,9 +757,9 @@ export const FinanceProvider = ({ children }) => {
     }
   };
 
-  // Seed sample Filipino family data button action (permitted in demo mode or Santos family demo household)
+  // Seed sample Filipino family data button action (only permitted in demo mode)
   const resetToDemoData = () => {
-    if ((!isDemoMode && currentHousehold?.id !== 'hh-santos-family') || !currentHousehold) return;
+    if (!isDemoMode || !currentHousehold) return;
     setTransactions(INITIAL_DEMO_DATA.transactions);
     setBudgets(INITIAL_DEMO_DATA.budgets);
     setBills(INITIAL_DEMO_DATA.bills);
