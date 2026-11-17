@@ -274,6 +274,8 @@ export const FinanceProvider = ({ children }) => {
     localStorage.setItem(storageKey, JSON.stringify(current));
   };
 
+  const isLocalFinance = isDemoMode || !isSupabaseConfigured || currentHousehold?.id === 'hh-santos-family';
+
   // ----------------------------------------------------------------------------
   // TRANSACTIONS CRUD
   // ----------------------------------------------------------------------------
@@ -288,7 +290,7 @@ export const FinanceProvider = ({ children }) => {
       amount: Number(tx.amount),
     };
 
-    if (isDemoMode || !isSupabaseConfigured) {
+    if (isLocalFinance) {
       const createdTx = {
         ...newTx,
         id: `tx-${Date.now()}`,
@@ -347,7 +349,7 @@ export const FinanceProvider = ({ children }) => {
   };
 
   const updateTransaction = async (id, updates) => {
-    if (isDemoMode || !isSupabaseConfigured) {
+    if (isLocalFinance) {
       const categoryObj = categories.find(c => c.id === updates.category_id);
       const updated = transactions.map(t => {
         if (t.id === id) {
@@ -386,7 +388,7 @@ export const FinanceProvider = ({ children }) => {
   };
 
   const deleteTransaction = async (id) => {
-    if (isDemoMode || !isSupabaseConfigured) {
+    if (isLocalFinance) {
       const updated = transactions.filter(t => t.id !== id);
       setTransactions(updated);
       persistDemoData({ transactions: updated });
@@ -412,7 +414,7 @@ export const FinanceProvider = ({ children }) => {
 
     const numAmount = Number(amount);
 
-    if (isDemoMode || !isSupabaseConfigured) {
+    if (isLocalFinance) {
       const existingIndex = budgets.findIndex(
         b => b.category_id === category_id && b.month === Number(month) && b.year === Number(year)
       );
@@ -464,7 +466,7 @@ export const FinanceProvider = ({ children }) => {
   const deleteBudget = async (id) => {
     if (!isOwnerOrAdmin) return { success: false, error: 'Only owners and admins can delete category budgets.' };
 
-    if (isDemoMode || !isSupabaseConfigured) {
+    if (isLocalFinance) {
       const updated = budgets.filter(b => b.id !== id);
       setBudgets(updated);
       persistDemoData({ budgets: updated });
@@ -501,7 +503,7 @@ export const FinanceProvider = ({ children }) => {
       notes: billData.notes || '',
     };
 
-    if (isDemoMode || !isSupabaseConfigured) {
+    if (isLocalFinance) {
       const createdBill = {
         ...newBill,
         id: `bill-${Date.now()}`,
@@ -540,7 +542,7 @@ export const FinanceProvider = ({ children }) => {
   };
 
   const updateBill = async (id, updates) => {
-    if (isDemoMode || !isSupabaseConfigured) {
+    if (isLocalFinance) {
       const updated = bills.map(b => b.id === id ? { ...b, ...updates, amount: Number(updates.amount ?? b.amount) } : b);
       setBills(updated);
       persistDemoData({ bills: updated });
@@ -567,7 +569,7 @@ export const FinanceProvider = ({ children }) => {
     const targetBill = bills.find(b => b.id === billId);
     if (!targetBill) return { success: false, error: 'Bill not found' };
 
-    if (isDemoMode || !isSupabaseConfigured) {
+    if (isLocalFinance) {
       const newPayment = {
         id: `bp-${Date.now()}`,
         bill_id: billId,
@@ -657,7 +659,7 @@ export const FinanceProvider = ({ children }) => {
   };
 
   const deleteBill = async (id) => {
-    if (isDemoMode || !isSupabaseConfigured) {
+    if (isLocalFinance) {
       const updated = bills.filter(b => b.id !== id);
       setBills(updated);
       persistDemoData({ bills: updated });
@@ -691,7 +693,7 @@ export const FinanceProvider = ({ children }) => {
       is_completed: false,
     };
 
-    if (isDemoMode || !isSupabaseConfigured) {
+    if (isLocalFinance) {
       const createdGoal = {
         ...newGoal,
         id: `goal-${Date.now()}`,
@@ -729,7 +731,7 @@ export const FinanceProvider = ({ children }) => {
     const targetGoal = savingsGoals.find(g => g.id === goalId);
     if (!targetGoal) return { success: false, error: 'Goal not found' };
 
-    if (isDemoMode || !isSupabaseConfigured) {
+    if (isLocalFinance) {
       const newContrib = {
         id: `sc-${Date.now()}`,
         goal_id: goalId,
@@ -775,7 +777,7 @@ export const FinanceProvider = ({ children }) => {
   };
 
   const deleteSavingsGoal = async (id) => {
-    if (isDemoMode || !isSupabaseConfigured) {
+    if (isLocalFinance) {
       const updated = savingsGoals.filter(g => g.id !== id);
       setSavingsGoals(updated);
       persistDemoData({ savingsGoals: updated });

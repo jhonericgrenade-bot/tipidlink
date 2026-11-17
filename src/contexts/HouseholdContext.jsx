@@ -278,18 +278,13 @@ export const HouseholdProvider = ({ children }) => {
         localStorage.setItem(storageKey, JSON.stringify(hhList));
       }
 
-      // Check if user has joined Santos Family (via code SANTOS2026)
-      const hasJoinedSantos = (user?.id && localStorage.getItem(`tipidlink_user_joined_santos_${user.id}`) === 'true')
-        || localStorage.getItem('tipidlink_active_household_id') === 'hh-santos-family';
-
-      if (hasJoinedSantos) {
-        const santosWithRole = {
-          ...INITIAL_DEMO_DATA.household,
-          user_role: 'member',
-        };
-        if (!hhList.some(h => h.id === santosWithRole.id)) {
-          hhList.unshift(santosWithRole);
-        }
+      // Always include Santos Family Household for seamless multi-device demo across CP, PC, and all browsers
+      const santosWithRole = {
+        ...INITIAL_DEMO_DATA.household,
+        user_role: 'member',
+      };
+      if (!hhList.some(h => h.id === santosWithRole.id)) {
+        hhList.unshift(santosWithRole);
       }
 
       // Sort hhList so joined households appear first
@@ -349,19 +344,13 @@ export const HouseholdProvider = ({ children }) => {
         })
         .filter(Boolean);
 
-      // Check if user has joined Santos Family (via code SANTOS2026)
-      const hasJoinedSantos = (user?.id && localStorage.getItem(`tipidlink_user_joined_santos_${user.id}`) === 'true')
-        || localStorage.getItem('tipidlink_active_household_id') === 'hh-santos-family'
-        || (user?.id && localStorage.getItem(`tipidlink_active_household_${user.id}`) === 'hh-santos-family');
-
-      if (hasJoinedSantos) {
-        const santosWithRole = {
-          ...INITIAL_DEMO_DATA.household,
-          user_role: 'member',
-        };
-        if (!hhList.some(h => h.id === santosWithRole.id)) {
-          hhList.unshift(santosWithRole);
-        }
+      // Always include Santos Family Household for seamless multi-device demo across CP, PC, and all browsers
+      const santosWithRole = {
+        ...INITIAL_DEMO_DATA.household,
+        user_role: 'member',
+      };
+      if (!hhList.some(h => h.id === santosWithRole.id)) {
+        hhList.unshift(santosWithRole);
       }
 
       // If user signed up with a pending invite code, join that household first
@@ -481,17 +470,37 @@ export const HouseholdProvider = ({ children }) => {
   const loadMembers = async (householdId) => {
     // If it's Santos Family or demo mode, load from local storage or INITIAL_DEMO_DATA
     if (householdId === 'hh-santos-family' || isDemoMode) {
+      let baseList = INITIAL_DEMO_DATA.members;
       const savedMembers = localStorage.getItem(`tipidlink_members_${householdId}`)
         || localStorage.getItem(`tipidlink_demo_members_${householdId}`);
       if (savedMembers) {
         try {
-          setMembers(JSON.parse(savedMembers));
-          return;
+          baseList = JSON.parse(savedMembers);
         } catch (e) {
           console.error(e);
         }
       }
-      setMembers(INITIAL_DEMO_DATA.members);
+
+      // If a real registered user is logged in, ensure they are also included in the family members list
+      if (user && user.id) {
+        const alreadyIn = baseList.some(m => m.user_id === user.id || (user.email && m.email === user.email));
+        if (!alreadyIn) {
+          const currentFullName = user?.user_metadata?.full_name || profile?.full_name || user?.email?.split('@')[0] || 'Family Member';
+          const newMember = {
+            id: `mem-${user.id}`,
+            household_id: 'hh-santos-family',
+            user_id: user.id,
+            full_name: currentFullName,
+            email: user.email || '',
+            role: 'member',
+            nickname: currentFullName.split(' ')[0] || 'Member',
+            joined_at: new Date().toISOString(),
+          };
+          baseList = [...baseList, newMember];
+        }
+      }
+
+      setMembers(baseList);
       return;
     }
 
