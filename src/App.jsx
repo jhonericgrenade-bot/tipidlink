@@ -9,7 +9,6 @@ import { MobileNav } from './components/MobileNav';
 import { CreateHouseholdModal, JoinHouseholdModal } from './components/HouseholdModals';
 import { PremiumUpgradeModal } from './components/PremiumUpgradeModal';
 import { InstallPwaPrompt } from './components/InstallPwaPrompt';
-import { SystemTourRecorder } from './components/SystemTourRecorder';
 import { LoadingSpinner } from './components/LoadingSpinner';
 
 // Pages
@@ -89,9 +88,6 @@ const ProtectedLayout = () => {
           isOpen={isUpgradeModalOpen}
           onClose={closeUpgradeModal}
         />
-
-        {/* Live Actual System Tour & Screen-to-Video Recorder */}
-        <SystemTourRecorder />
       </div>
     </FinanceProvider>
   );
