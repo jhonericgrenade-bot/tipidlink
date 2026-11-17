@@ -278,13 +278,20 @@ export const HouseholdProvider = ({ children }) => {
         localStorage.setItem(storageKey, JSON.stringify(hhList));
       }
 
-      // Always include Santos Family Household for seamless multi-device demo across CP, PC, and all browsers
-      const santosWithRole = {
-        ...INITIAL_DEMO_DATA.household,
-        user_role: 'member',
-      };
-      if (!hhList.some(h => h.id === santosWithRole.id)) {
-        hhList.unshift(santosWithRole);
+      // A user only has Santos Family if in demo mode OR explicitly joined via code SANTOS2026
+      const hasJoinedSantos = isDemoMode
+        || (user?.id && localStorage.getItem(`tipidlink_user_joined_santos_${user.id}`) === 'true')
+        || (user?.user_metadata?.joined_santos === true)
+        || (profile?.phone && profile.phone.includes('JOINED:SANTOS2026'));
+
+      if (hasJoinedSantos) {
+        const santosWithRole = {
+          ...INITIAL_DEMO_DATA.household,
+          user_role: 'member',
+        };
+        if (!hhList.some(h => h.id === santosWithRole.id)) {
+          hhList.unshift(santosWithRole);
+        }
       }
 
       // Sort hhList so joined households appear first
@@ -344,13 +351,20 @@ export const HouseholdProvider = ({ children }) => {
         })
         .filter(Boolean);
 
-      // Always include Santos Family Household for seamless multi-device demo across CP, PC, and all browsers
-      const santosWithRole = {
-        ...INITIAL_DEMO_DATA.household,
-        user_role: 'member',
-      };
-      if (!hhList.some(h => h.id === santosWithRole.id)) {
-        hhList.unshift(santosWithRole);
+      // A user only has Santos Family if in demo mode OR explicitly joined via code SANTOS2026
+      const hasJoinedSantos = isDemoMode
+        || (user?.id && localStorage.getItem(`tipidlink_user_joined_santos_${user.id}`) === 'true')
+        || (user?.user_metadata?.joined_santos === true)
+        || (profile?.phone && profile.phone.includes('JOINED:SANTOS2026'));
+
+      if (hasJoinedSantos) {
+        const santosWithRole = {
+          ...INITIAL_DEMO_DATA.household,
+          user_role: 'member',
+        };
+        if (!hhList.some(h => h.id === santosWithRole.id)) {
+          hhList.unshift(santosWithRole);
+        }
       }
 
       // If user signed up with a pending invite code, join that household first
@@ -656,6 +670,27 @@ export const HouseholdProvider = ({ children }) => {
         localStorage.setItem(`tipidlink_user_joined_santos_${user.id}`, 'true');
       }
 
+      // Persist across devices to Supabase user metadata and profile!
+      if (user && isSupabaseConfigured && !isDemoMode) {
+        try {
+          await supabase.auth.updateUser({
+            data: { joined_santos: true }
+          });
+        } catch (authErr) {
+          console.warn('Could not update auth metadata:', authErr);
+        }
+
+        try {
+          const currentPhone = profile?.phone || '';
+          if (!currentPhone.includes('JOINED:SANTOS2026')) {
+            const updatedPhone = currentPhone ? `${currentPhone}|JOINED:SANTOS2026` : 'JOINED:SANTOS2026';
+            await supabase.from('profiles').update({ phone: updatedPhone }).eq('id', user.id);
+          }
+        } catch (dbErr) {
+          console.warn('Could not update profile join status:', dbErr);
+        }
+      }
+
       return { success: true, household: santosWithRole };
     }
 
@@ -957,6 +992,19 @@ export const HouseholdProvider = ({ children }) => {
       if (localStorage.getItem(`tipidlink_active_household_${user.id}`) === 'hh-santos-family') {
         localStorage.removeItem(`tipidlink_active_household_${user.id}`);
       }
+
+      if (user && isSupabaseConfigured && !isDemoMode) {
+        try {
+          await supabase.auth.updateUser({
+            data: { joined_santos: false }
+          });
+          const cleanPhone = (profile?.phone || '').replace(/\|?JOINED:SANTOS2026/g, '');
+          await supabase.from('profiles').update({ phone: cleanPhone }).eq('id', user.id);
+        } catch (e) {
+          console.warn('Reset metadata on leave:', e);
+        }
+      }
+
       const remaining = households.filter(h => h.id !== householdId);
       setHouseholds(remaining);
       const nextActive = remaining[0] || null;
