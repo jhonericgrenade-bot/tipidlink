@@ -21,6 +21,7 @@ import {
   Users,
   AlertTriangle,
   RefreshCw,
+  LogOut,
 } from 'lucide-react';
 
 export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
@@ -38,7 +39,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
     loading,
     refreshMembers,
   } = useHousehold();
-  const { user, isDemoMode } = useAuth();
+  const { user, profile, isDemoMode, signOut } = useAuth();
   const { isPremium, openUpgradeModal } = usePremium();
 
   const [copied, setCopied] = useState(false);
@@ -524,6 +525,40 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
             <span className="font-black text-amber-700 text-sm">3. Click Join with Code</span>
             <p className="mt-1 text-slate-500">In the top menu, click <strong>"Join with Code"</strong> and paste the invite code. You can now manage your budget together!</p>
           </div>
+        </div>
+      </div>
+
+      {/* Account & Quick Sign Out Card */}
+      <div className="rounded-3xl bg-white p-6 shadow-xs border border-slate-200/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <img
+            src={
+              profile?.avatar_url ||
+              `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
+                profile?.full_name || user?.email || 'User'
+              )}`
+            }
+            alt="User avatar"
+            className="h-11 w-11 rounded-2xl object-cover ring-2 ring-emerald-500/20"
+          />
+          <div>
+            <h4 className="text-sm font-bold text-slate-900">
+              {profile?.full_name || 'Family Member'}
+            </h4>
+            <p className="text-xs text-slate-500">
+              {user?.email} • Role: <span className="font-semibold capitalize text-emerald-700">{currentUserRole || 'member'}</span>
+            </p>
+          </div>
+        </div>
+        <div>
+          <button
+            type="button"
+            onClick={signOut}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-5 py-2.5 text-xs font-bold transition cursor-pointer shadow-xs active:scale-95"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>Sign Out / Mag-log out</span>
+          </button>
         </div>
       </div>
 

@@ -77,27 +77,26 @@ export const Navbar = ({ onOpenCreateHousehold, onOpenJoinHousehold }) => {
           })}
         </nav>
 
-        {/* Right side: Mode Pill + Premium + Profile */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Install App on Phone Button */}
+        {/* Right side: Mode Pill + Premium + Profile + Quick Mobile Logout */}
+        <div className="flex items-center gap-1.5 sm:gap-3">
+          {/* Install App on Phone Button - Hidden on mobile screen to prevent header overflow */}
           <button
             onClick={() => {
               if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('tipidlink-open-install-modal'));
               }
             }}
-            className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 text-white px-3 py-1.5 text-xs font-bold transition shadow-xs hover:bg-slate-800 cursor-pointer"
+            className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-slate-900 text-white px-3 py-1.5 text-xs font-bold transition shadow-xs hover:bg-slate-800 cursor-pointer"
             title="Install TipidLink app on your phone (Android & iOS)"
           >
             <Smartphone className="h-3.5 w-3.5 text-emerald-400" />
-            <span className="hidden sm:inline">Install App</span>
-            <span className="sm:hidden">Install</span>
+            <span>Install App</span>
           </button>
 
-          {/* PHP 30 Premium Plan Button / Active Badge */}
+          {/* PHP 30 Premium Plan Button / Active Badge - Compact on mobile */}
           <button
             onClick={openUpgradeModal}
-            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition shadow-xs cursor-pointer ${
+            className={`inline-flex items-center gap-1 sm:gap-1.5 rounded-full px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-bold transition shadow-xs cursor-pointer ${
               isPremium
                 ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:from-amber-600 hover:to-amber-700'
                 : 'bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100'
@@ -105,27 +104,38 @@ export const Navbar = ({ onOpenCreateHousehold, onOpenJoinHousehold }) => {
             title="TipidLink Business Model: ₱30 Premium Plan & Community Access"
           >
             <Crown className={`h-3.5 w-3.5 ${isPremium ? 'fill-white text-white' : 'text-amber-500 fill-amber-500'}`} />
-            <span>{isPremium ? 'Premium Active' : '₱30 Premium'}</span>
+            <span className="hidden sm:inline">{isPremium ? 'Premium Active' : '₱30 Premium'}</span>
+            <span className="sm:hidden">{isPremium ? 'Pro' : '₱30'}</span>
           </button>
 
           {/* Supabase or Demo Mode badge */}
           {isDemoMode ? (
-            <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 border border-amber-200">
+            <span className="hidden md:inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 border border-amber-200">
               <Sparkles className="h-3 w-3 text-amber-600" />
               Demo Mode
             </span>
           ) : (
-            <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 border border-emerald-200">
+            <span className="hidden md:inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 border border-emerald-200">
               <Database className="h-3 w-3 text-emerald-600" />
               Supabase RLS
             </span>
           )}
 
+          {/* Quick Direct Mobile Sign Out Button - 1-tap Logout on Mobile, Zero Swiping Needed */}
+          <button
+            onClick={signOut}
+            className="sm:hidden inline-flex items-center justify-center h-8 w-8 rounded-xl text-rose-600 hover:bg-rose-50 active:scale-95 transition border border-rose-200/80 bg-rose-50/60 cursor-pointer"
+            title="Sign Out / Mag-log out"
+            aria-label="Sign Out"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
+
           {/* User Profile Dropdown */}
           <div className="relative">
             <button
               onClick={() => setProfileOpen(!profileOpen)}
-              className="flex items-center gap-2 rounded-xl p-1.5 hover:bg-slate-100 transition border border-transparent hover:border-slate-200"
+              className="flex items-center gap-1.5 sm:gap-2 rounded-xl p-1 sm:p-1.5 hover:bg-slate-100 transition border border-transparent hover:border-slate-200"
             >
               <img
                 src={
@@ -149,10 +159,16 @@ export const Navbar = ({ onOpenCreateHousehold, onOpenJoinHousehold }) => {
             </button>
 
             {profileOpen && (
-              <div
-                className="absolute right-0 mt-2 w-64 rounded-2xl bg-white p-2 shadow-xl border border-slate-100 z-50 animate-in fade-in zoom-in-95"
-                onMouseLeave={() => setProfileOpen(false)}
-              >
+              <>
+                {/* Backdrop on mobile to easily close menu by tapping anywhere */}
+                <div
+                  className="fixed inset-0 z-40 bg-slate-900/20 sm:hidden"
+                  onClick={() => setProfileOpen(false)}
+                />
+                <div
+                  className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-1.5rem)] rounded-2xl bg-white p-2 shadow-xl border border-slate-100 z-50 animate-in fade-in zoom-in-95"
+                  onMouseLeave={() => setProfileOpen(false)}
+                >
                 <div className="px-3 py-2.5 border-b border-slate-100">
                   <p className="text-xs font-bold text-slate-900">{profile?.full_name || 'Member'}</p>
                   <p className="text-[11px] text-slate-500 truncate">{user?.email}</p>
@@ -243,8 +259,9 @@ export const Navbar = ({ onOpenCreateHousehold, onOpenJoinHousehold }) => {
                   </button>
                 </div>
               </div>
-            )}
-          </div>
+            </>
+          )}
+        </div>
         </div>
       </div>
     </header>

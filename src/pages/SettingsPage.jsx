@@ -38,10 +38,11 @@ import {
   FileText,
   Smartphone,
   Apple,
+  LogOut,
 } from 'lucide-react';
 
 export const SettingsPage = () => {
-  const { user, profile, updatePassword, updateSecurityPin, isDemoMode } = useAuth();
+  const { user, profile, updatePassword, updateSecurityPin, isDemoMode, signOut } = useAuth();
   const { currentUserRole, currentHousehold } = useHousehold();
   const {
     transactions,
@@ -177,13 +178,22 @@ export const SettingsPage = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
             <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${
               isPremium ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-slate-100 text-slate-700'
             }`}>
               <Crown className="h-3.5 w-3.5 text-amber-500 fill-current" />
               <span>{isPremium ? 'Pro Account' : 'Free Plan'}</span>
             </span>
+            <button
+              type="button"
+              onClick={signOut}
+              className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-3 py-1 text-xs font-bold transition cursor-pointer active:scale-95 shadow-2xs"
+              title="Mag-log out sa kasalukuyang session"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span>Sign Out</span>
+            </button>
           </div>
         </div>
 
@@ -886,6 +896,24 @@ export const SettingsPage = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Session Management & Quick Log Out */}
+      <div className="rounded-3xl bg-white p-6 shadow-xs border border-slate-200/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h4 className="text-sm font-bold text-slate-900">Session &amp; Account Sign Out</h4>
+          <p className="text-xs text-slate-500">
+            Sign out of your active TipidLink session on this device.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={signOut}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-5 py-2.5 text-xs font-bold transition shadow-xs cursor-pointer active:scale-95"
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Sign Out / Mag-log out</span>
+        </button>
       </div>
 
       {/* Presentation Project Credits */}

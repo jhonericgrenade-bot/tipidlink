@@ -48,7 +48,7 @@ export const HouseholdSelector = ({ onOpenCreateModal, onOpenJoinModal }) => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2.5 rounded-xl bg-slate-100/90 px-3 py-2 text-left text-sm font-semibold text-slate-800 hover:bg-slate-200/80 transition border border-slate-200/60 max-w-[210px] sm:max-w-[260px]"
+        className="flex items-center gap-1.5 sm:gap-2.5 rounded-xl bg-slate-100/90 px-2 sm:px-3 py-1.5 sm:py-2 text-left text-sm font-semibold text-slate-800 hover:bg-slate-200/80 transition border border-slate-200/60 max-w-[125px] sm:max-w-[260px]"
       >
         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-xs">
           <Home className="h-4 w-4" />
@@ -57,11 +57,11 @@ export const HouseholdSelector = ({ onOpenCreateModal, onOpenJoinModal }) => {
           <p className="truncate text-xs font-bold leading-tight text-slate-900">
             {currentHousehold.name}
           </p>
-          <p className="truncate text-[10px] text-slate-500 font-medium">
+          <p className="hidden sm:block truncate text-[10px] text-slate-500 font-medium">
             {isPremium ? `Code: ${currentHousehold.invite_code || shareCode}` : 'Code: •••••••• (₱30 Pro)'}
           </p>
         </div>
-        <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
