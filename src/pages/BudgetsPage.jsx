@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useFinance } from '../contexts/FinanceContext';
 import { useHousehold } from '../contexts/HouseholdContext';
 import { formatPHP } from '../lib/formatters';
@@ -34,6 +34,7 @@ export const BudgetsPage = () => {
   } = useFinance();
 
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [editingBudgetId, setEditingBudgetId] = useState(null);
   const [isOverallModalOpen, setIsOverallModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -66,6 +67,12 @@ export const BudgetsPage = () => {
   const [overallTarget, setOverallTarget] = useState(
     String(currentHousehold?.monthly_budget_target || 65000)
   );
+
+  useEffect(() => {
+    if (currentHousehold?.monthly_budget_target) {
+      setOverallTarget(String(currentHousehold.monthly_budget_target));
+    }
+  }, [currentHousehold?.monthly_budget_target]);
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -111,12 +118,27 @@ export const BudgetsPage = () => {
     }).sort((a, b) => b.budgetAmount - a.budgetAmount);
   }, [budgets, categories, calculations.monthlyTransactions, selectedMonth, selectedYear]);
 
+  const handleOpenAddCategory = () => {
+    setEditingBudgetId(null);
+    setCatId('');
+    setCatAmount('');
+    setIsCategoryModalOpen(true);
+  };
+
+  const handleOpenEditCategory = (b) => {
+    setEditingBudgetId(b.id);
+    setCatId(b.category_id);
+    setCatAmount(String(b.budgetAmount || b.amount));
+    setIsCategoryModalOpen(true);
+  };
+
   const handleSaveCategoryBudget = async (e) => {
     e.preventDefault();
     if (!catId || !catAmount) return;
     setLoading(true);
 
     await setCategoryBudget({
+      id: editingBudgetId,
       category_id: catId,
       month: selectedMonth,
       year: selectedYear,
@@ -126,6 +148,7 @@ export const BudgetsPage = () => {
     setLoading(false);
     setCatId('');
     setCatAmount('');
+    setEditingBudgetId(null);
     setIsCategoryModalOpen(false);
   };
 
@@ -139,12 +162,16 @@ export const BudgetsPage = () => {
     if (!overallTarget) return;
     setLoading(true);
 
-    await updateHousehold({
+    const res = await updateHousehold({
       monthly_budget_target: Number(overallTarget),
     });
 
     setLoading(false);
-    setIsOverallModalOpen(false);
+    if (res?.success === false) {
+      alert(res.error || 'Failed to update monthly budget target.');
+    } else {
+      setIsOverallModalOpen(false);
+    }
   };
 
   return (
@@ -182,7 +209,7 @@ export const BudgetsPage = () => {
                 Set Monthly Target
               </button>
               <button
-                onClick={() => setIsCategoryModalOpen(true)}
+                onClick={handleOpenAddCategory}
                 className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press hover-lift transition cursor-pointer"
               >
                 <Plus className="h-4 w-4" />
@@ -334,7 +361,7 @@ export const BudgetsPage = () => {
             </p>
             {isOwnerOrAdmin ? (
               <button
-                onClick={() => setIsCategoryModalOpen(true)}
+                onClick={handleOpenAddCategory}
                 className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press hover-lift transition cursor-pointer"
               >
                 <Plus className="h-4 w-4" />
@@ -386,13 +413,26 @@ export const BudgetsPage = () => {
                     )}
 
                     {isOwnerOrAdmin && (
-                      <button
-                        onClick={() => deleteBudget(b.id)}
-                        className="rounded-lg p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 active-press transition cursor-pointer"
-                        title="Remove budget"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleOpenEditCategory(b)}
+                          className="rounded-lg p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 active-press transition cursor-pointer"
+                          title="Edit this category budget limit"
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Are you sure you want to remove the budget limit for "${b.categoryName}"?`)) {
+                              deleteBudget(b.id);
+                            }
+                          }}
+                          className="rounded-lg p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 active-press transition cursor-pointer"
+                          title="Remove budget"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -425,15 +465,20 @@ export const BudgetsPage = () => {
         )}
       </div>
 
-      {/* Set Category Budget Modal */}
+      {/* Set / Edit Category Budget Modal */}
       <Modal
         isOpen={isCategoryModalOpen}
-        onClose={() => setIsCategoryModalOpen(false)}
-        title="Set Category Monthly Budget"
+        onClose={() => {
+          setIsCategoryModalOpen(false);
+          setEditingBudgetId(null);
+        }}
+        title={editingBudgetId ? 'Edit Category Budget Limit' : 'Set Category Monthly Budget'}
       >
         <form onSubmit={handleSaveCategoryBudget} className="space-y-4">
           <p className="text-xs text-slate-500">
-            Assign a spending ceiling for {months[selectedMonth - 1]} {selectedYear}.
+            {editingBudgetId
+              ? `Update spending limit for ${months[selectedMonth - 1]} ${selectedYear}.`
+              : `Assign a spending ceiling for ${months[selectedMonth - 1]} ${selectedYear}.`}
           </p>
 
           <div>
@@ -476,7 +521,10 @@ export const BudgetsPage = () => {
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
             <button
               type="button"
-              onClick={() => setIsCategoryModalOpen(false)}
+              onClick={() => {
+                setIsCategoryModalOpen(false);
+                setEditingBudgetId(null);
+              }}
               className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition"
             >
               Cancel
@@ -486,7 +534,7 @@ export const BudgetsPage = () => {
               disabled={loading}
               className="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition disabled:opacity-50"
             >
-              {loading ? 'Saving...' : 'Save Budget'}
+              {loading ? 'Saving...' : editingBudgetId ? 'Update Budget' : 'Save Budget'}
             </button>
           </div>
         </form>
