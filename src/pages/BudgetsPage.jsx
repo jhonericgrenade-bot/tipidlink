@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 export const BudgetsPage = () => {
-  const { currentHousehold, updateHousehold, isOwnerOrAdmin } = useHousehold();
+  const { currentHousehold, updateHousehold, isOwnerOrAdmin, isOwner } = useHousehold();
   const {
     transactions,
     budgets,
@@ -154,11 +154,6 @@ export const BudgetsPage = () => {
 
   const handleSaveOverallTarget = async (e) => {
     e.preventDefault();
-    if (!isOwnerOrAdmin) {
-      alert('Only the Household Owner and Admins have permission to modify the Monthly Budget Target.');
-      setIsOverallModalOpen(false);
-      return;
-    }
     if (!overallTarget) return;
     setLoading(true);
 

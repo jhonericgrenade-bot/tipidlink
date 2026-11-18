@@ -28,7 +28,7 @@ const FinanceContext = createContext(null);
 
 export const FinanceProvider = ({ children }) => {
   const { user, profile, isDemoMode } = useAuth();
-  const { currentHousehold, isOwnerOrAdmin } = useHousehold();
+  const { currentHousehold, isOwnerOrAdmin, isOwner } = useHousehold();
 
   // Instant Stale-While-Revalidate hydration: warm cache displays at 0ms so data never disappears
   const initialCache = useMemo(() => getInitialFinanceData(), []);
@@ -569,7 +569,10 @@ export const FinanceProvider = ({ children }) => {
   // ----------------------------------------------------------------------------
   const setCategoryBudget = async ({ id, category_id, month, year, amount }) => {
     if (!currentHousehold) return { success: false, error: 'No active household' };
-    if (!isOwnerOrAdmin) return { success: false, error: 'Only owners and admins can set category budgets.' };
+    // Resilient permission: allow if isOwnerOrAdmin OR the user created this household
+    const isCreator = user?.id && currentHousehold?.created_by === user.id;
+    const hasPermission = isOwnerOrAdmin || isCreator || currentHousehold?.user_role === 'owner' || currentHousehold?.user_role === 'admin';
+    if (!hasPermission) return { success: false, error: 'Only owners and admins can set category budgets.' };
 
     const numAmount = Number(amount);
     const targetMonth = Number(month);
@@ -685,7 +688,10 @@ export const FinanceProvider = ({ children }) => {
   };
 
   const deleteBudget = async (id) => {
-    if (!isOwnerOrAdmin) return { success: false, error: 'Only owners and admins can delete category budgets.' };
+    // Resilient permission: allow if isOwnerOrAdmin OR the user created this household
+    const isCreator = user?.id && currentHousehold?.created_by === user.id;
+    const hasPermission = isOwnerOrAdmin || isCreator || currentHousehold?.user_role === 'owner' || currentHousehold?.user_role === 'admin';
+    if (!hasPermission) return { success: false, error: 'Only owners and admins can delete category budgets.' };
 
     if (isLocalFinance) {
       const updated = budgets.filter(b => b.id !== id);
