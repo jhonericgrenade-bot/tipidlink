@@ -3,7 +3,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { useHousehold } from './HouseholdContext';
 import { INITIAL_DEMO_DATA } from '../lib/mockData';
-import { broadcastSyncEvent, subscribeToSyncEvents } from '../lib/realtimeSync';
+import { broadcastSyncEvent, subscribeToSyncEvents, isMatchingHouseholdId } from '../lib/realtimeSync';
 
 const isUuid = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
@@ -79,10 +79,30 @@ export const FinanceProvider = ({ children }) => {
 
     // 1. Universal Realtime Sync Listener (Supabase WebSocket + BroadcastChannel + Storage fallback)
     const unsubscribe = subscribeToSyncEvents((event, payload) => {
-      if (event === 'finance_updated' || event === 'household_updated') {
-        if (!payload.householdId || payload.householdId === householdId) {
-          loadHouseholdData(householdId, { silent: true });
+      const matchesCurrent = isMatchingHouseholdId(payload.householdId, householdId, payload.inviteCode, currentHousehold?.invite_code);
+      if (!matchesCurrent) return;
+
+      if (event === 'finance_updated') {
+        // Direct optimistic payload merge for instant real-time sync across devices
+        if (payload.budgets && Array.isArray(payload.budgets)) {
+          setBudgets(payload.budgets);
+          persistDemoData({ budgets: payload.budgets });
         }
+        if (payload.transactions && Array.isArray(payload.transactions)) {
+          setTransactions(payload.transactions);
+          persistDemoData({ transactions: payload.transactions });
+        }
+        if (payload.bills && Array.isArray(payload.bills)) {
+          setBills(payload.bills);
+          persistDemoData({ bills: payload.bills });
+        }
+        if (payload.savingsGoals && Array.isArray(payload.savingsGoals)) {
+          setSavingsGoals(payload.savingsGoals);
+          persistDemoData({ savingsGoals: payload.savingsGoals });
+        }
+        loadHouseholdData(householdId, { silent: true });
+      } else if (event === 'household_updated') {
+        loadHouseholdData(householdId, { silent: true });
       }
     });
 
@@ -431,7 +451,12 @@ export const FinanceProvider = ({ children }) => {
       const updated = [createdTx, ...transactions];
       setTransactions(updated);
       persistDemoData({ transactions: updated });
-      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
+      broadcastSyncEvent('finance_updated', {
+        householdId: currentHousehold.id,
+        inviteCode: currentHousehold.invite_code,
+        transactions: updated,
+        type: 'transaction',
+      });
       return { success: true, transaction: createdTx };
     }
 
@@ -471,7 +496,12 @@ export const FinanceProvider = ({ children }) => {
       const updated = [formatted, ...transactions];
       setTransactions(updated);
       persistDemoData({ transactions: updated });
-      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
+      broadcastSyncEvent('finance_updated', {
+        householdId: currentHousehold.id,
+        inviteCode: currentHousehold.invite_code,
+        transactions: updated,
+        type: 'transaction',
+      });
       return { success: true, transaction: formatted };
     } catch (err) {
       console.error('Add transaction failed:', err);
@@ -496,7 +526,12 @@ export const FinanceProvider = ({ children }) => {
       });
       setTransactions(updated);
       persistDemoData({ transactions: updated });
-      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
+      broadcastSyncEvent('finance_updated', {
+        householdId: currentHousehold.id,
+        inviteCode: currentHousehold.invite_code,
+        transactions: updated,
+        type: 'transaction',
+      });
       return { success: true };
     }
 
@@ -512,8 +547,13 @@ export const FinanceProvider = ({ children }) => {
 
       if (error) throw error;
 
-      await loadHouseholdData(currentHousehold.id, { silent: true });
-      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
+      const fresh = await loadHouseholdData(currentHousehold.id, { silent: true });
+      broadcastSyncEvent('finance_updated', {
+        householdId: currentHousehold.id,
+        inviteCode: currentHousehold.invite_code,
+        budgets: fresh?.budgets || budgets,
+        type: 'budget',
+      });
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -525,7 +565,12 @@ export const FinanceProvider = ({ children }) => {
       const updated = transactions.filter(t => t.id !== id);
       setTransactions(updated);
       persistDemoData({ transactions: updated });
-      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
+      broadcastSyncEvent('finance_updated', {
+        householdId: currentHousehold.id,
+        inviteCode: currentHousehold.invite_code,
+        transactions: updated,
+        type: 'transaction',
+      });
       return { success: true };
     }
 
@@ -573,7 +618,12 @@ export const FinanceProvider = ({ children }) => {
 
       setBudgets(updated);
       persistDemoData({ budgets: updated });
-      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
+      broadcastSyncEvent('finance_updated', {
+        householdId: currentHousehold.id,
+        inviteCode: currentHousehold.invite_code,
+        budgets: updated,
+        type: 'budget',
+      });
       return { success: true };
     }
 
@@ -629,8 +679,13 @@ export const FinanceProvider = ({ children }) => {
         }
       }
 
-      await loadHouseholdData(currentHousehold.id, { silent: true });
-      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
+      const fresh = await loadHouseholdData(currentHousehold.id, { silent: true });
+      broadcastSyncEvent('finance_updated', {
+        householdId: currentHousehold.id,
+        inviteCode: currentHousehold.invite_code,
+        budgets: fresh?.budgets || budgets,
+        type: 'budget',
+      });
       return { success: true };
     } catch (err) {
       console.warn('Direct Supabase budget save note, applying resilient state update:', err);
@@ -654,7 +709,12 @@ export const FinanceProvider = ({ children }) => {
       }
       setBudgets(updated);
       persistDemoData({ budgets: updated });
-      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
+      broadcastSyncEvent('finance_updated', {
+        householdId: currentHousehold.id,
+        inviteCode: currentHousehold.invite_code,
+        budgets: updated,
+        type: 'budget',
+      });
       return { success: true };
     }
   };
@@ -666,15 +726,26 @@ export const FinanceProvider = ({ children }) => {
       const updated = budgets.filter(b => b.id !== id);
       setBudgets(updated);
       persistDemoData({ budgets: updated });
-      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
+      broadcastSyncEvent('finance_updated', {
+        householdId: currentHousehold.id,
+        inviteCode: currentHousehold.invite_code,
+        budgets: updated,
+        type: 'budget',
+      });
       return { success: true };
     }
 
     try {
       const { error } = await supabase.from('budgets').delete().eq('id', id);
       if (error) throw error;
-      setBudgets(prev => prev.filter(b => b.id !== id));
-      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
+      const updated = budgets.filter(b => b.id !== id);
+      setBudgets(updated);
+      broadcastSyncEvent('finance_updated', {
+        householdId: currentHousehold.id,
+        inviteCode: currentHousehold.invite_code,
+        budgets: updated,
+        type: 'budget',
+      });
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -759,8 +830,13 @@ export const FinanceProvider = ({ children }) => {
       }).eq('id', id);
 
       if (error) throw error;
-      await loadHouseholdData(currentHousehold.id, { silent: true });
-      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
+      const fresh = await loadHouseholdData(currentHousehold.id, { silent: true });
+      broadcastSyncEvent('finance_updated', {
+        householdId: currentHousehold.id,
+        inviteCode: currentHousehold.invite_code,
+        budgets: fresh?.budgets || budgets,
+        type: 'budget',
+      });
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -855,8 +931,13 @@ export const FinanceProvider = ({ children }) => {
           notes: `Ref: ${payment.reference_number || 'N/A'}`,
         });
 
-      await loadHouseholdData(currentHousehold.id, { silent: true });
-      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
+      const fresh = await loadHouseholdData(currentHousehold.id, { silent: true });
+      broadcastSyncEvent('finance_updated', {
+        householdId: currentHousehold.id,
+        inviteCode: currentHousehold.invite_code,
+        budgets: fresh?.budgets || budgets,
+        type: 'budget',
+      });
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -980,8 +1061,13 @@ export const FinanceProvider = ({ children }) => {
 
       if (error) throw error;
 
-      await loadHouseholdData(currentHousehold.id, { silent: true });
-      broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
+      const fresh = await loadHouseholdData(currentHousehold.id, { silent: true });
+      broadcastSyncEvent('finance_updated', {
+        householdId: currentHousehold.id,
+        inviteCode: currentHousehold.invite_code,
+        budgets: fresh?.budgets || budgets,
+        type: 'budget',
+      });
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

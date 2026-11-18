@@ -9,9 +9,20 @@ import { supabase, isSupabaseConfigured } from './supabase';
 
 const SYNC_CHANNEL_NAME = 'tipidlink-shared-sync';
 const syncListeners = new Set();
+const pendingQueue = [];
 let globalSyncChannel = null;
 let isChannelSubscribed = false;
 let globalBc = null;
+
+// Match helper to connect Santos aliases ('hh-santos-family' and UUID '0d37e235-c9dd-4876-a54a-9acb36516599')
+export const isMatchingHouseholdId = (id1, id2, code1, code2) => {
+  if (!id1 || !id2) return true;
+  if (id1 === id2) return true;
+  const santosAliases = ['hh-santos-family', '0d37e235-c9dd-4876-a54a-9acb36516599'];
+  if (santosAliases.includes(id1) && santosAliases.includes(id2)) return true;
+  if (code1 && code2 && String(code1).trim().toUpperCase() === String(code2).trim().toUpperCase()) return true;
+  return false;
+};
 
 // Notify all local listeners (HouseholdContext, FinanceContext, etc.)
 const notifyListeners = (event, payload = {}) => {
@@ -58,6 +69,19 @@ export const initGlobalSync = () => {
     globalSyncChannel.subscribe((status) => {
       if (status === 'SUBSCRIBED') {
         isChannelSubscribed = true;
+        // Flush any pending messages that were queued before handshake
+        while (pendingQueue.length > 0) {
+          const item = pendingQueue.shift();
+          try {
+            globalSyncChannel.send({
+              type: 'broadcast',
+              event: item.event,
+              payload: item.message,
+            });
+          } catch (e) {
+            console.warn('Flushing queued broadcast error:', e);
+          }
+        }
       } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
         isChannelSubscribed = false;
       }
@@ -124,14 +148,19 @@ export const broadcastSyncEvent = (event, payload = {}) => {
   // 1. Supabase WebSocket Broadcast (Cross-device: CP, PC, Tablet)
   const sbChannel = getGlobalSyncChannel();
   if (sbChannel) {
-    try {
-      sbChannel.send({
-        type: 'broadcast',
-        event,
-        payload: message,
-      });
-    } catch (e) {
-      console.warn('Realtime cross-unit broadcast notice:', e);
+    if (isChannelSubscribed) {
+      try {
+        sbChannel.send({
+          type: 'broadcast',
+          event,
+          payload: message,
+        });
+      } catch (e) {
+        console.warn('Realtime cross-unit broadcast notice:', e);
+      }
+    } else {
+      // Queue for transmission once channel subscription establishes
+      pendingQueue.push({ event, message });
     }
   }
 

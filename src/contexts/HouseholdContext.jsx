@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { INITIAL_DEMO_DATA } from '../lib/mockData';
-import { broadcastSyncEvent, subscribeToSyncEvents } from '../lib/realtimeSync';
+import { broadcastSyncEvent, subscribeToSyncEvents, isMatchingHouseholdId } from '../lib/realtimeSync';
 
 // Safe Base64URL encoder/decoder for household share codes
 export const encodeHouseholdCode = (uuid) => {
@@ -1040,7 +1040,11 @@ export const HouseholdProvider = ({ children }) => {
         console.warn('Storage persist note:', e);
       }
 
-      broadcastSyncEvent('household_updated', { householdId: currentHousehold.id, updates });
+      broadcastSyncEvent('household_updated', {
+        householdId: currentHousehold.id,
+        inviteCode: currentHousehold.invite_code,
+        updates,
+      });
     };
 
     if (isDemoMode || !isSupabaseConfigured) {
@@ -1274,23 +1278,27 @@ export const HouseholdProvider = ({ children }) => {
 
     // 1. Universal Realtime Sync Listener (Supabase WebSocket + BroadcastChannel + Storage fallback)
     const unsubscribe = subscribeToSyncEvents((event, payload) => {
-      if (event === 'household_updated') {
-        if (!payload.householdId || payload.householdId === householdId) {
-          if (payload.updates) {
-            setCurrentHousehold(prev => prev && prev.id === householdId ? { ...prev, ...payload.updates } : prev);
-            setHouseholds(prev => prev.map(h => h.id === householdId ? { ...h, ...payload.updates } : h));
-            if (payload.updates.monthly_budget_target !== undefined) {
-              localStorage.setItem(`tipidlink_household_target_${householdId}`, String(payload.updates.monthly_budget_target));
+      const matchesCurrent = isMatchingHouseholdId(payload.householdId, householdId, payload.inviteCode, currentHousehold?.invite_code);
+      if (event === 'household_updated' && matchesCurrent) {
+        if (payload.updates) {
+          setCurrentHousehold(prev => prev ? { ...prev, ...payload.updates } : prev);
+          setHouseholds(prev => prev.map(h => isMatchingHouseholdId(h.id, payload.householdId, h.invite_code, payload.inviteCode) ? { ...h, ...payload.updates } : h));
+          if (payload.updates.monthly_budget_target !== undefined) {
+            const targetVal = String(payload.updates.monthly_budget_target);
+            localStorage.setItem(`tipidlink_household_target_${householdId}`, targetVal);
+            localStorage.setItem('tipidlink_last_saved_target', targetVal);
+            if (householdId === 'hh-santos-family') {
+              localStorage.setItem('tipidlink_household_target_0d37e235-c9dd-4876-a54a-9acb36516599', targetVal);
+            } else if (householdId === '0d37e235-c9dd-4876-a54a-9acb36516599') {
+              localStorage.setItem('tipidlink_household_target_hh-santos-family', targetVal);
             }
           }
-          loadHouseholds(householdId);
         }
-      } else if (event === 'member_joined' || event === 'member_updated') {
-        if (!payload.householdId || payload.householdId === householdId) {
-          loadMembers(householdId);
-          if (event === 'member_joined') {
-            loadHouseholds(householdId);
-          }
+        loadHouseholds(householdId);
+      } else if ((event === 'member_joined' || event === 'member_updated') && matchesCurrent) {
+        loadMembers(householdId);
+        if (event === 'member_joined') {
+          loadHouseholds(householdId);
         }
       }
     });
