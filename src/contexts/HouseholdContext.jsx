@@ -329,10 +329,26 @@ export const HouseholdProvider = ({ children }) => {
         || (profile?.phone && profile.phone.includes('JOINED:SANTOS2026'));
 
       if (hasJoinedSantos) {
+        let directCloudTarget = null;
+        if (isSupabaseConfigured) {
+          try {
+            const { data: directHh } = await supabase
+              .from('households')
+              .select('monthly_budget_target')
+              .eq('id', '0d37e235-c9dd-4876-a54a-9acb36516599')
+              .maybeSingle();
+            if (directHh && directHh.monthly_budget_target !== undefined && directHh.monthly_budget_target !== null) {
+              directCloudTarget = Number(directHh.monthly_budget_target);
+            }
+          } catch (e) {}
+        }
+
         const savedSantosTarget = localStorage.getItem('tipidlink_household_target_0d37e235-c9dd-4876-a54a-9acb36516599')
           || localStorage.getItem('tipidlink_household_target_hh-santos-family')
           || localStorage.getItem('tipidlink_last_saved_target');
-        const initialSantosTarget = savedSantosTarget ? Number(savedSantosTarget) : 65000;
+        const initialSantosTarget = directCloudTarget !== null
+          ? directCloudTarget
+          : (savedSantosTarget ? Number(savedSantosTarget) : 75000);
 
         const santosWithRole = {
           ...INITIAL_DEMO_DATA.household,
@@ -346,16 +362,18 @@ export const HouseholdProvider = ({ children }) => {
         const existingSantosIndex = hhList.findIndex(h => h.id === '0d37e235-c9dd-4876-a54a-9acb36516599' || h.id === 'hh-santos-family' || h.invite_code === 'SANTOS2026');
         if (existingSantosIndex >= 0) {
           const cloudTarget = hhList[existingSantosIndex].monthly_budget_target;
-          const currentTarget = (cloudTarget !== undefined && cloudTarget !== null && cloudTarget > 0)
-            ? cloudTarget
-            : (savedSantosTarget ? Number(savedSantosTarget) : 65000);
+          const currentTarget = (cloudTarget !== undefined && cloudTarget !== null)
+            ? Number(cloudTarget)
+            : (directCloudTarget !== null ? directCloudTarget : (savedSantosTarget ? Number(savedSantosTarget) : 75000));
           hhList[existingSantosIndex] = {
             ...hhList[existingSantosIndex],
-            name: 'Santos Family Household',
+            name: hhList[existingSantosIndex].name || 'Santos Family Household',
             monthly_budget_target: currentTarget,
             invite_code: 'SANTOS2026',
             user_role: hhList[existingSantosIndex].user_role || santosWithRole.user_role,
           };
+          localStorage.setItem('tipidlink_household_target_0d37e235-c9dd-4876-a54a-9acb36516599', String(currentTarget));
+          localStorage.setItem('tipidlink_last_saved_target', String(currentTarget));
         } else {
           hhList.unshift(santosWithRole);
         }
@@ -426,10 +444,26 @@ export const HouseholdProvider = ({ children }) => {
         || (profile?.phone && profile.phone.includes('JOINED:SANTOS2026'));
 
       if (hasJoinedSantos) {
+        let directCloudTarget = null;
+        if (isSupabaseConfigured) {
+          try {
+            const { data: directHh } = await supabase
+              .from('households')
+              .select('monthly_budget_target')
+              .eq('id', '0d37e235-c9dd-4876-a54a-9acb36516599')
+              .maybeSingle();
+            if (directHh && directHh.monthly_budget_target !== undefined && directHh.monthly_budget_target !== null) {
+              directCloudTarget = Number(directHh.monthly_budget_target);
+            }
+          } catch (e) {}
+        }
+
         const savedSantosTarget = localStorage.getItem('tipidlink_household_target_0d37e235-c9dd-4876-a54a-9acb36516599')
           || localStorage.getItem('tipidlink_household_target_hh-santos-family')
           || localStorage.getItem('tipidlink_last_saved_target');
-        const initialSantosTarget = savedSantosTarget ? Number(savedSantosTarget) : 65000;
+        const initialSantosTarget = directCloudTarget !== null
+          ? directCloudTarget
+          : (savedSantosTarget ? Number(savedSantosTarget) : 75000);
 
         const santosWithRole = {
           ...INITIAL_DEMO_DATA.household,
@@ -443,16 +477,18 @@ export const HouseholdProvider = ({ children }) => {
         const existingSantosIndex = hhList.findIndex(h => h.id === '0d37e235-c9dd-4876-a54a-9acb36516599' || h.id === 'hh-santos-family' || h.invite_code === 'SANTOS2026');
         if (existingSantosIndex >= 0) {
           const cloudTarget = hhList[existingSantosIndex].monthly_budget_target;
-          const currentTarget = (cloudTarget !== undefined && cloudTarget !== null && cloudTarget > 0)
-            ? cloudTarget
-            : (savedSantosTarget ? Number(savedSantosTarget) : 65000);
+          const currentTarget = (cloudTarget !== undefined && cloudTarget !== null)
+            ? Number(cloudTarget)
+            : (directCloudTarget !== null ? directCloudTarget : (savedSantosTarget ? Number(savedSantosTarget) : 75000));
           hhList[existingSantosIndex] = {
             ...hhList[existingSantosIndex],
-            name: 'Santos Family Household',
+            name: hhList[existingSantosIndex].name || 'Santos Family Household',
             monthly_budget_target: currentTarget,
             invite_code: 'SANTOS2026',
             user_role: hhList[existingSantosIndex].user_role || santosWithRole.user_role,
           };
+          localStorage.setItem('tipidlink_household_target_0d37e235-c9dd-4876-a54a-9acb36516599', String(currentTarget));
+          localStorage.setItem('tipidlink_last_saved_target', String(currentTarget));
         } else {
           hhList.unshift(santosWithRole);
         }
@@ -793,122 +829,131 @@ export const HouseholdProvider = ({ children }) => {
     const cleanUpper = rawCode.toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
 
     // Universal handling for Santos Family demo & presentation code SANTOS2026 across ALL accounts
+    const SANTOS_UUID = '0d37e235-c9dd-4876-a54a-9acb36516599';
     if (cleanUpper === 'SANTOS2026' || cleanUpper.includes('SANTOS') || (isDemoMode && cleanUpper.startsWith('TIPID'))) {
-      const target = households.find(h => h.invite_code === cleanUpper || h.id === 'hh-santos-family') || INITIAL_DEMO_DATA.household;
-      const santosWithRole = {
-        ...target,
-        user_role: 'member',
-      };
-
-      let currentMembersList = INITIAL_DEMO_DATA.members;
-      const savedMembers = localStorage.getItem(`tipidlink_members_${target.id}`) || localStorage.getItem(`tipidlink_demo_members_${target.id}`);
-      if (savedMembers) {
-        try {
-          currentMembersList = JSON.parse(savedMembers);
-        } catch (e) {
-          console.error(e);
-        }
-      }
-
       const userId = user?.id || 'usr-registered-member';
       const userFullName = user?.user_metadata?.full_name || profile?.full_name || (user?.email ? user.email.split('@')[0] : 'Family Member');
       const userEmail = profile?.email || user?.email || 'member@tipidlink.ph';
 
-      const alreadyIn = currentMembersList.some(m => m.user_id === userId);
-      let updatedMembers = currentMembersList;
-      if (!alreadyIn) {
-        const newMember = {
-          id: `mem-${Date.now()}`,
-          household_id: target.id,
-          user_id: userId,
-          full_name: userFullName,
-          email: userEmail,
-          role: 'member',
-          nickname: userFullName.split(' ')[0] || 'Member',
-          joined_at: new Date().toISOString(),
-        };
-        updatedMembers = [...currentMembersList, newMember];
-      }
-
-      setMembers(updatedMembers);
-      localStorage.setItem(`tipidlink_members_${target.id}`, JSON.stringify(updatedMembers));
-      localStorage.setItem(`tipidlink_demo_members_${target.id}`, JSON.stringify(updatedMembers));
-
-      setHouseholds(prev => {
-        const exists = prev.some(h => h.id === target.id);
-        if (exists) {
-          return prev.map(h => h.id === target.id ? santosWithRole : h);
-        }
-        return [santosWithRole, ...prev];
-      });
-
-      setCurrentHousehold(santosWithRole);
-      localStorage.setItem('tipidlink_active_household_id', target.id);
-      if (user?.id) {
-        localStorage.setItem(`tipidlink_active_household_${user.id}`, target.id);
-        localStorage.setItem(`tipidlink_user_joined_santos_${user.id}`, 'true');
-      }
+      let cloudHh = null;
 
       // Persist across devices to Supabase user metadata and profile!
       if (user && isSupabaseConfigured && !isDemoMode) {
         try {
-          await supabase.auth.updateUser({
-            data: { joined_santos: true }
-          });
-        } catch (authErr) {
-          console.warn('Could not update auth metadata:', authErr);
-        }
-
-        try {
-          const { data: dbProf } = await supabase
-            .from('profiles')
-            .select('phone, full_name, email')
-            .eq('id', user.id)
+          // 1. Check if user is already in household_members
+          const { data: existingMember } = await supabase
+            .from('household_members')
+            .select('id')
+            .eq('household_id', SANTOS_UUID)
+            .eq('user_id', user.id)
             .maybeSingle();
 
-          const dbPhone = dbProf?.phone || profile?.phone || '';
-          const updatedPhone = dbPhone.includes('JOINED:SANTOS2026')
-            ? dbPhone
-            : (dbPhone ? `${dbPhone}|JOINED:SANTOS2026` : 'JOINED:SANTOS2026');
-
-          await supabase.from('profiles').update({
-            phone: updatedPhone,
-            full_name: user?.user_metadata?.full_name || profile?.full_name || dbProf?.full_name || (user.email ? user.email.split('@')[0] : 'Member'),
-            updated_at: new Date().toISOString(),
-          }).eq('id', user.id);
-
-          // Register membership in official Santos Supabase household
-          await supabase.from('household_members').upsert({
-            household_id: '0d37e235-c9dd-4876-a54a-9acb36516599',
-            user_id: user.id,
-            role: 'member',
-            nickname: userFullName.split(' ')[0] || 'Member',
-          }, { onConflict: 'household_id,user_id' });
-        } catch (dbErr) {
-          console.warn('Could not update profile join status:', dbErr);
-        }
-
-        // Broadcast to all active units immediately via Realtime WebSocket!
-        try {
-          const syncChannel = supabase.channel('tipidlink-household-sync');
-          syncChannel.subscribe((status) => {
-            if (status === 'SUBSCRIBED') {
-              syncChannel.send({
-                type: 'broadcast',
-                event: 'member_joined',
-                payload: {
-                  householdId: target.id,
-                  user_id: user.id,
-                  name: userFullName,
-                  email: userEmail,
-                }
+          // 2. Insert membership cleanly without .select() to comply with RLS
+          if (!existingMember) {
+            const { error: insertErr } = await supabase
+              .from('household_members')
+              .insert({
+                household_id: SANTOS_UUID,
+                user_id: user.id,
+                role: 'member',
+                nickname: userFullName.split(' ')[0] || 'Member',
               });
+
+            if (insertErr && insertErr.code !== '23505') {
+              console.warn('Membership insert note:', insertErr.message);
             }
-          });
-        } catch (rtErr) {
-          console.warn('Realtime broadcast notice:', rtErr);
+          }
+
+          // 3. Query the real cloud household data (which user can now view as an authorized member)
+          const { data: fetchedHh } = await supabase
+            .from('households')
+            .select('*')
+            .eq('id', SANTOS_UUID)
+            .maybeSingle();
+
+          if (fetchedHh) {
+            cloudHh = fetchedHh;
+          }
+
+          // 4. Update auth user metadata
+          try {
+            await supabase.auth.updateUser({
+              data: { joined_santos: true }
+            });
+          } catch (authErr) {
+            console.warn('Could not update auth metadata:', authErr);
+          }
+
+          // 5. Update profiles.phone with JOINED:SANTOS2026
+          try {
+            const { data: dbProf } = await supabase
+              .from('profiles')
+              .select('phone, full_name, email')
+              .eq('id', user.id)
+              .maybeSingle();
+
+            const dbPhone = dbProf?.phone || profile?.phone || '';
+            const updatedPhone = dbPhone.includes('JOINED:SANTOS2026')
+              ? dbPhone
+              : (dbPhone ? `${dbPhone}|JOINED:SANTOS2026` : 'JOINED:SANTOS2026');
+
+            await supabase.from('profiles').update({
+              phone: updatedPhone,
+              full_name: user?.user_metadata?.full_name || profile?.full_name || dbProf?.full_name || userFullName,
+              updated_at: new Date().toISOString(),
+            }).eq('id', user.id);
+          } catch (dbErr) {
+            console.warn('Could not update profile join status:', dbErr);
+          }
+        } catch (cloudErr) {
+          console.warn('Cloud join exception:', cloudErr);
         }
       }
+
+      const savedTarget = localStorage.getItem(`tipidlink_household_target_${SANTOS_UUID}`)
+        || localStorage.getItem('tipidlink_household_target_hh-santos-family')
+        || localStorage.getItem('tipidlink_last_saved_target');
+
+      const targetVal = (cloudHh?.monthly_budget_target !== undefined && cloudHh?.monthly_budget_target !== null)
+        ? Number(cloudHh.monthly_budget_target)
+        : (savedTarget ? Number(savedTarget) : 75000);
+
+      const santosWithRole = {
+        ...(cloudHh || INITIAL_DEMO_DATA.household),
+        id: SANTOS_UUID,
+        name: cloudHh?.name || 'Santos Family Household',
+        monthly_budget_target: targetVal,
+        invite_code: 'SANTOS2026',
+        user_role: 'member',
+      };
+
+      // Set active household in all local storage caches
+      localStorage.setItem('tipidlink_active_household_id', SANTOS_UUID);
+      if (user?.id) {
+        localStorage.setItem(`tipidlink_active_household_${user.id}`, SANTOS_UUID);
+        localStorage.setItem(`tipidlink_user_joined_santos_${user.id}`, 'true');
+      }
+      localStorage.setItem(`tipidlink_household_target_${SANTOS_UUID}`, String(targetVal));
+      localStorage.setItem('tipidlink_household_target_hh-santos-family', String(targetVal));
+      localStorage.setItem('tipidlink_last_saved_target', String(targetVal));
+
+      setCurrentHousehold(santosWithRole);
+      setHouseholds(prev => {
+        const filtered = prev.filter(h => h.id !== SANTOS_UUID && h.id !== 'hh-santos-family');
+        return [santosWithRole, ...filtered];
+      });
+
+      // Reload cloud households and members list immediately
+      await loadHouseholds(SANTOS_UUID);
+      await loadMembers(SANTOS_UUID);
+
+      // Broadcast sync event to all active units
+      broadcastSyncEvent('member_joined', {
+        householdId: SANTOS_UUID,
+        user_id: userId,
+        name: userFullName,
+        email: userEmail,
+      });
 
       return { success: true, household: santosWithRole };
     }
@@ -1020,11 +1065,16 @@ export const HouseholdProvider = ({ children }) => {
         const joinedHH = freshList.find(h => h.id === targetHouseholdId);
         if (joinedHH) {
           setCurrentHousehold(joinedHH);
+          if (joinedHH.monthly_budget_target !== undefined && joinedHH.monthly_budget_target !== null) {
+            localStorage.setItem(`tipidlink_household_target_${targetHouseholdId}`, String(joinedHH.monthly_budget_target));
+            localStorage.setItem('tipidlink_last_saved_target', String(joinedHH.monthly_budget_target));
+          }
         }
-        return { success: true, message: 'You are already a member of this household.' };
+        await loadMembers(targetHouseholdId);
+        return { success: true, household: joinedHH, message: 'You are already a member of this household.' };
       }
 
-      // Insert membership
+      // Insert membership without .select() to respect RLS
       const memberNickname = user?.user_metadata?.full_name || profile?.full_name || user?.email?.split('@')[0] || 'Member';
       const { error: joinErr } = await supabase
         .from('household_members')
@@ -1042,7 +1092,9 @@ export const HouseholdProvider = ({ children }) => {
             error: 'Household not found or no longer active with this code. Please verify the invite code with the owner.'
           };
         }
-        throw joinErr;
+        if (joinErr.code !== '23505') {
+          throw joinErr;
+        }
       }
 
       localStorage.setItem('tipidlink_active_household_id', targetHouseholdId);
@@ -1053,8 +1105,22 @@ export const HouseholdProvider = ({ children }) => {
       const joinedHH = freshList.find(h => h.id === targetHouseholdId);
       if (joinedHH) {
         setCurrentHousehold(joinedHH);
+        if (joinedHH.monthly_budget_target !== undefined && joinedHH.monthly_budget_target !== null) {
+          localStorage.setItem(`tipidlink_household_target_${targetHouseholdId}`, String(joinedHH.monthly_budget_target));
+          localStorage.setItem('tipidlink_last_saved_target', String(joinedHH.monthly_budget_target));
+        }
       }
-      return { success: true };
+      await loadMembers(targetHouseholdId);
+
+      // Broadcast sync event to all active units
+      broadcastSyncEvent('member_joined', {
+        householdId: targetHouseholdId,
+        user_id: user.id,
+        name: memberNickname,
+        email: user.email || '',
+      });
+
+      return { success: true, household: joinedHH };
     } catch (err) {
       console.error('Join household failed:', err);
       return { success: false, error: err.message };
@@ -1363,16 +1429,22 @@ export const HouseholdProvider = ({ children }) => {
     let pgChannel = null;
     if (isSupabaseConfigured) {
       const isUuidId = typeof householdId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(householdId);
-      if (isUuidId) {
-        pgChannel = supabase.channel(`tipidlink-pg-sync-${householdId}`);
+      const targetHhId = isUuidId ? householdId : (householdId === 'hh-santos-family' ? '0d37e235-c9dd-4876-a54a-9acb36516599' : null);
+      if (targetHhId) {
+        pgChannel = supabase.channel(`tipidlink-pg-sync-${targetHhId}`);
         pgChannel
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'household_members', filter: `household_id=eq.${householdId}` }, () => {
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'household_members', filter: `household_id=eq.${targetHhId}` }, () => {
             loadMembers(householdId);
             loadHouseholds(householdId);
           })
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'households', filter: `id=eq.${householdId}` }, (change) => {
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'households', filter: `id=eq.${targetHhId}` }, (change) => {
             if (change.new) {
-              setCurrentHousehold(prev => prev && prev.id === householdId ? { ...prev, ...change.new } : prev);
+              setCurrentHousehold(prev => prev ? { ...prev, ...change.new } : change.new);
+              if (change.new.monthly_budget_target !== undefined) {
+                const targetVal = String(change.new.monthly_budget_target);
+                localStorage.setItem(`tipidlink_household_target_${targetHhId}`, targetVal);
+                localStorage.setItem('tipidlink_last_saved_target', targetVal);
+              }
             }
             loadHouseholds(householdId);
           })
@@ -1406,10 +1478,10 @@ export const HouseholdProvider = ({ children }) => {
 
   // Second: fallback heuristics when member matching fails (async load, demo data, etc.)
   if (!resolvedRole) {
-    if (currentHousehold?.created_by === user?.id) {
-      resolvedRole = 'owner';
-    } else if (currentHousehold?.user_role === 'owner' || currentHousehold?.user_role === 'admin') {
+    if (currentHousehold?.user_role) {
       resolvedRole = currentHousehold.user_role;
+    } else if (currentHousehold?.created_by === user?.id) {
+      resolvedRole = 'owner';
     } else {
       const userEmail = (user?.email || profile?.email || '').toLowerCase();
       if (userEmail === 'maria.santos@tipidlink.ph' || userEmail.includes('maria')) {
@@ -1417,8 +1489,7 @@ export const HouseholdProvider = ({ children }) => {
       } else if (userEmail === 'juan.santos@tipidlink.ph' || userEmail.includes('juan')) {
         resolvedRole = 'admin';
       } else {
-        // Safe default: active household manager / creator gets full owner capabilities
-        resolvedRole = 'owner';
+        resolvedRole = 'member';
       }
     }
   }

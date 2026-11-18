@@ -2,6 +2,38 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { INITIAL_DEMO_DATA } from '../lib/mockData';
 
+export const clearStaleSessionData = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (
+        key.startsWith('tipidlink_finance_') ||
+        key.startsWith('tipidlink_household_target_') ||
+        key.startsWith('tipidlink_members_') ||
+        key.startsWith('tipidlink_demo_members_') ||
+        key.startsWith('tipidlink_demo_households') ||
+        key.startsWith('tipidlink_user_joined_santos_') ||
+        key.startsWith('tipidlink_active_household_') ||
+        key.startsWith('tipidlink_user_households_') ||
+        key === 'tipidlink_last_saved_target' ||
+        key === 'tipidlink_active_household_id' ||
+        key === 'tipidlink_demo_user' ||
+        key === 'tipidlink_demo_active' ||
+        key === 'tipidlink_is_premium' ||
+        key === 'tipidlink_premium_plan' ||
+        key === 'tipidlink_premium_sponsor'
+      )) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+  } catch (e) {
+    console.warn('Storage clear notice:', e);
+  }
+};
+
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
@@ -317,15 +349,10 @@ export const AuthProvider = ({ children }) => {
     const cleanName = (fullName || '').trim() || cleanEmail.split('@')[0];
     const cleanPin = (securityPin || '0000').trim() || '0000';
 
-    // Immediately clear state and any previous demo/user session
+    // Immediately clear state and all previous user caches so new account is totally clean
     setUser(null);
     setProfile(null);
-    localStorage.removeItem('tipidlink_demo_user');
-    localStorage.removeItem('tipidlink_demo_active');
-    localStorage.removeItem('tipidlink_active_household_id');
-    localStorage.removeItem('tipidlink_is_premium');
-    localStorage.removeItem('tipidlink_premium_plan');
-    localStorage.removeItem('tipidlink_premium_sponsor');
+    clearStaleSessionData();
     setIsDemoMode(false);
 
     if (!isSupabaseConfigured) {
@@ -432,12 +459,7 @@ export const AuthProvider = ({ children }) => {
 
   // Sign out
   const signOut = async () => {
-    localStorage.removeItem('tipidlink_demo_active');
-    localStorage.removeItem('tipidlink_demo_user');
-    localStorage.removeItem('tipidlink_active_household_id');
-    localStorage.removeItem('tipidlink_is_premium');
-    localStorage.removeItem('tipidlink_premium_plan');
-    localStorage.removeItem('tipidlink_premium_sponsor');
+    clearStaleSessionData();
     setUser(null);
     setProfile(null);
     setIsDemoMode(false);

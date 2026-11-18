@@ -44,7 +44,8 @@ export const resolveCategoryId = (catId) => {
 const getInitialFinanceData = () => {
   if (typeof window === 'undefined') return null;
   try {
-    const activeId = localStorage.getItem('tipidlink_active_household_id') || 'hh-santos-family';
+    const activeId = localStorage.getItem('tipidlink_active_household_id');
+    if (!activeId) return null;
     const storageKey = `tipidlink_finance_${activeId}`;
     const saved = localStorage.getItem(storageKey);
     if (saved) {
@@ -77,6 +78,7 @@ export const FinanceProvider = ({ children }) => {
   const [selectedMonth, setSelectedMonth] = useState(11);
   const [selectedYear, setSelectedYear] = useState(2026);
 
+  const prevHouseholdIdRef = useRef(currentHousehold?.id);
   // Load financial records when current household changes (non-destructive)
   useEffect(() => {
     if (!currentHousehold) {
@@ -87,7 +89,10 @@ export const FinanceProvider = ({ children }) => {
       return;
     }
 
-    loadHouseholdData(currentHousehold.id, { silent: transactions.length > 0 });
+    const isDifferentHousehold = prevHouseholdIdRef.current !== currentHousehold.id;
+    prevHouseholdIdRef.current = currentHousehold.id;
+
+    loadHouseholdData(currentHousehold.id, { silent: !isDifferentHousehold && transactions.length > 0 });
   }, [currentHousehold?.id, isDemoMode]);
 
   // Real-time refresh when tab or mobile browser gains focus / screen unlock
@@ -355,19 +360,19 @@ export const FinanceProvider = ({ children }) => {
 
       const isSantosTarget = targetHouseholdId === '0d37e235-c9dd-4876-a54a-9acb36516599';
 
-      const finalTx = (formattedTx.length === 0 && isSantosTarget)
+      const finalTx = (formattedTx.length === 0 && isSantosTarget && !isSupabaseConfigured)
         ? INITIAL_DEMO_DATA.transactions
         : formattedTx;
 
-      const finalBudgets = (bgData?.length === 0 && isSantosTarget)
+      const finalBudgets = (bgData?.length === 0 && isSantosTarget && !isSupabaseConfigured)
         ? INITIAL_DEMO_DATA.budgets
         : (bgData || []);
 
-      const finalBills = (formattedBills.length === 0 && isSantosTarget)
+      const finalBills = (formattedBills.length === 0 && isSantosTarget && !isSupabaseConfigured)
         ? INITIAL_DEMO_DATA.bills
         : formattedBills;
 
-      const finalGoals = (formattedGoals.length === 0 && isSantosTarget)
+      const finalGoals = (formattedGoals.length === 0 && isSantosTarget && !isSupabaseConfigured)
         ? INITIAL_DEMO_DATA.savingsGoals
         : formattedGoals;
 
