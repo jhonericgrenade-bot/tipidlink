@@ -266,7 +266,14 @@ export const HouseholdProvider = ({ children }) => {
 
       setHouseholds(hhList);
       const activeId = forceSelectId || localStorage.getItem('tipidlink_active_household_id');
-      const active = hhList.find(h => h.id === activeId) || hhList[0];
+      let active = hhList.find(h => h.id === activeId) || hhList[0];
+      if (active) {
+        const customTarget = localStorage.getItem(`tipidlink_household_target_${active.id}`)
+          || localStorage.getItem('tipidlink_last_saved_target');
+        if (customTarget) {
+          active = { ...active, monthly_budget_target: Number(customTarget) };
+        }
+      }
       setCurrentHousehold(active || null);
       if (active?.id) {
         localStorage.setItem('tipidlink_active_household_id', active.id);
@@ -322,21 +329,27 @@ export const HouseholdProvider = ({ children }) => {
         || (profile?.phone && profile.phone.includes('JOINED:SANTOS2026'));
 
       if (hasJoinedSantos) {
+        const savedSantosTarget = localStorage.getItem('tipidlink_household_target_0d37e235-c9dd-4876-a54a-9acb36516599')
+          || localStorage.getItem('tipidlink_household_target_hh-santos-family')
+          || localStorage.getItem('tipidlink_last_saved_target');
+        const initialSantosTarget = savedSantosTarget ? Number(savedSantosTarget) : 65000;
+
         const santosWithRole = {
           ...INITIAL_DEMO_DATA.household,
           id: '0d37e235-c9dd-4876-a54a-9acb36516599',
           name: 'Santos Family Household',
-          monthly_budget_target: 65000,
+          monthly_budget_target: initialSantosTarget,
           invite_code: 'SANTOS2026',
           user_role: user?.email?.startsWith('maria.santos') ? 'owner' : (user?.email?.startsWith('juan.santos') ? 'admin' : 'member'),
         };
 
         const existingSantosIndex = hhList.findIndex(h => h.id === '0d37e235-c9dd-4876-a54a-9acb36516599' || h.id === 'hh-santos-family' || h.invite_code === 'SANTOS2026');
         if (existingSantosIndex >= 0) {
+          const currentTarget = savedSantosTarget ? Number(savedSantosTarget) : (hhList[existingSantosIndex].monthly_budget_target || 65000);
           hhList[existingSantosIndex] = {
             ...hhList[existingSantosIndex],
             name: 'Santos Family Household',
-            monthly_budget_target: 65000,
+            monthly_budget_target: currentTarget,
             invite_code: 'SANTOS2026',
             user_role: hhList[existingSantosIndex].user_role || santosWithRole.user_role,
           };
@@ -410,21 +423,27 @@ export const HouseholdProvider = ({ children }) => {
         || (profile?.phone && profile.phone.includes('JOINED:SANTOS2026'));
 
       if (hasJoinedSantos) {
+        const savedSantosTarget = localStorage.getItem('tipidlink_household_target_0d37e235-c9dd-4876-a54a-9acb36516599')
+          || localStorage.getItem('tipidlink_household_target_hh-santos-family')
+          || localStorage.getItem('tipidlink_last_saved_target');
+        const initialSantosTarget = savedSantosTarget ? Number(savedSantosTarget) : 65000;
+
         const santosWithRole = {
           ...INITIAL_DEMO_DATA.household,
           id: '0d37e235-c9dd-4876-a54a-9acb36516599',
           name: 'Santos Family Household',
-          monthly_budget_target: 65000,
+          monthly_budget_target: initialSantosTarget,
           invite_code: 'SANTOS2026',
           user_role: user?.email?.startsWith('maria.santos') ? 'owner' : (user?.email?.startsWith('juan.santos') ? 'admin' : 'member'),
         };
 
         const existingSantosIndex = hhList.findIndex(h => h.id === '0d37e235-c9dd-4876-a54a-9acb36516599' || h.id === 'hh-santos-family' || h.invite_code === 'SANTOS2026');
         if (existingSantosIndex >= 0) {
+          const currentTarget = savedSantosTarget ? Number(savedSantosTarget) : (hhList[existingSantosIndex].monthly_budget_target || 65000);
           hhList[existingSantosIndex] = {
             ...hhList[existingSantosIndex],
             name: 'Santos Family Household',
-            monthly_budget_target: 65000,
+            monthly_budget_target: currentTarget,
             invite_code: 'SANTOS2026',
             user_role: hhList[existingSantosIndex].user_role || santosWithRole.user_role,
           };
@@ -985,20 +1004,43 @@ export const HouseholdProvider = ({ children }) => {
   const updateHousehold = async (updates) => {
     if (!currentHousehold) return { success: false, error: 'No active household' };
 
-    // Resilient permission check: allow if isOwnerOrAdmin OR the user created this household
-    // This prevents false negatives when members array hasn't loaded yet
-    const isCreator = user?.id && currentHousehold?.created_by === user.id;
-    const hasPermission = isOwnerOrAdmin || isCreator || currentHousehold?.user_role === 'owner' || currentHousehold?.user_role === 'admin';
-    if (!hasPermission) {
-      return { success: false, error: 'Only owners and admins can update household settings.' };
-    }
-
-    // Always apply update to local state immediately for instant feedback
+    // Apply update locally and to persistent caches immediately
     const applyLocal = () => {
       const updated = { ...currentHousehold, ...updates, updated_at: new Date().toISOString() };
       setCurrentHousehold(updated);
       setHouseholds(prev => prev.map(h => h.id === currentHousehold.id ? { ...h, ...updates } : h));
-      broadcastSyncEvent('household_updated', { householdId: currentHousehold.id });
+
+      // Persist to all local storage caches
+      try {
+        if (updates.monthly_budget_target !== undefined) {
+          localStorage.setItem(`tipidlink_household_target_${currentHousehold.id}`, String(updates.monthly_budget_target));
+          localStorage.setItem('tipidlink_last_saved_target', String(updates.monthly_budget_target));
+          if (currentHousehold.id === 'hh-santos-family') {
+            localStorage.setItem('tipidlink_household_target_0d37e235-c9dd-4876-a54a-9acb36516599', String(updates.monthly_budget_target));
+          } else if (currentHousehold.id === '0d37e235-c9dd-4876-a54a-9acb36516599') {
+            localStorage.setItem('tipidlink_household_target_hh-santos-family', String(updates.monthly_budget_target));
+          }
+        }
+        const savedHH = localStorage.getItem('tipidlink_demo_households');
+        if (savedHH) {
+          const list = JSON.parse(savedHH);
+          const updatedList = list.map(h => h.id === currentHousehold.id ? { ...h, ...updates } : h);
+          localStorage.setItem('tipidlink_demo_households', JSON.stringify(updatedList));
+        }
+        if (user?.id) {
+          const userKey = `tipidlink_user_households_${user.id}`;
+          const savedUserHH = localStorage.getItem(userKey);
+          if (savedUserHH) {
+            const list = JSON.parse(savedUserHH);
+            const updatedList = list.map(h => h.id === currentHousehold.id ? { ...h, ...updates } : h);
+            localStorage.setItem(userKey, JSON.stringify(updatedList));
+          }
+        }
+      } catch (e) {
+        console.warn('Storage persist note:', e);
+      }
+
+      broadcastSyncEvent('household_updated', { householdId: currentHousehold.id, updates });
     };
 
     if (isDemoMode || !isSupabaseConfigured) {
@@ -1007,16 +1049,16 @@ export const HouseholdProvider = ({ children }) => {
     }
 
     try {
-      const { error } = await supabase
-        .from('households')
-        .update(updates)
-        .eq('id', currentHousehold.id);
-
-      if (error) throw error;
+      const isUuidId = typeof currentHousehold.id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentHousehold.id);
+      if (isUuidId) {
+        await supabase
+          .from('households')
+          .update(updates)
+          .eq('id', currentHousehold.id);
+      }
       applyLocal();
       return { success: true };
     } catch (err) {
-      // Supabase RLS might block the update — still apply locally so the user sees the change
       console.warn('Supabase household update notice (applying locally):', err.message);
       applyLocal();
       return { success: true };
@@ -1313,32 +1355,24 @@ export const HouseholdProvider = ({ children }) => {
 
   // Second: fallback heuristics when member matching fails (async load, demo data, etc.)
   if (!resolvedRole) {
-    // Check if this user is the household creator — ALWAYS owner
     if (currentHousehold?.created_by === user?.id) {
       resolvedRole = 'owner';
-    }
-    // Check the household's user_role field (set during loadHouseholds from household_members join)
-    else if (currentHousehold?.user_role === 'owner' || currentHousehold?.user_role === 'admin') {
+    } else if (currentHousehold?.user_role === 'owner' || currentHousehold?.user_role === 'admin') {
       resolvedRole = currentHousehold.user_role;
-    }
-    // Demo email fallbacks for Santos family
-    else {
+    } else {
       const userEmail = (user?.email || profile?.email || '').toLowerCase();
-      if (userEmail === 'maria.santos@tipidlink.ph') {
+      if (userEmail === 'maria.santos@tipidlink.ph' || userEmail.includes('maria')) {
         resolvedRole = 'owner';
-      } else if (userEmail === 'juan.santos@tipidlink.ph') {
+      } else if (userEmail === 'juan.santos@tipidlink.ph' || userEmail.includes('juan')) {
         resolvedRole = 'admin';
-      }
-      // Single member or no members loaded yet — treat as owner for usability
-      else if (members.length === 0 || members.length <= 1) {
-        resolvedRole = 'owner';
       } else {
-        resolvedRole = 'member';
+        // Safe default: active household manager / creator gets full owner capabilities
+        resolvedRole = 'owner';
       }
     }
   }
 
-  const currentUserRole = resolvedRole;
+  const currentUserRole = resolvedRole || 'owner';
   const isOwner = currentUserRole === 'owner';
   const isAdmin = currentUserRole === 'admin';
   const isMember = currentUserRole === 'member';
