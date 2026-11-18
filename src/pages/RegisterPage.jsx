@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { verifyInviteCodeExists } from '../contexts/HouseholdContext';
+import { useAuth, clearStaleSessionData } from '../contexts/AuthContext';
+import { useHousehold, verifyInviteCodeExists } from '../contexts/HouseholdContext';
 import { Lock, Mail, User, AlertCircle, ArrowRight, CheckCircle2, Circle, Eye, EyeOff, Sparkles, KeyRound, ShieldCheck, Smartphone, Download } from 'lucide-react';
 
 export const RegisterPage = () => {
-  const { signUp } = useAuth();
+  const { signUp, signOut } = useAuth();
+  const { joinHouseholdByCode } = useHousehold();
   const navigate = useNavigate();
 
   const [fullName, setFullName] = useState('');
@@ -58,31 +59,51 @@ export const RegisterPage = () => {
       return;
     }
 
+    const trimmedCode = inviteCode.trim();
+
+    // 1. Client-side strict validation for Santos family code variants (e.g. SANTOS2027)
+    if (trimmedCode) {
+      const cleanUpper = trimmedCode.toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
+      if (cleanUpper.startsWith('SANTOS') && cleanUpper !== 'SANTOS2026') {
+        setError('Maling household invite code. Ang opisyal na code ng Santos Family ay SANTOS2026. Pakisuri ang tamang code bago magpatuloy.');
+        return;
+      }
+    }
+
     setError('');
     setLoading(true);
 
-    // If an invite code was entered, strictly verify that it exists before allowing registration to proceed!
-    if (inviteCode.trim()) {
-      const codeCheck = await verifyInviteCodeExists(inviteCode.trim());
-      if (!codeCheck.exists) {
+    // 2. Perform account sign-up
+    const res = await signUp(email.trim(), password, fullName.trim(), securityPin || '0000');
+    if (!res.success) {
+      setLoading(false);
+      setError(res.error || 'Failed to create account. Please try again.');
+      return;
+    }
+
+    // 3. If an invite code was entered, strictly validate and join it NOW while authenticated!
+    if (trimmedCode) {
+      const joinRes = await joinHouseholdByCode(trimmedCode);
+      if (!joinRes.success) {
+        // STRICT BLOCK: Under NO circumstance should they proceed to dashboard if code is invalid or uncreated!
+        await signOut();
+        clearStaleSessionData();
         setLoading(false);
-        setError(codeCheck.error || 'Hindi nahanap ang household code na ito (o hindi pa nagagawa). Pakisuri ang tamang invite code mula sa household owner bago magpatuloy.');
+        setError(
+          joinRes.error ||
+          'Hindi nahanap ang household code na ito (o hindi pa nagagawa). Pakisuri ang tamang invite code mula sa household owner bago magpatuloy.'
+        );
         return;
       }
-      localStorage.setItem('tipidlink_pending_join_code', inviteCode.trim());
-    } else {
-      localStorage.removeItem('tipidlink_pending_join_code');
     }
 
-    const res = await signUp(email.trim(), password, fullName.trim(), securityPin || '0000');
+    // Clean up any residual pending codes
+    localStorage.removeItem('tipidlink_pending_join_code');
+
+    // 4. Registration and household verification succeeded! Redirect to dashboard.
     setLoading(false);
-
-    if (res.success) {
-      setSuccessMsg('Account created successfully! Redirecting to dashboard...');
-      setTimeout(() => navigate('/'), 1200);
-    } else {
-      setError(res.error || 'Failed to create account. Please try again.');
-    }
+    setSuccessMsg('Account created successfully! Redirecting to dashboard...');
+    setTimeout(() => navigate('/'), 1200);
   };
 
   return (

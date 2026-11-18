@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase, isSupabaseConfigured, createTransientSupabaseClient } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { INITIAL_DEMO_DATA } from '../lib/mockData';
 import { broadcastSyncEvent, subscribeToSyncEvents, isMatchingHouseholdId } from '../lib/realtimeSync';
@@ -66,19 +66,21 @@ export const verifyInviteCodeExists = async (code) => {
     };
   }
 
-  // 2. Query cloud database for user-created households
-  if (isSupabaseConfigured) {
-    try {
-      const verifier = createTransientSupabaseClient();
-      if (verifier) {
-        // Authenticate background verifier session with demo persona to pass Supabase RLS
-        await verifier.auth.signInWithPassword({
-          email: 'maria.santos@tipidlink.ph',
-          password: 'TipidLink2026!'
-        });
+  // 2. Explicitly reject any partial or invalid variants of SANTOS (e.g. SANTOS2027, SANTOS123)
+  if (cleanUpper.startsWith('SANTOS')) {
+    return {
+      exists: false,
+      error: 'Maling household invite code. Ang opisyal na code ng Santos Family ay SANTOS2026. Pakisuri ang tamang code bago magpatuloy.'
+    };
+  }
 
-        // Check registered codes in profiles.phone
-        const { data: matchedProfiles } = await verifier
+  // 3. For any other codes, if user is already authenticated in Supabase, query cloud data directly
+  if (isSupabaseConfigured && supabase?.auth) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        // Search profiles.phone
+        const { data: matchedProfiles } = await supabase
           .from('profiles')
           .select('phone')
           .not('phone', 'is', null)
@@ -103,8 +105,8 @@ export const verifyInviteCodeExists = async (code) => {
           }
         }
 
-        // Check direct invite_code in households table
-        const { data: hh } = await verifier
+        // Direct lookup in households table
+        const { data: hh } = await supabase
           .from('households')
           .select('id, name, invite_code')
           .ilike('invite_code', raw)
@@ -115,7 +117,7 @@ export const verifyInviteCodeExists = async (code) => {
         }
       }
     } catch (err) {
-      console.warn('Pre-validation notice:', err);
+      console.warn('Pre-validation check note:', err);
     }
   }
 

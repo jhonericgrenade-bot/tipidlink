@@ -283,6 +283,15 @@ test('12. Registration Blocking on Invalid or Non-existent Code', () => {
     const raw = (inviteCode || '').trim();
     if (!raw) return { proceed: true, reason: 'No invite code provided; creates new household' };
     const clean = sanitizeCode(raw);
+
+    // 1. Client-side strict Santos family code pre-validation
+    if (clean.startsWith('SANTOS') && clean !== 'SANTOS2026') {
+      return {
+        proceed: false,
+        error: 'Maling household invite code. Ang opisyal na code ng Santos Family ay SANTOS2026. Pakisuri ang tamang code bago magpatuloy.'
+      };
+    }
+
     const exists = knownCodes.some(c => sanitizeCode(c) === clean);
     if (!exists) {
       return {
@@ -296,7 +305,7 @@ test('12. Registration Blocking on Invalid or Non-existent Code', () => {
   // If user enters SANTOS2027:
   const res2027 = canProceedWithRegistration('SANTOS2027');
   assert.strictEqual(res2027.proceed, false, 'Must not proceed with SANTOS2027');
-  assert.ok(res2027.error.includes('Hindi nahanap'), 'Error message must explain the code was not found');
+  assert.ok(res2027.error.includes('Maling household invite code'), 'Error message must explicitly reject SANTOS variants');
 
   // If user enters an uncreated code UNCREATED999:
   const resUncreated = canProceedWithRegistration('UNCREATED999');
