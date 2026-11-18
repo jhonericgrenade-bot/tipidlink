@@ -3,7 +3,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { useHousehold } from './HouseholdContext';
 import { INITIAL_DEMO_DATA } from '../lib/mockData';
-import { broadcastSyncEvent } from '../lib/realtimeSync';
+import { broadcastSyncEvent, subscribeToSyncEvents } from '../lib/realtimeSync';
 
 const isUuid = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
@@ -77,23 +77,21 @@ export const FinanceProvider = ({ children }) => {
     if (!currentHousehold?.id) return;
     const householdId = currentHousehold.id;
 
-    // 1. Supabase WebSocket Broadcast and Postgres Table Changes (multi-unit: CP, PC, Tablet)
-    let sbChannel = null;
-    if (isSupabaseConfigured) {
-      sbChannel = supabase.channel(`tipidlink-finance-sync-${householdId}`, {
-        config: { broadcast: { ack: false, self: false } },
-      });
-
-      // Handle broadcast from other units
-      sbChannel.on('broadcast', { event: 'finance_updated' }, (msg) => {
-        if (!msg.payload?.householdId || msg.payload.householdId === householdId) {
+    // 1. Universal Realtime Sync Listener (Supabase WebSocket + BroadcastChannel + Storage fallback)
+    const unsubscribe = subscribeToSyncEvents((event, payload) => {
+      if (event === 'finance_updated' || event === 'household_updated') {
+        if (!payload.householdId || payload.householdId === householdId) {
           loadHouseholdData(householdId, { silent: true });
         }
-      });
+      }
+    });
 
-      // Handle direct PostgreSQL changes if UUID household
+    // 2. Direct PostgreSQL table changes if UUID household
+    let pgChannel = null;
+    if (isSupabaseConfigured) {
       if (isUuid(householdId)) {
-        sbChannel
+        pgChannel = supabase.channel(`tipidlink-finance-pg-sync-${householdId}`);
+        pgChannel
           .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `household_id=eq.${householdId}` }, () => {
             loadHouseholdData(householdId, { silent: true });
           })
@@ -105,44 +103,22 @@ export const FinanceProvider = ({ children }) => {
           })
           .on('postgres_changes', { event: '*', schema: 'public', table: 'savings_goals', filter: `household_id=eq.${householdId}` }, () => {
             loadHouseholdData(householdId, { silent: true });
-          });
+          })
+          .subscribe();
       }
-
-      sbChannel.subscribe();
     }
 
-    // 2. BroadcastChannel API (cross-tab in same browser)
-    let bc = null;
-    if (typeof BroadcastChannel !== 'undefined') {
-      try {
-        bc = new BroadcastChannel('tipidlink_realtime_sync');
-        bc.onmessage = (event) => {
-          if (event.data?.event === 'finance_updated') {
-            if (!event.data.householdId || event.data.householdId === householdId) {
-              loadHouseholdData(householdId, { silent: true });
-            }
-          }
-        };
-      } catch {}
-    }
-
-    // 3. Storage event fallback (cross-window)
-    const handleStorage = (e) => {
-      if (e.key === 'tipidlink_last_sync_event' && e.newValue) {
-        try {
-          const parsed = JSON.parse(e.newValue);
-          if (parsed.event === 'finance_updated') {
-            loadHouseholdData(householdId, { silent: true });
-          }
-        } catch {}
+    // 3. Light auto-sync heartbeat every 8 seconds so no unit is ever stale
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        loadHouseholdData(householdId, { silent: true });
       }
-    };
-    window.addEventListener('storage', handleStorage);
+    }, 8000);
 
     return () => {
-      if (sbChannel) supabase.removeChannel(sbChannel);
-      if (bc) bc.close();
-      window.removeEventListener('storage', handleStorage);
+      unsubscribe();
+      if (pgChannel) supabase.removeChannel(pgChannel);
+      clearInterval(interval);
     };
   }, [currentHousehold?.id]);
 
