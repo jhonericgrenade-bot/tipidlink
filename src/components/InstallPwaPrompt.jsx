@@ -3,7 +3,7 @@ import { Download, X, Smartphone, Sparkles, AlertTriangle } from 'lucide-react';
 import { InstallAppModal } from './InstallAppModal';
 
 export const InstallPwaPrompt = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [deferredPrompt, setDeferredPrompt] = useState(() => (typeof window !== 'undefined' ? window.deferredPrompt : null));
   const [isVisible, setIsVisible] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -12,6 +12,19 @@ export const InstallPwaPrompt = () => {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    // Check if prompt was captured early in index.html
+    if (window.deferredPrompt) {
+      setDeferredPrompt(window.deferredPrompt);
+    }
+
+    const handleEarlyPrompt = () => {
+      if (window.deferredPrompt) {
+        setDeferredPrompt(window.deferredPrompt);
+        setIsVisible(true);
+      }
+    };
+    window.addEventListener('tipidlink-pwa-install-ready', handleEarlyPrompt);
 
     // Check if app is already running as standalone installed app
     const isStandalone =
@@ -58,6 +71,7 @@ export const InstallPwaPrompt = () => {
       }, 1200);
       return () => {
         clearTimeout(timer);
+        window.removeEventListener('tipidlink-pwa-install-ready', handleEarlyPrompt);
         window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
         window.removeEventListener('appinstalled', handleAppInstalled);
         window.removeEventListener('tipidlink-open-install-modal', handleGlobalOpen);
@@ -65,6 +79,7 @@ export const InstallPwaPrompt = () => {
     }
 
     return () => {
+      window.removeEventListener('tipidlink-pwa-install-ready', handleEarlyPrompt);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
       window.removeEventListener('tipidlink-open-install-modal', handleGlobalOpen);
@@ -72,14 +87,16 @@ export const InstallPwaPrompt = () => {
   }, []);
 
   const handleOpenModal = () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then(({ outcome }) => {
+    const prompt = deferredPrompt || (typeof window !== 'undefined' ? window.deferredPrompt : null);
+    if (prompt) {
+      prompt.prompt();
+      prompt.userChoice.then(({ outcome }) => {
         if (outcome === 'accepted') {
           setIsVisible(false);
           setIsInstalled(true);
         }
         setDeferredPrompt(null);
+        if (typeof window !== 'undefined') window.deferredPrompt = null;
       });
     } else {
       setIsModalOpen(true);

@@ -14,23 +14,38 @@
     <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png" />
     <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png" />
     <link rel="manifest" href="/manifest.json" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <title>TipidLink - Shared Family Budget Management Platform</title>
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="/assets/index-CXDrNmXX.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-DNInK7Nh.css">
+    <script type="module" crossorigin src="/assets/index-C6Bgop_c.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-1A-a_Yyk.css">
   </head>
   <body class="bg-slate-50 text-slate-900 font-sans selection:bg-emerald-100 selection:text-emerald-900">
     <div id="root"></div>
     <script>
+      // 1. Immediately capture PWA beforeinstallprompt before React mounts
+      window.deferredPrompt = null;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        window.deferredPrompt = e;
+        window.dispatchEvent(new CustomEvent('tipidlink-pwa-install-ready'));
+      });
+
+      // 2. Register Service Worker reliably on any state
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
+        const registerSW = () => {
           navigator.serviceWorker.register('/sw.js').catch((err) => {
             console.warn('SW registration failed:', err);
           });
-        });
+        };
+        if (document.readyState === 'complete') {
+          registerSW();
+        } else {
+          window.addEventListener('load', registerSW);
+        }
       }
     </script>
   </body>

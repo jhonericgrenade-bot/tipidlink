@@ -21,6 +21,8 @@ export const InstallAppModal = ({ isOpen, onClose, deferredPrompt }) => {
   const [isInAppBrowser, setIsInAppBrowser] = useState(false);
   const [isIosDevice, setIsIosDevice] = useState(false);
   const [isAndroidDevice, setIsAndroidDevice] = useState(false);
+  const [manualNotice, setManualNotice] = useState('');
+  const [isHttpOrigin, setIsHttpOrigin] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -29,10 +31,12 @@ export const InstallAppModal = ({ isOpen, onClose, deferredPrompt }) => {
     const isIos = /iphone|ipad|ipod/.test(ua);
     const isAndroid = /android/.test(ua);
     const inApp = /fban|fbav|instagram|line|viber|tiktok|messenger/.test(ua);
+    const isHttp = window.location.protocol === 'http:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
 
     setIsIosDevice(isIos);
     setIsAndroidDevice(isAndroid);
     setIsInAppBrowser(inApp);
+    setIsHttpOrigin(isHttp);
 
     if (isIos) {
       setActiveTab('ios');
@@ -58,14 +62,23 @@ export const InstallAppModal = ({ isOpen, onClose, deferredPrompt }) => {
   };
 
   const handleTriggerNativeInstall = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        onClose();
+    const prompt = deferredPrompt || (typeof window !== 'undefined' ? window.deferredPrompt : null);
+    if (prompt) {
+      try {
+        prompt.prompt();
+        const { outcome } = await prompt.userChoice;
+        if (outcome === 'accepted') {
+          if (typeof window !== 'undefined') window.deferredPrompt = null;
+          onClose();
+        }
+      } catch (err) {
+        console.warn('Install prompt error:', err);
+        setManualNotice('Pindutin ang 3 dots (⋮) sa Chrome sa itaas at piliin ang "Install app" o "Add to Home screen".');
+        setTimeout(() => setManualNotice(''), 8000);
       }
     } else {
-      alert('To install TipidLink:\n1. Tap the 3 dots (⋮) in your browser menu.\n2. Tap "Install app" or "Add to Home screen".');
+      setManualNotice('Sundin ang mga hakbang sa ibaba: Pindutin ang 3 dots (⋮) sa Chrome sa itaas at piliin ang "Install app" o "Add to Home screen".');
+      setTimeout(() => setManualNotice(''), 8000);
     }
   };
 
@@ -162,18 +175,42 @@ export const InstallAppModal = ({ isOpen, onClose, deferredPrompt }) => {
           {/* ANDROID TAB */}
           {activeTab === 'android' && (
             <div className="space-y-3.5">
-              {deferredPrompt && (
-                <div className="rounded-2xl bg-emerald-50 p-4 border border-emerald-200 text-center">
-                  <p className="text-xs font-bold text-emerald-900 mb-2">
-                    Your Android Chrome browser is ready for automatic 1-tap install!
+              {/* Primary 1-Tap / Trigger Action Button */}
+              <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 p-4 border border-emerald-200 text-center shadow-xs">
+                <p className="text-xs font-bold text-emerald-950 mb-1">
+                  {deferredPrompt || (typeof window !== 'undefined' && window.deferredPrompt)
+                    ? 'Handa na ang iyong Google Chrome para sa automatic 1-tap install!'
+                    : 'Pindutin para simulan ang pag-install sa Android Home Screen:'}
+                </p>
+                <p className="text-[11px] text-emerald-700 mb-3">
+                  Magkakaroon ng sariling app icon sa iyong phone screen nang walang storage space na nasasayang.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleTriggerNativeInstall}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white shadow-md hover:bg-emerald-500 active:scale-[0.98] transition cursor-pointer"
+                >
+                  <Download className="h-4 w-4" />
+                  <span>Install TipidLink (Idagdag sa Home Screen)</span>
+                </button>
+              </div>
+
+              {manualNotice && (
+                <div className="rounded-xl bg-amber-50 p-3 text-xs text-amber-900 border border-amber-300 animate-fade-in flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="font-semibold">{manualNotice}</p>
+                </div>
+              )}
+
+              {isHttpOrigin && (
+                <div className="rounded-xl bg-amber-500/10 p-3 text-xs text-amber-900 border border-amber-300">
+                  <p className="font-bold flex items-center gap-1.5 text-amber-800">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    Paalala sa Local Network (HTTP)
                   </p>
-                  <button
-                    onClick={handleTriggerNativeInstall}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white shadow-md hover:bg-emerald-500 active:scale-[0.98] transition cursor-pointer"
-                  >
-                    <Download className="h-4 w-4" />
-                    <span>Install TipidLink Now (1-Tap)</span>
-                  </button>
+                  <p className="text-[11px] text-amber-800 mt-1">
+                    Naka-konekta ka sa local IP address. Sa Android Google Chrome, kailangan ng secure HTTPS (hal. Vercel deployment link) para lumabas ang browser popup. Piliin lang ang <strong>"Add to Home screen"</strong> sa Chrome menu (⋮) sa ibaba.
+                  </p>
                 </div>
               )}
 
@@ -183,9 +220,9 @@ export const InstallAppModal = ({ isOpen, onClose, deferredPrompt }) => {
                     1
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-slate-900">Open in Google Chrome</p>
+                    <p className="text-xs font-bold text-slate-900">Buksan sa Google Chrome</p>
                     <p className="text-[11px] text-slate-600 mt-0.5">
-                      If you opened the link from Messenger or Facebook, tap the <strong>3 dots (⋮)</strong> at the top right and select <strong>"Open in Chrome"</strong>.
+                      Kung binuksan mo ang link mula sa Facebook o Messenger, pindutin ang <strong>3 dots (⋮)</strong> sa kanang itaas at piliin ang <strong>"Open in Chrome"</strong> (Buksan sa Chrome).
                     </p>
                   </div>
                 </div>
@@ -195,9 +232,9 @@ export const InstallAppModal = ({ isOpen, onClose, deferredPrompt }) => {
                     2
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-slate-900">Open Chrome Menu</p>
+                    <p className="text-xs font-bold text-slate-900">Pindutin ang Menu ng Chrome (3 Dots)</p>
                     <p className="text-[11px] text-slate-600 mt-0.5">
-                      In Chrome, tap the <strong>three vertical dots (⋮)</strong> in the top-right corner next to the address bar.
+                      Sa Google Chrome, pindutin ang <strong>tatlong vertical dots (⋮)</strong> sa bandang kanang itaas katabi ng address bar.
                     </p>
                   </div>
                 </div>
@@ -207,9 +244,9 @@ export const InstallAppModal = ({ isOpen, onClose, deferredPrompt }) => {
                     3
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-slate-900">Select "Install app" or "Add to Home screen"</p>
+                    <p className="text-xs font-bold text-slate-900">Piliin ang "Install app" o "Add to Home screen"</p>
                     <p className="text-[11px] text-slate-600 mt-0.5">
-                      Tap <strong>"Install app"</strong> (or <strong>"Add to Home screen"</strong> on Samsung Internet).
+                      Hanapin at i-tap ang <strong>"Install app"</strong> o <strong>"Add to Home screen"</strong> (o <em>"Idagdag sa Home screen"</em>).
                     </p>
                   </div>
                 </div>
@@ -219,9 +256,9 @@ export const InstallAppModal = ({ isOpen, onClose, deferredPrompt }) => {
                     4
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-emerald-950">Confirm "Install"</p>
+                    <p className="text-xs font-bold text-emerald-950">Kumpirmahin ang "Install" o "Add"</p>
                     <p className="text-[11px] text-emerald-800 mt-0.5">
-                      The TipidLink icon will appear on your home screen and app drawer just like an app installed from Google Play!
+                      Pindutin ang <strong>"Install"</strong> o <strong>"Add"</strong>. Kusa nang lilitaw ang opisyal na TipidLink app icon sa iyong cellphone home screen!
                     </p>
                   </div>
                 </div>
