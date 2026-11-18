@@ -249,40 +249,40 @@ export const HouseholdProvider = ({ children }) => {
   const loadHouseholds = async (forceSelectId = null) => {
     setLoading(true);
 
-    if (isDemoMode) {
-      // Load Santos demo household
-      const savedHH = localStorage.getItem('tipidlink_demo_households');
-      let hhList = [];
-      if (savedHH) {
-        try {
-          hhList = JSON.parse(savedHH);
-        } catch {
+    if (!isSupabaseConfigured || !user) {
+      if (isDemoMode) {
+        // Load Santos demo household
+        const savedHH = localStorage.getItem('tipidlink_demo_households');
+        let hhList = [];
+        if (savedHH) {
+          try {
+            hhList = JSON.parse(savedHH);
+          } catch {
+            hhList = [INITIAL_DEMO_DATA.household];
+          }
+        } else {
           hhList = [INITIAL_DEMO_DATA.household];
+          localStorage.setItem('tipidlink_demo_households', JSON.stringify(hhList));
         }
-      } else {
-        hhList = [INITIAL_DEMO_DATA.household];
-        localStorage.setItem('tipidlink_demo_households', JSON.stringify(hhList));
+
+        setHouseholds(hhList);
+        const activeId = forceSelectId || localStorage.getItem('tipidlink_active_household_id');
+        let active = hhList.find(h => h.id === activeId) || hhList[0];
+        if (active) {
+          const customTarget = localStorage.getItem(`tipidlink_household_target_${active.id}`)
+            || localStorage.getItem('tipidlink_last_saved_target');
+          if (customTarget) {
+            active = { ...active, monthly_budget_target: Number(customTarget) };
+          }
+        }
+        setCurrentHousehold(active || null);
+        if (active?.id) {
+          localStorage.setItem('tipidlink_active_household_id', active.id);
+        }
+        setLoading(false);
+        return hhList;
       }
 
-      setHouseholds(hhList);
-      const activeId = forceSelectId || localStorage.getItem('tipidlink_active_household_id');
-      let active = hhList.find(h => h.id === activeId) || hhList[0];
-      if (active) {
-        const customTarget = localStorage.getItem(`tipidlink_household_target_${active.id}`)
-          || localStorage.getItem('tipidlink_last_saved_target');
-        if (customTarget) {
-          active = { ...active, monthly_budget_target: Number(customTarget) };
-        }
-      }
-      setCurrentHousehold(active || null);
-      if (active?.id) {
-        localStorage.setItem('tipidlink_active_household_id', active.id);
-      }
-      setLoading(false);
-      return hhList;
-    }
-
-    if (!isSupabaseConfigured) {
       // Offline fallback for real registered users: do NOT show Santos family
       const storageKey = `tipidlink_user_households_${user?.id}`;
       const savedHH = localStorage.getItem(storageKey);
@@ -345,7 +345,10 @@ export const HouseholdProvider = ({ children }) => {
 
         const existingSantosIndex = hhList.findIndex(h => h.id === '0d37e235-c9dd-4876-a54a-9acb36516599' || h.id === 'hh-santos-family' || h.invite_code === 'SANTOS2026');
         if (existingSantosIndex >= 0) {
-          const currentTarget = savedSantosTarget ? Number(savedSantosTarget) : (hhList[existingSantosIndex].monthly_budget_target || 65000);
+          const cloudTarget = hhList[existingSantosIndex].monthly_budget_target;
+          const currentTarget = (cloudTarget !== undefined && cloudTarget !== null && cloudTarget > 0)
+            ? cloudTarget
+            : (savedSantosTarget ? Number(savedSantosTarget) : 65000);
           hhList[existingSantosIndex] = {
             ...hhList[existingSantosIndex],
             name: 'Santos Family Household',
@@ -439,7 +442,10 @@ export const HouseholdProvider = ({ children }) => {
 
         const existingSantosIndex = hhList.findIndex(h => h.id === '0d37e235-c9dd-4876-a54a-9acb36516599' || h.id === 'hh-santos-family' || h.invite_code === 'SANTOS2026');
         if (existingSantosIndex >= 0) {
-          const currentTarget = savedSantosTarget ? Number(savedSantosTarget) : (hhList[existingSantosIndex].monthly_budget_target || 65000);
+          const cloudTarget = hhList[existingSantosIndex].monthly_budget_target;
+          const currentTarget = (cloudTarget !== undefined && cloudTarget !== null && cloudTarget > 0)
+            ? cloudTarget
+            : (savedSantosTarget ? Number(savedSantosTarget) : 65000);
           hhList[existingSantosIndex] = {
             ...hhList[existingSantosIndex],
             name: 'Santos Family Household',
@@ -525,7 +531,10 @@ export const HouseholdProvider = ({ children }) => {
         }
 
         // Fallback default: if user belongs to a joined household (admin/member), default to it!
-        if (!activeId || isDemoMode || user?.email?.endsWith('@tipidlink.ph')) {
+        const santosHh = hhList.find(h => h.id === '0d37e235-c9dd-4876-a54a-9acb36516599' || h.invite_code === 'SANTOS2026');
+        if ((isDemoMode || user?.email?.endsWith('@tipidlink.ph')) && santosHh) {
+          activeId = santosHh.id;
+        } else if (!activeId) {
           activeId = joinedHousehold ? joinedHousehold.id : hhList[0].id;
         }
 
@@ -567,6 +576,57 @@ export const HouseholdProvider = ({ children }) => {
   };
 
   const loadMembers = async (householdId) => {
+    const isUuidId = typeof householdId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(householdId);
+    const targetHhId = isUuidId ? householdId : (householdId === 'hh-santos-family' ? '0d37e235-c9dd-4876-a54a-9acb36516599' : null);
+
+    // If Supabase is connected and target household is a cloud household, load from Supabase!
+    if (isSupabaseConfigured && user && targetHhId) {
+      try {
+        const { data, error } = await supabase
+          .from('household_members')
+          .select(`
+            id,
+            household_id,
+            user_id,
+            role,
+            nickname,
+            joined_at,
+            profiles:user_id (
+              id,
+              email,
+              full_name,
+              avatar_url,
+              phone
+            )
+          `)
+          .eq('household_id', targetHhId);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          const formatted = data.map(m => ({
+            id: m.id,
+            household_id: m.household_id,
+            user_id: m.user_id,
+            role: m.role,
+            nickname: m.nickname,
+            joined_at: m.joined_at,
+            full_name: m.user_id === user?.id 
+              ? (user?.user_metadata?.full_name || profile?.full_name || m.profiles?.full_name || 'You')
+              : (m.profiles?.full_name || m.nickname || 'Family Member'),
+            email: m.profiles?.email || '',
+            avatar_url: m.profiles?.avatar_url || '',
+          }));
+
+          setMembers(formatted);
+          localStorage.setItem(`tipidlink_members_${householdId}`, JSON.stringify(formatted));
+          return;
+        }
+      } catch (err) {
+        console.warn('Supabase members fetch note (falling back to cache):', err.message);
+      }
+    }
+
     // If it's Santos Family or demo mode, load from local storage or INITIAL_DEMO_DATA
     if (householdId === 'hh-santos-family' || isDemoMode) {
       let baseList = [...INITIAL_DEMO_DATA.members];
@@ -1047,26 +1107,26 @@ export const HouseholdProvider = ({ children }) => {
       });
     };
 
-    if (isDemoMode || !isSupabaseConfigured) {
-      applyLocal();
-      return { success: true };
-    }
+    const targetHhId = (typeof currentHousehold.id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentHousehold.id))
+      ? currentHousehold.id
+      : (currentHousehold.id === 'hh-santos-family' ? '0d37e235-c9dd-4876-a54a-9acb36516599' : null);
 
-    try {
-      const isUuidId = typeof currentHousehold.id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentHousehold.id);
-      if (isUuidId) {
-        await supabase
+    if (isSupabaseConfigured && user && targetHhId) {
+      try {
+        const { error: dbErr } = await supabase
           .from('households')
           .update(updates)
-          .eq('id', currentHousehold.id);
+          .eq('id', targetHhId);
+        if (dbErr) {
+          console.warn('Supabase household update notice:', dbErr.message);
+        }
+      } catch (err) {
+        console.warn('Supabase household update notice (applying locally):', err.message);
       }
-      applyLocal();
-      return { success: true };
-    } catch (err) {
-      console.warn('Supabase household update notice (applying locally):', err.message);
-      applyLocal();
-      return { success: true };
     }
+
+    applyLocal();
+    return { success: true };
   };
 
   const updateMemberRole = async (memberId, newRole) => {
@@ -1087,26 +1147,24 @@ export const HouseholdProvider = ({ children }) => {
       }
     }
 
-    if (isDemoMode || !isSupabaseConfigured) {
-      const updated = members.map(m => m.id === memberId ? { ...m, role: newRole } : m);
-      setMembers(updated);
-      broadcastSyncEvent('member_updated', { householdId: currentHousehold.id });
-      return { success: true };
+    const isUuidMember = typeof memberId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(memberId);
+    if (isSupabaseConfigured && user && isUuidMember) {
+      try {
+        const { error } = await supabase
+          .from('household_members')
+          .update({ role: newRole })
+          .eq('id', memberId);
+
+        if (error) console.warn('Supabase member role update notice:', error.message);
+      } catch (err) {
+        console.warn('Supabase member role update notice:', err.message);
+      }
     }
 
-    try {
-      const { error } = await supabase
-        .from('household_members')
-        .update({ role: newRole })
-        .eq('id', memberId);
-
-      if (error) throw error;
-      setMembers(prev => prev.map(m => m.id === memberId ? { ...m, role: newRole } : m));
-      broadcastSyncEvent('member_updated', { householdId: currentHousehold.id });
-      return { success: true };
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
+    const updated = members.map(m => m.id === memberId ? { ...m, role: newRole } : m);
+    setMembers(updated);
+    broadcastSyncEvent('member_updated', { householdId: currentHousehold.id });
+    return { success: true };
   };
 
   const removeMember = async (memberId) => {
@@ -1123,26 +1181,24 @@ export const HouseholdProvider = ({ children }) => {
       return { success: false, error: 'Admins cannot remove other admins. Only the owner can.' };
     }
 
-    if (isDemoMode || !isSupabaseConfigured) {
-      const updated = members.filter(m => m.id !== memberId);
-      setMembers(updated);
-      broadcastSyncEvent('member_updated', { householdId: currentHousehold.id });
-      return { success: true };
+    const isUuidMember = typeof memberId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(memberId);
+    if (isSupabaseConfigured && user && isUuidMember) {
+      try {
+        const { error } = await supabase
+          .from('household_members')
+          .delete()
+          .eq('id', memberId);
+
+        if (error) console.warn('Supabase remove member notice:', error.message);
+      } catch (err) {
+        console.warn('Supabase remove member notice:', err.message);
+      }
     }
 
-    try {
-      const { error } = await supabase
-        .from('household_members')
-        .delete()
-        .eq('id', memberId);
-
-      if (error) throw error;
-      setMembers(prev => prev.filter(m => m.id !== memberId));
-      broadcastSyncEvent('member_updated', { householdId: currentHousehold.id });
-      return { success: true };
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
+    const updated = members.filter(m => m.id !== memberId);
+    setMembers(updated);
+    broadcastSyncEvent('member_updated', { householdId: currentHousehold.id });
+    return { success: true };
   };
 
   const deleteHousehold = async (householdId) => {
