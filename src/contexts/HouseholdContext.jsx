@@ -830,7 +830,7 @@ export const HouseholdProvider = ({ children }) => {
 
     // Universal handling for Santos Family demo & presentation code SANTOS2026 across ALL accounts
     const SANTOS_UUID = '0d37e235-c9dd-4876-a54a-9acb36516599';
-    if (cleanUpper === 'SANTOS2026' || cleanUpper.includes('SANTOS') || (isDemoMode && cleanUpper.startsWith('TIPID'))) {
+    if (cleanUpper === 'SANTOS2026') {
       const userId = user?.id || 'usr-registered-member';
       const userFullName = user?.user_metadata?.full_name || profile?.full_name || (user?.email ? user.email.split('@')[0] : 'Family Member');
       const userEmail = profile?.email || user?.email || 'member@tipidlink.ph';

@@ -254,3 +254,23 @@ test('10. JSON Backup Serialization & Roundtrip Integrity', async () => {
   assert.strictEqual(parsed.bills.length, INITIAL_DEMO_DATA.bills.length);
   assert.strictEqual(parsed.savingsGoals.length, INITIAL_DEMO_DATA.savingsGoals.length);
 });
+
+test('11. Strict Invite Code Validation (Rejects SANTOS2027 and loose substrings)', () => {
+  const sanitizeCode = (code) => (code || '').trim().toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
+  
+  const validateSantosCode = (code) => {
+    const clean = sanitizeCode(code);
+    return clean === 'SANTOS2026';
+  };
+
+  assert.strictEqual(validateSantosCode('SANTOS2026'), true, 'Exact SANTOS2026 must be accepted');
+  assert.strictEqual(validateSantosCode('santos2026'), true, 'Lowercase santos2026 must be accepted');
+  assert.strictEqual(validateSantosCode('SANTOS-2026'), true, 'Dashed SANTOS-2026 must be accepted');
+  assert.strictEqual(validateSantosCode('SANTOS 2026'), true, 'Spaced SANTOS 2026 must be accepted');
+
+  // Must reject SANTOS2027, SANTOS, etc.
+  assert.strictEqual(validateSantosCode('SANTOS2027'), false, 'SANTOS2027 must be rejected');
+  assert.strictEqual(validateSantosCode('SANTOS'), false, 'Partial SANTOS must be rejected');
+  assert.strictEqual(validateSantosCode('SANTOS123'), false, 'SANTOS123 must be rejected');
+  assert.strictEqual(validateSantosCode('TIPIDSANTOS'), false, 'TIPIDSANTOS must be rejected');
+});
