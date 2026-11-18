@@ -22,6 +22,17 @@ export const supabase = isSupabaseConfigured
     })
   : null;
 
+export const createTransientSupabaseClient = () => {
+  if (!isSupabaseConfigured) return null;
+  return createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+};
+
 export const getSupabaseConfig = () => ({
   url: supabaseUrl,
   hasKey: Boolean(supabaseKey),

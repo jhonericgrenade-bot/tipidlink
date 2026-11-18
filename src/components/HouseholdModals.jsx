@@ -125,7 +125,7 @@ export const JoinHouseholdModal = ({ isOpen, onClose }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!inviteCode.trim()) {
-      setError('Please enter the household invite code');
+      setError('Pakilagay ang household invite code.');
       return;
     }
     setError('');
@@ -138,7 +138,7 @@ export const JoinHouseholdModal = ({ isOpen, onClose }) => {
       setInviteCode('');
       onClose();
     } else {
-      setError(res.error || 'Failed to join household');
+      setError(res.error || 'Hindi nahanap ang household code na ito (o hindi pa nagagawa). Pakisuri ang tamang invite code mula sa household owner bago magpatuloy.');
     }
   };
 

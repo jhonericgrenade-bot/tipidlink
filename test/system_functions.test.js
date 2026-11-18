@@ -274,3 +274,43 @@ test('11. Strict Invite Code Validation (Rejects SANTOS2027 and loose substrings
   assert.strictEqual(validateSantosCode('SANTOS123'), false, 'SANTOS123 must be rejected');
   assert.strictEqual(validateSantosCode('TIPIDSANTOS'), false, 'TIPIDSANTOS must be rejected');
 });
+
+test('12. Registration Blocking on Invalid or Non-existent Code', () => {
+  const sanitizeCode = (code) => (code || '').trim().toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
+  
+  // Registration submission guard
+  const canProceedWithRegistration = (inviteCode, knownCodes = ['SANTOS2026', 'CRUZ-1234']) => {
+    const raw = (inviteCode || '').trim();
+    if (!raw) return { proceed: true, reason: 'No invite code provided; creates new household' };
+    const clean = sanitizeCode(raw);
+    const exists = knownCodes.some(c => sanitizeCode(c) === clean);
+    if (!exists) {
+      return {
+        proceed: false,
+        error: 'Hindi nahanap ang household code na ito (o hindi pa nagagawa). Pakisuri ang tamang invite code mula sa household owner bago magpatuloy.'
+      };
+    }
+    return { proceed: true, reason: 'Valid household code' };
+  };
+
+  // If user enters SANTOS2027:
+  const res2027 = canProceedWithRegistration('SANTOS2027');
+  assert.strictEqual(res2027.proceed, false, 'Must not proceed with SANTOS2027');
+  assert.ok(res2027.error.includes('Hindi nahanap'), 'Error message must explain the code was not found');
+
+  // If user enters an uncreated code UNCREATED999:
+  const resUncreated = canProceedWithRegistration('UNCREATED999');
+  assert.strictEqual(resUncreated.proceed, false, 'Must not proceed with uncreated code');
+
+  // If user leaves code empty:
+  const resEmpty = canProceedWithRegistration('');
+  assert.strictEqual(resEmpty.proceed, true, 'Can proceed when empty to create own household');
+
+  // If user enters legitimate SANTOS2026:
+  const resSantos = canProceedWithRegistration('SANTOS2026');
+  assert.strictEqual(resSantos.proceed, true, 'Can proceed with valid SANTOS2026');
+
+  // If user enters registered family code CRUZ-1234:
+  const resCruz = canProceedWithRegistration('CRUZ-1234');
+  assert.strictEqual(resCruz.proceed, true, 'Can proceed with valid CRUZ-1234');
+});

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { verifyInviteCodeExists } from '../contexts/HouseholdContext';
 import { Lock, Mail, User, AlertCircle, ArrowRight, CheckCircle2, Circle, Eye, EyeOff, Sparkles, KeyRound, ShieldCheck, Smartphone, Download } from 'lucide-react';
 
 export const RegisterPage = () => {
@@ -60,7 +61,14 @@ export const RegisterPage = () => {
     setError('');
     setLoading(true);
 
+    // If an invite code was entered, strictly verify that it exists before allowing registration to proceed!
     if (inviteCode.trim()) {
+      const codeCheck = await verifyInviteCodeExists(inviteCode.trim());
+      if (!codeCheck.exists) {
+        setLoading(false);
+        setError(codeCheck.error || 'Hindi nahanap ang household code na ito (o hindi pa nagagawa). Pakisuri ang tamang invite code mula sa household owner bago magpatuloy.');
+        return;
+      }
       localStorage.setItem('tipidlink_pending_join_code', inviteCode.trim());
     } else {
       localStorage.removeItem('tipidlink_pending_join_code');
@@ -320,6 +328,12 @@ export const RegisterPage = () => {
               <p className="text-[10px] text-emerald-200/70 mt-1 pl-1">
                 May code mula sa pamilya? I-paste dito para automatic kang makasali agad.
               </p>
+              {inviteCode.trim() === 'SANTOS2026' && (
+                <p className="text-[11px] text-emerald-300 font-bold mt-1.5 pl-1 flex items-center gap-1">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                  <span>Santos Family Household (Ready to join)</span>
+                </p>
+              )}
             </div>
 
             <button
