@@ -13,13 +13,11 @@ import {
   Calendar,
   Layers,
   CheckCircle2,
-  Lock,
-  Download,
   FileText,
 } from 'lucide-react';
 
 export const BudgetsPage = () => {
-  const { currentHousehold, updateHousehold, isOwnerOrAdmin, isOwner } = useHousehold();
+  const { currentHousehold, updateHousehold } = useHousehold();
   const {
     transactions,
     budgets,
@@ -137,7 +135,7 @@ export const BudgetsPage = () => {
     if (!catId || !catAmount) return;
     setLoading(true);
 
-    await setCategoryBudget({
+    const res = await setCategoryBudget({
       id: editingBudgetId,
       category_id: catId,
       month: selectedMonth,
@@ -146,10 +144,14 @@ export const BudgetsPage = () => {
     });
 
     setLoading(false);
-    setCatId('');
-    setCatAmount('');
-    setEditingBudgetId(null);
-    setIsCategoryModalOpen(false);
+    if (res?.success === false) {
+      alert(res.error || 'Failed to save category budget.');
+    } else {
+      setCatId('');
+      setCatAmount('');
+      setEditingBudgetId(null);
+      setIsCategoryModalOpen(false);
+    }
   };
 
   const handleSaveOverallTarget = async (e) => {
@@ -166,6 +168,14 @@ export const BudgetsPage = () => {
       alert(res.error || 'Failed to update monthly budget target.');
     } else {
       setIsOverallModalOpen(false);
+    }
+  };
+
+  const handleDeleteBudget = async (budgetId, categoryName) => {
+    if (!window.confirm(`Are you sure you want to remove the budget limit for "${categoryName}"?`)) return;
+    const res = await deleteBudget(budgetId);
+    if (res?.success === false) {
+      alert(res.error || 'Failed to delete budget.');
     }
   };
 
@@ -194,24 +204,21 @@ export const BudgetsPage = () => {
             <span>{isExporting ? 'Generating...' : 'Export PDF'}</span>
           </button>
 
-          {isOwnerOrAdmin && (
-            <>
-              <button
-                onClick={() => setIsOverallModalOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 active-press hover-lift transition cursor-pointer"
-              >
-                <Target className="h-4 w-4 text-emerald-600" />
-                Set Monthly Target
-              </button>
-              <button
-                onClick={handleOpenAddCategory}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press hover-lift transition cursor-pointer"
-              >
-                <Plus className="h-4 w-4" />
-                Add Category Budget
-              </button>
-            </>
-          )}
+          {/* Always visible — permission check happens on save */}
+          <button
+            onClick={() => setIsOverallModalOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 active-press hover-lift transition cursor-pointer"
+          >
+            <Target className="h-4 w-4 text-emerald-600" />
+            Set Monthly Target
+          </button>
+          <button
+            onClick={handleOpenAddCategory}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press hover-lift transition cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            Add Category Budget
+          </button>
         </div>
       </div>
 
@@ -290,23 +297,14 @@ export const BudgetsPage = () => {
           </div>
 
           <div className="flex flex-col items-start md:items-end gap-2">
-            {isOwnerOrAdmin ? (
-              <button
-                onClick={() => setIsOverallModalOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/20 transition border border-white/15 cursor-pointer"
-              >
-                <Edit className="h-3.5 w-3.5" />
-                Adjust Target
-              </button>
-            ) : (
-              <div
-                className="inline-flex items-center gap-1.5 rounded-xl bg-white/5 px-3 py-1.5 text-[11px] font-medium text-slate-300 border border-white/10"
-                title="Only the Household Owner and Admins have permission to modify budget limits"
-              >
-                <Lock className="h-3.5 w-3.5 text-slate-400" />
-                <span>Owner &amp; Admin Only</span>
-              </div>
-            )}
+            {/* Always visible Adjust Target button */}
+            <button
+              onClick={() => setIsOverallModalOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/20 transition border border-white/15 cursor-pointer"
+            >
+              <Edit className="h-3.5 w-3.5" />
+              Adjust Target
+            </button>
             {calculations.isOverspent ? (
               <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-400 bg-rose-950/60 px-3 py-1 rounded-full border border-rose-800">
                 <AlertTriangle className="h-3.5 w-3.5" />
@@ -354,19 +352,13 @@ export const BudgetsPage = () => {
             <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
               Setting budgets for groceries, electricity, water, and dining helps prevent surprises at the end of the month!
             </p>
-            {isOwnerOrAdmin ? (
-              <button
-                onClick={handleOpenAddCategory}
-                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press hover-lift transition cursor-pointer"
-              >
-                <Plus className="h-4 w-4" />
-                Set Category Budget
-              </button>
-            ) : (
-              <p className="mt-3 text-[11px] text-slate-400 font-medium italic">
-                Only household owners and admins can configure budget limits.
-              </p>
-            )}
+            <button
+              onClick={handleOpenAddCategory}
+              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active-press hover-lift transition cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              Set Category Budget
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -407,28 +399,23 @@ export const BudgetsPage = () => {
                       </span>
                     )}
 
-                    {isOwnerOrAdmin && (
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleOpenEditCategory(b)}
-                          className="rounded-lg p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 active-press transition cursor-pointer"
-                          title="Edit this category budget limit"
-                        >
-                          <Edit className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (window.confirm(`Are you sure you want to remove the budget limit for "${b.categoryName}"?`)) {
-                              deleteBudget(b.id);
-                            }
-                          }}
-                          className="rounded-lg p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 active-press transition cursor-pointer"
-                          title="Remove budget"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    )}
+                    {/* Always visible edit/delete buttons */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleOpenEditCategory(b)}
+                        className="rounded-lg p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 active-press transition cursor-pointer"
+                        title="Edit this category budget limit"
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteBudget(b.id, b.categoryName)}
+                        className="rounded-lg p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 active-press transition cursor-pointer"
+                        title="Remove budget"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
