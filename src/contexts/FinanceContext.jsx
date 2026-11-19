@@ -463,6 +463,12 @@ export const FinanceProvider = ({ children }) => {
     const resolvedCatId = resolveCategoryId(tx.category_id);
     const categoryObj = categories.find(c => c.id === tx.category_id || c.id === resolvedCatId);
     const numAmount = Number(tx.amount);
+    if (!Number.isFinite(numAmount) || numAmount <= 0) {
+      return { success: false, error: 'Enter a valid transaction amount.' };
+    }
+    if (!['income', 'expense'].includes(tx.type)) {
+      return { success: false, error: 'Choose either Income or Expense.' };
+    }
 
     if (isLocalFinance || !targetHhId) {
       const createdTx = {
@@ -529,31 +535,15 @@ export const FinanceProvider = ({ children }) => {
         transactions: updated,
         type: 'transaction',
       });
+      // Re-read the ledger after a successful cloud save so every device and
+      // every financial summary uses the authoritative transaction record.
+      await loadHouseholdData(targetHhId, { silent: true });
       return { success: true, transaction: formatted };
     } catch (err) {
-      console.warn('Direct Supabase tx insert note, applying resilient local insert:', err);
-      const createdTx = {
-        ...tx,
-        household_id: currentHousehold.id,
-        user_id: user?.id,
-        amount: numAmount,
-        id: `tx-${Date.now()}`,
-        category_name: categoryObj?.name || 'General',
-        category_icon: categoryObj?.icon || 'tag',
-        category_color: categoryObj?.color || '#10B981',
-        user_name: profile?.full_name || 'You',
-        created_at: new Date().toISOString(),
-      };
-      const updated = [createdTx, ...transactions];
-      setTransactions(updated);
-      persistDemoData({ transactions: updated });
-      broadcastSyncEvent('finance_updated', {
-        householdId: currentHousehold.id,
-        inviteCode: currentHousehold.invite_code,
-        transactions: updated,
-        type: 'transaction',
-      });
-      return { success: true, transaction: createdTx };
+      console.error('Transaction save failed:', err);
+      // Cloud saves must never silently become local-only records. Those
+      // records vanish on refresh and leave income/expense totals incorrect.
+      return { success: false, error: err?.message || 'Could not save this transaction. Please try again.' };
     }
   };
 
@@ -1341,6 +1331,9 @@ export const FinanceProvider = ({ children }) => {
       .reduce((sum, t) => sum + Number(t.amount), 0);
 
     const netSavings = totalIncome - totalExpenses;
+    // Cash available is the actual monthly inflow less outflow. It changes
+    // immediately for both an income entry (+) and an expense entry (-).
+    const availableCash = netSavings;
 
     // Household monthly target (from household profile or sum of category budgets)
     const overallTarget = Number(currentHousehold?.monthly_budget_target) || 0;
@@ -1407,6 +1400,7 @@ export const FinanceProvider = ({ children }) => {
       totalIncome,
       totalExpenses,
       netSavings,
+      availableCash,
       activeBudgetTarget,
       remainingBudget,
       budgetUsagePercent,

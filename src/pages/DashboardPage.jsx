@@ -281,12 +281,12 @@ export const DashboardPage = () => {
         />
 
         <StatCard
-          title="Net Family Savings"
-          value={formatPHP(calculations.netSavings)}
+          title="Available Family Cash"
+          value={formatPHP(calculations.availableCash)}
           subtitle={
-            calculations.netSavings >= 0
-              ? 'Positive Net Savings • Surplus'
-              : 'Deficit • Spending exceeded income'
+            calculations.availableCash >= 0
+              ? 'Income less expenses this month'
+              : 'Expenses currently exceed income'
           }
           icon={PiggyBank}
           colorScheme="sky"
@@ -294,7 +294,7 @@ export const DashboardPage = () => {
         />
 
         <StatCard
-          title="Remaining Budget"
+          title="Budget Remaining"
           value={formatPHP(calculations.remainingBudget)}
           subtitle={
             calculations.isOverspent

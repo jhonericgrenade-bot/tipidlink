@@ -84,6 +84,7 @@ test('2. Financial Dashboard Math: Income, Expenses, and Net Savings', () => {
     .reduce((sum, t) => sum + Number(t.amount), 0);
 
   const netSavings = totalIncome - totalExpenses;
+  const availableCash = totalIncome - totalExpenses;
 
   // Expected values from Santos family mock seed:
   // Income: 48,000 (Juan salary) + 14,500 (Angela ESL/design) + 8,500 (Maria store) = 71,000
@@ -92,6 +93,7 @@ test('2. Financial Dashboard Math: Income, Expenses, and Net Savings', () => {
   assert.strictEqual(totalIncome, 71000, 'Total income should equal 71,000 PHP');
   assert.strictEqual(totalExpenses, 19700, 'Total expenses should equal 19,700 PHP');
   assert.strictEqual(netSavings, 51300, 'Net savings should equal 51,300 PHP');
+  assert.strictEqual(availableCash, 51300, 'Available cash increases with income and decreases with expenses');
 });
 
 test('3. Budget Allocation, Remaining Balance, and Utilization Math', () => {

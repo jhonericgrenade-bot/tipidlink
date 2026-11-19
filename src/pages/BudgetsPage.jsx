@@ -281,7 +281,17 @@ export const BudgetsPage = () => {
                 </p>
               </div>
               <div className="border-l border-slate-700 pl-6">
-                <span className="text-slate-400">Available Balance</span>
+                <span className="text-slate-400">Cash Available</span>
+                <p
+                  className={`text-base font-bold ${
+                    calculations.availableCash < 0 ? 'text-rose-400' : 'text-emerald-300'
+                  }`}
+                >
+                  {formatPHP(calculations.availableCash)}
+                </p>
+              </div>
+              <div className="border-l border-slate-700 pl-6">
+                <span className="text-slate-400">Budget Remaining</span>
                 <p
                   className={`text-base font-bold ${
                     calculations.isOverspent ? 'text-rose-400' : 'text-emerald-300'
