@@ -63,74 +63,36 @@ export const verifyInviteCodeExists = async (code) => {
   if (!raw) return { exists: false, error: 'Pakilagay ang household invite code.' };
   const cleanUpper = raw.toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
 
-  // 1. Strict Santos Household presentation code
-  if (cleanUpper === 'SANTOS2026') {
-    return {
-      exists: true,
-      householdId: '0d37e235-c9dd-4876-a54a-9acb36516599',
-      householdName: 'Santos Family Household',
-      inviteCode: 'SANTOS2026',
-    };
-  }
-
-  // 2. Explicitly reject any partial or invalid variants of SANTOS (e.g. SANTOS2027, SANTOS123)
-  if (cleanUpper.startsWith('SANTOS')) {
+  // Explicitly reject any partial or invalid variants of SANTOS (e.g. SANTOS2027).
+  if (cleanUpper.startsWith('SANTOS') && cleanUpper !== 'SANTOS2026') {
     return {
       exists: false,
       error: 'Maling household invite code. Ang opisyal na code ng Santos Family ay SANTOS2026. Pakisuri ang tamang code bago magpatuloy.'
     };
   }
 
-  // 3. For any other codes, if user is already authenticated in Supabase, query cloud data directly
-  if (isSupabaseConfigured && supabase?.auth) {
+  if (cleanUpper === 'SANTOS2026' && !isSupabaseConfigured) {
+    return { exists: true, inviteCode: 'SANTOS2026' };
+  }
+
+  // The server compares the normalized code exactly. It is available before
+  // registration, so one wrong character is caught before an account is made.
+  if (isSupabaseConfigured) {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        // Search profiles.phone
-        const { data: matchedProfiles } = await supabase
-          .from('profiles')
-          .select('phone')
-          .not('phone', 'is', null)
-          .ilike('phone', '%INVITE%');
-
-        for (const p of (matchedProfiles || [])) {
-          if (!p.phone) continue;
-          const cleanPhone = p.phone.replace(/^INVITES?:/i, '');
-          const entries = cleanPhone.split('|');
-          for (const entry of entries) {
-            const parts = entry.trim().split(':');
-            if (parts.length >= 2) {
-              const registeredCode = parts[0].trim().toUpperCase();
-              const uuid = parts[1].trim();
-              if (
-                registeredCode === cleanUpper ||
-                registeredCode.replace(/-/g, '') === cleanUpper.replace(/-/g, '')
-              ) {
-                return { exists: true, householdId: uuid, inviteCode: registeredCode };
-              }
-            }
-          }
-        }
-
-        // Direct lookup in households table
-        const { data: hh } = await supabase
-          .from('households')
-          .select('id, name, invite_code')
-          .ilike('invite_code', raw)
-          .maybeSingle();
-
-        if (hh?.id) {
-          return { exists: true, householdId: hh.id, householdName: hh.name, inviteCode: hh.invite_code };
-        }
-      }
+      const { data, error } = await supabase.rpc('validate_household_invite_code', {
+        invite_code_input: raw,
+      });
+      if (error) throw error;
+      if (data?.exists) return { exists: true, inviteCode: raw.toUpperCase() };
     } catch (err) {
-      console.warn('Pre-validation check note:', err);
+      console.warn('Invite-code validation note:', err);
+      return { exists: false, error: 'Hindi ma-verify ang household code ngayon. Pakisubukan muli.' };
     }
   }
 
   return {
     exists: false,
-    error: 'Hindi nahanap ang household code na ito (o hindi pa nagagawa). Pakisuri ang tamang invite code mula sa household owner bago magpatuloy.'
+    error: 'Mali ang household invite code. Pakisuri ang bawat letra at numero bago magpatuloy.'
   };
 };
 
@@ -1319,67 +1281,64 @@ export const HouseholdProvider = ({ children }) => {
     }
 
     try {
+      // Registration sets Auth state asynchronously. Resolve the live session
+      // here rather than reading a stale React `user` closure (which used to
+      // cause "Cannot read properties of null (reading 'id')").
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      const activeUser = session?.user || user;
+      if (!activeUser?.id) {
+        return { success: false, error: 'Nagawa ang account ngunit wala pang active sign-in session. Mag-sign in muna, pagkatapos ay ilagay ulit ang household code.' };
+      }
+
       const { data: joinResult, error: joinRpcError } = await supabase.rpc('join_household_by_invite_code', {
         invite_code_input: rawCode,
-        member_nickname: user?.user_metadata?.full_name || profile?.full_name || user?.email?.split('@')[0] || 'Member',
+        member_nickname: activeUser.user_metadata?.full_name || profile?.full_name || activeUser.email?.split('@')[0] || 'Member',
       });
 
       if (joinRpcError) throw joinRpcError;
       if (!joinResult?.success || !joinResult?.household_id) {
-        return { success: false, error: joinResult?.error || 'Hindi nahanap ang household code na ito. Pakisuri ang code mula sa household owner.' };
+        return { success: false, error: 'Mali ang household invite code. Pakisuri ang bawat letra at numero bago magpatuloy.' };
       }
 
       const targetHouseholdId = joinResult.household_id;
 
-      // Check if already joined
-      const { data: existing } = await supabase
-        .from('household_members')
-        .select('id')
-        .eq('household_id', targetHouseholdId)
-        .eq('user_id', user.id)
+      const { data: household, error: householdError } = await supabase
+        .from('households')
+        .select('*')
+        .eq('id', targetHouseholdId)
         .maybeSingle();
+      if (householdError) throw householdError;
+      if (!household) throw new Error('Nakasali ang account ngunit hindi ma-load ang household. Pakisubukan muli.');
 
-      if (existing) {
-        localStorage.setItem('tipidlink_active_household_id', targetHouseholdId);
-        if (user?.id) {
-          localStorage.setItem(`tipidlink_active_household_${user.id}`, targetHouseholdId);
-        }
-        const freshList = await loadHouseholds(targetHouseholdId);
-        const joinedHH = freshList.find(h => h.id === targetHouseholdId);
-        if (joinedHH) {
-          setCurrentHousehold(joinedHH);
-          if (joinedHH.monthly_budget_target !== undefined && joinedHH.monthly_budget_target !== null) {
-            localStorage.setItem(`tipidlink_household_target_${targetHouseholdId}`, String(joinedHH.monthly_budget_target));
-            localStorage.setItem('tipidlink_last_saved_target', String(joinedHH.monthly_budget_target));
-          }
-        }
-        await loadMembers(targetHouseholdId);
-        return { success: true, household: joinedHH, message: 'You are already a member of this household.' };
-      }
-
-      const memberNickname = user?.user_metadata?.full_name || profile?.full_name || user?.email?.split('@')[0] || 'Member';
+      const tier = parseHouseholdTier(household.description);
+      const joinedHH = {
+        ...household,
+        description: tier.cleanDescription || household.description,
+        clean_description: tier.cleanDescription || household.description,
+        raw_description: household.description,
+        is_premium: tier.isPremium,
+        premium_plan: tier.plan,
+        sponsor_details: tier.sponsor,
+        user_role: household.created_by === activeUser.id ? 'owner' : 'member',
+      };
 
       localStorage.setItem('tipidlink_active_household_id', targetHouseholdId);
-      if (user?.id) {
-        localStorage.setItem(`tipidlink_active_household_${user.id}`, targetHouseholdId);
+      localStorage.setItem(`tipidlink_active_household_${activeUser.id}`, targetHouseholdId);
+      if (joinedHH.monthly_budget_target !== undefined && joinedHH.monthly_budget_target !== null) {
+        localStorage.setItem(`tipidlink_household_target_${targetHouseholdId}`, String(joinedHH.monthly_budget_target));
+        localStorage.setItem('tipidlink_last_saved_target', String(joinedHH.monthly_budget_target));
       }
-      const freshList = await loadHouseholds(targetHouseholdId);
-      const joinedHH = freshList.find(h => h.id === targetHouseholdId);
-      if (joinedHH) {
-        setCurrentHousehold(joinedHH);
-        if (joinedHH.monthly_budget_target !== undefined && joinedHH.monthly_budget_target !== null) {
-          localStorage.setItem(`tipidlink_household_target_${targetHouseholdId}`, String(joinedHH.monthly_budget_target));
-          localStorage.setItem('tipidlink_last_saved_target', String(joinedHH.monthly_budget_target));
-        }
-      }
-      await loadMembers(targetHouseholdId);
+
+      setCurrentHousehold(joinedHH);
+      setHouseholds(prev => [joinedHH, ...prev.filter(h => h.id !== targetHouseholdId)]);
 
       // Broadcast sync event to all active units
       broadcastSyncEvent('member_joined', {
         householdId: targetHouseholdId,
-        user_id: user.id,
-        name: memberNickname,
-        email: user.email || '',
+        user_id: activeUser.id,
+        name: activeUser.user_metadata?.full_name || activeUser.email?.split('@')[0] || 'Member',
+        email: activeUser.email || '',
       });
 
       return { success: true, household: joinedHH };

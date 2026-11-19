@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, clearStaleSessionData } from '../contexts/AuthContext';
-import { useHousehold } from '../contexts/HouseholdContext';
+import { useHousehold, verifyInviteCodeExists } from '../contexts/HouseholdContext';
 import { Lock, Mail, User, AlertCircle, ArrowRight, CheckCircle2, Circle, Eye, EyeOff, Sparkles, KeyRound, ShieldCheck, Smartphone, Download } from 'lucide-react';
 
 export const RegisterPage = () => {
@@ -71,6 +71,17 @@ export const RegisterPage = () => {
 
     setError('');
     setLoading(true);
+
+    // Validate against the live database before an account is created. This
+    // gives an immediate and exact error for even one wrong code character.
+    if (trimmedCode) {
+      const codeCheck = await verifyInviteCodeExists(trimmedCode);
+      if (!codeCheck.exists) {
+        setLoading(false);
+        setError(codeCheck.error || 'Mali ang household invite code. Pakisuri ang bawat letra at numero bago magpatuloy.');
+        return;
+      }
+    }
 
     // 2. Perform account sign-up
     const res = await signUp(email.trim(), password, fullName.trim(), securityPin || '0000');

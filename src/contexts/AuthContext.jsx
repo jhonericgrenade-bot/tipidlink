@@ -235,7 +235,7 @@ export const AuthProvider = ({ children }) => {
         await fetchUserProfile(data.user);
       }
 
-      return { success: true, data };
+      return { success: true, data, user: data?.user || null, session: data?.session || null };
     } catch (error) {
       let friendlyMessage = error.message;
       if (error.message.includes('Invalid login credentials')) {
