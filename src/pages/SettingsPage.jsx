@@ -16,7 +16,6 @@ import {
 import {
   Database,
   ShieldCheck,
-  RefreshCw,
   Trash2,
   CheckCircle2,
   Info,
@@ -42,7 +41,7 @@ import {
 } from 'lucide-react';
 
 export const SettingsPage = () => {
-  const { user, profile, updatePassword, isDemoMode, signOut } = useAuth();
+  const { user, profile, updatePassword, signOut } = useAuth();
   const { currentUserRole, currentHousehold } = useHousehold();
   const {
     ledgerTransactions: transactions,
@@ -53,11 +52,9 @@ export const SettingsPage = () => {
     calculations,
     selectedMonth,
     selectedYear,
-    resetToDemoData,
   } = useFinance();
   const { isPremium, premiumPlan, sponsorDetails, openUpgradeModal } = usePremium();
 
-  const [resetMessage, setResetMessage] = useState('');
   const [exportLoading, setExportLoading] = useState(false);
   const [exportStatus, setExportStatus] = useState('');
 
@@ -100,16 +97,6 @@ export const SettingsPage = () => {
     }
   };
 
-  const handleResetData = () => {
-    const result = resetToDemoData();
-    if (!result?.success) {
-      setResetMessage(result?.error || 'Demo data could not be reloaded.');
-      return;
-    }
-    setResetMessage('Demo data refreshed successfully!');
-    setTimeout(() => setResetMessage(''), 3000);
-  };
-
   const handleClearLocal = () => {
     if (window.confirm('Are you sure you want to clear locally cached data?')) {
       localStorage.clear();
@@ -128,13 +115,6 @@ export const SettingsPage = () => {
         </p>
       </div>
 
-      {resetMessage && (
-        <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800 border border-emerald-200">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-          <span>{resetMessage}</span>
-        </div>
-      )}
-
       {/* Account Security & Password Management Card */}
       <div className="rounded-3xl bg-white p-6 shadow-xs border border-slate-200/80 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-5">
@@ -150,7 +130,7 @@ export const SettingsPage = () => {
                 </span>
               </div>
               <p className="text-xs text-slate-500">
-                {profile?.full_name || user?.user_metadata?.full_name || 'Account User'} • {user?.email || profile?.email || 'demo@tipidlink.ph'}
+                {profile?.full_name || user?.user_metadata?.full_name || 'Account User'} • {user?.email || profile?.email || 'No email available'}
               </p>
             </div>
           </div>
@@ -592,7 +572,7 @@ export const SettingsPage = () => {
               : 'bg-amber-100 text-amber-800 border border-amber-200'
           }`}>
             {isSupabaseConfigured ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Info className="h-3.5 w-3.5" />}
-            {isSupabaseConfigured ? 'Connected to Supabase' : 'Interactive Demo Mode Active'}
+            {isSupabaseConfigured ? 'Connected to Supabase' : 'Backend configuration unavailable'}
           </span>
         </div>
 
@@ -600,7 +580,7 @@ export const SettingsPage = () => {
           <div className="flex justify-between">
             <span className="text-slate-400">VITE_SUPABASE_URL:</span>
             <span className="text-slate-700 font-semibold truncate max-w-xs">
-              {config.url || 'Not set (using offline storage)'}
+              {config.url || 'Not configured'}
             </span>
           </div>
           <div className="flex justify-between">
@@ -650,24 +630,14 @@ export const SettingsPage = () => {
         </div>
       </div>
 
-      {/* Demo Data & Cache Controls */}
+      {/* Local cache control */}
       <div className="rounded-3xl bg-white p-6 shadow-xs border border-slate-200/80 space-y-4">
-        <h3 className="text-base font-bold text-slate-900">Demonstration Controls</h3>
+        <h3 className="text-base font-bold text-slate-900">Local Cache</h3>
         <p className="text-xs text-slate-500">
-          Use these controls during your presentation to quickly reset or reload realistic sample data.
+          Clear only this device&apos;s cached session and refresh the page. Your secure cloud records are not deleted.
         </p>
 
         <div className="flex flex-wrap items-center gap-3 pt-2">
-          {isDemoMode && (
-            <button
-              onClick={handleResetData}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Reload Santos Family Demo Records
-            </button>
-          )}
-
           <button
             onClick={handleClearLocal}
             className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition"

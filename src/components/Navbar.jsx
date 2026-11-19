@@ -11,7 +11,6 @@ import {
   PiggyBank,
   Users,
   LogOut,
-  Sparkles,
   Database,
   ChevronDown,
   Settings,
@@ -20,7 +19,7 @@ import {
 } from 'lucide-react';
 
 export const Navbar = ({ onOpenCreateHousehold, onOpenJoinHousehold }) => {
-  const { user, profile, isDemoMode, signOut, loginAsDemo } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const { isPremium, openUpgradeModal } = usePremium();
   const [profileOpen, setProfileOpen] = useState(false);
   const navigate = useNavigate();
@@ -108,18 +107,10 @@ export const Navbar = ({ onOpenCreateHousehold, onOpenJoinHousehold }) => {
             <span className="sm:hidden inline-block min-w-[24px] text-center">{isPremium ? 'Pro' : '₱30'}</span>
           </button>
 
-          {/* Supabase or Demo Mode badge */}
-          {isDemoMode ? (
-            <span className="hidden 2xl:inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 border border-amber-200 shrink-0">
-              <Sparkles className="h-3 w-3 text-amber-600 shrink-0" />
-              <span>Demo Mode</span>
-            </span>
-          ) : (
-            <span className="hidden 2xl:inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 border border-emerald-200 shrink-0">
-              <Database className="h-3 w-3 text-emerald-600 shrink-0" />
-              <span>Supabase RLS</span>
-            </span>
-          )}
+          <span className="hidden 2xl:inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 border border-emerald-200 shrink-0">
+            <Database className="h-3 w-3 text-emerald-600 shrink-0" />
+            <span>Supabase RLS</span>
+          </span>
 
           {/* Quick Direct Mobile Sign Out Button - 1-tap Logout on Mobile, Zero Swiping Needed */}
           <button
@@ -172,47 +163,7 @@ export const Navbar = ({ onOpenCreateHousehold, onOpenJoinHousehold }) => {
                 <div className="px-3 py-2.5 border-b border-slate-100">
                   <p className="text-xs font-bold text-slate-900">{profile?.full_name || 'Member'}</p>
                   <p className="text-[11px] text-slate-500 truncate">{user?.email}</p>
-                  {isDemoMode && (
-                    <span className="mt-1 inline-block text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
-                      Interactive Showcase
-                    </span>
-                  )}
                 </div>
-
-                {isDemoMode && (
-                  <div className="px-2 py-2 border-b border-slate-100">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1 mb-1">
-                      Switch Demo Family Persona
-                    </p>
-                    <button
-                      onClick={() => {
-                        loginAsDemo('maria');
-                        setProfileOpen(false);
-                      }}
-                      className="w-full text-left text-xs px-2 py-1.5 rounded-lg hover:bg-slate-50 font-medium text-slate-700"
-                    >
-                      👩 Maria Santos (Budget Manager)
-                    </button>
-                    <button
-                      onClick={() => {
-                        loginAsDemo('juan');
-                        setProfileOpen(false);
-                      }}
-                      className="w-full text-left text-xs px-2 py-1.5 rounded-lg hover:bg-slate-50 font-medium text-slate-700"
-                    >
-                      👨 Juan Santos (Breadwinner)
-                    </button>
-                    <button
-                      onClick={() => {
-                        loginAsDemo('angela');
-                        setProfileOpen(false);
-                      }}
-                      className="w-full text-left text-xs px-2 py-1.5 rounded-lg hover:bg-slate-50 font-medium text-slate-700"
-                    >
-                      👧 Angela Santos (Working Student)
-                    </button>
-                  </div>
-                )}
 
                 <div className="pt-1">
                   <button

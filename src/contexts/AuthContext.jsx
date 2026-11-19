@@ -1,7 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { INITIAL_DEMO_DATA } from '../lib/mockData';
-import { resolveSessionMode } from '../lib/sessionMode';
 
 export const clearStaleSessionData = () => {
   if (typeof window === 'undefined') return;
@@ -49,9 +47,7 @@ export const AuthProvider = ({ children }) => {
     const resolvedName = authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'Family Member';
     const fallbackAvatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(resolvedName)}`;
 
-    // An authenticated Supabase session is always a real cloud account. Demo
-    // mode is entered only through the explicit local demo control, never from
-    // an email address or a previously cached flag.
+    // An authenticated Supabase session is always a real cloud account.
     if (!isSupabaseConfigured) {
       const fallback = {
         id: userId,
@@ -118,15 +114,20 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const initAuth = async () => {
       try {
+        // Demo personas are retired. Remove any old browser-only demo session
+        // before resolving the real Supabase session.
+        localStorage.removeItem('tipidlink_demo_user');
+        localStorage.removeItem('tipidlink_demo_active');
+        localStorage.removeItem('tipidlink_demo_households');
+        if (localStorage.getItem('tipidlink_active_household_id') === 'hh-santos-family') {
+          localStorage.removeItem('tipidlink_active_household_id');
+        }
+
         if (isSupabaseConfigured) {
           const { data: { session }, error } = await supabase.auth.getSession();
           if (error) throw error;
 
-          if (resolveSessionMode({ hasCloudSession: Boolean(session?.user) }) === 'cloud') {
-            // A real session must never be redirected into local demo data.
-            // Some legitimate accounts use the previous @tipidlink.ph domain.
-            localStorage.removeItem('tipidlink_demo_user');
-            localStorage.removeItem('tipidlink_demo_active');
+          if (session?.user) {
             setIsDemoMode(false);
             setUser(session.user);
             await fetchUserProfile(session.user);
@@ -135,35 +136,9 @@ export const AuthProvider = ({ children }) => {
           }
         }
 
-        // Only restore demo session if explicitly active AND no real Supabase session exists
-        const demoActive = localStorage.getItem('tipidlink_demo_active');
-        const savedDemoUser = localStorage.getItem('tipidlink_demo_user');
-
-        if (resolveSessionMode({
-          hasCloudSession: false,
-          demoActive,
-          savedDemoUser,
-        }) === 'demo') {
-          try {
-            const parsed = JSON.parse(savedDemoUser);
-            setUser({ id: parsed.id, email: parsed.email });
-            setProfile(parsed);
-            setIsDemoMode(true);
-
-            // Demo state remains local-only. Never restore a cloud session
-            // from credentials embedded in the client application.
-          } catch {
-            localStorage.removeItem('tipidlink_demo_user');
-            localStorage.removeItem('tipidlink_demo_active');
-            setUser(null);
-            setProfile(null);
-            setIsDemoMode(false);
-          }
-        } else {
-          setUser(null);
-          setProfile(null);
-          setIsDemoMode(false);
-        }
+        setUser(null);
+        setProfile(null);
+        setIsDemoMode(false);
       } catch (err) {
         console.error('Error fetching Supabase session:', err);
       } finally {
@@ -182,7 +157,7 @@ export const AuthProvider = ({ children }) => {
           setIsDemoMode(false);
           setUser(session.user);
           await fetchUserProfile(session.user);
-        } else if (!localStorage.getItem('tipidlink_demo_active')) {
+        } else {
           setUser(null);
           setProfile(null);
           setIsDemoMode(false);
@@ -197,7 +172,7 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  // Sign in with Supabase Auth or offline fallback
+  // Sign in with Supabase Auth. Production access always requires the live backend.
   const signIn = async (email, password) => {
     const cleanEmail = (email || '').trim().toLowerCase();
 
@@ -210,16 +185,7 @@ export const AuthProvider = ({ children }) => {
     setIsDemoMode(false);
 
     if (!isSupabaseConfigured) {
-      const fallbackName = cleanEmail.split('@')[0];
-      const offlineProfile = {
-        id: `usr-${Date.now()}`,
-        email: cleanEmail,
-        full_name: fallbackName,
-        avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fallbackName)}`,
-      };
-      setUser({ id: offlineProfile.id, email: offlineProfile.email });
-      setProfile(offlineProfile);
-      return { success: true };
+      return { success: false, error: 'Hindi available ang secure sign in. Pakisubukan ulit kapag online ang TipidLink server.' };
     }
 
     try {
@@ -267,17 +233,7 @@ export const AuthProvider = ({ children }) => {
     setIsDemoMode(false);
 
     if (!isSupabaseConfigured) {
-      const fallbackName = cleanEmail.split('@')[0];
-      const offlineProfile = {
-        id: `usr-${Date.now()}`,
-        email: cleanEmail,
-        full_name: fallbackName,
-        avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fallbackName)}`,
-        security_pin: cleanPin,
-      };
-      setUser({ id: offlineProfile.id, email: offlineProfile.email });
-      setProfile(offlineProfile);
-      return { success: true };
+      return { success: false, error: 'Hindi available ang secure PIN sign in. Pakisubukan ulit kapag online ang TipidLink server.' };
     }
 
     try {
@@ -318,7 +274,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Sign up with Supabase Auth or offline fallback
+  // Account creation always uses Supabase Auth.
   const signUp = async (email, password, fullName, securityPin = '0000') => {
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanName = (fullName || '').trim() || cleanEmail.split('@')[0];
@@ -335,16 +291,7 @@ export const AuthProvider = ({ children }) => {
     setIsDemoMode(false);
 
     if (!isSupabaseConfigured) {
-      const demoProfile = {
-        id: `usr-${Date.now()}`,
-        email: cleanEmail,
-        full_name: cleanName,
-        avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanName)}`,
-        security_pin: cleanPin,
-      };
-      setUser({ id: demoProfile.id, email: cleanEmail });
-      setProfile(demoProfile);
-      return { success: true };
+      return { success: false, error: 'Hindi available ang secure account creation. Pakisubukan ulit kapag online ang TipidLink server.' };
     }
 
     try {
@@ -388,37 +335,6 @@ export const AuthProvider = ({ children }) => {
       }
       return { success: false, error: friendlyMessage };
     }
-  };
-
-  // Log in immediately as demo user
-  const loginAsDemo = async (demoUserKey = 'maria') => {
-    let selectedUser;
-    if (demoUserKey === 'juan') {
-      selectedUser = INITIAL_DEMO_DATA.members[1];
-    } else if (demoUserKey === 'angela') {
-      selectedUser = INITIAL_DEMO_DATA.members[2];
-    } else {
-      selectedUser = INITIAL_DEMO_DATA.profile;
-    }
-
-    const demoProfile = {
-      id: selectedUser.user_id || selectedUser.id,
-      email: selectedUser.email,
-      full_name: selectedUser.full_name,
-      avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(selectedUser.full_name)}`,
-      nickname: selectedUser.nickname || selectedUser.full_name,
-    };
-
-    localStorage.setItem('tipidlink_demo_active', 'true');
-    localStorage.setItem('tipidlink_demo_user', JSON.stringify(demoProfile));
-    setUser({ id: demoProfile.id, email: demoProfile.email });
-    setProfile(demoProfile);
-    setIsDemoMode(true);
-
-    // Demo is intentionally local-only. A public demo control must never
-    // authenticate to a cloud account using a credential bundled in the app.
-
-    return { success: true };
   };
 
   // Sign out
@@ -733,7 +649,6 @@ export const AuthProvider = ({ children }) => {
         signInWithPin,
         signUp,
         signOut,
-        loginAsDemo,
         updateProfile,
         resetPassword,
         updatePassword,

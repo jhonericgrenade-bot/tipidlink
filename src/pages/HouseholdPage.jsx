@@ -39,7 +39,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
     loading,
     refreshMembers,
   } = useHousehold();
-  const { user, profile, isDemoMode, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const { isPremium, openUpgradeModal, resetToFree } = usePremium();
 
   const [copied, setCopied] = useState(false);
@@ -64,11 +64,9 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
     }
   }, [currentHousehold]);
 
-  const displayCode = (isDemoMode || currentHousehold?.id === 'hh-santos-family')
-    ? 'SANTOS2026'
-    : (currentHousehold?.invite_code || 'TIPID-2026');
+  const displayCode = currentHousehold?.invite_code || encodeHouseholdCode(currentHousehold?.id) || '';
 
-  const isCodeUnlocked = isPremium || isDemoMode || currentHousehold?.id === 'hh-santos-family';
+  const isCodeUnlocked = isPremium;
 
   const handleCopyCode = async () => {
     if (!isCodeUnlocked) {
@@ -326,7 +324,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
             <div className="mt-4 flex items-center justify-between rounded-2xl bg-white/10 backdrop-blur-md px-3.5 sm:px-4 py-3 border border-white/20 gap-2 min-h-[58px]">
               {isCodeUnlocked ? (
                 <span className="font-mono text-lg sm:text-2xl font-black tracking-widest text-white truncate max-w-[180px] sm:max-w-[240px] min-w-0" title={displayCode}>
-                  {displayCode || 'SANTOS2026'}
+                  {displayCode || 'No invite code available'}
                 </span>
               ) : (
                 <div className="flex items-center gap-1.5 sm:gap-2 text-emerald-200 min-w-0">

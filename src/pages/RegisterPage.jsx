@@ -60,15 +60,6 @@ export const RegisterPage = () => {
     }
     const trimmedCode = inviteCode.trim();
 
-    // 1. Client-side strict validation for Santos family code variants (e.g. SANTOS2027)
-    if (trimmedCode) {
-      const cleanUpper = trimmedCode.toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
-      if (cleanUpper.startsWith('SANTOS') && cleanUpper !== 'SANTOS2026') {
-        setError('Maling household invite code. Ang opisyal na code ng Santos Family ay SANTOS2026. Pakisuri ang tamang code bago magpatuloy.');
-        return;
-      }
-    }
-
     setError('');
     setLoading(true);
 
@@ -359,12 +350,6 @@ export const RegisterPage = () => {
               <p className="text-[10px] text-emerald-200/70 mt-1 pl-1">
                 May code mula sa pamilya? I-paste dito para automatic kang makasali agad.
               </p>
-              {inviteCode.trim() === 'SANTOS2026' && (
-                <p className="text-[11px] text-emerald-300 font-bold mt-1.5 pl-1 flex items-center gap-1">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                  <span>Santos Family Household (Ready to join)</span>
-                </p>
-              )}
             </div>
 
             <button

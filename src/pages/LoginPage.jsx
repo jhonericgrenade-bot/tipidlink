@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Lock, Mail, AlertCircle, ArrowRight, Eye, EyeOff, Sparkles, ShieldCheck, KeyRound, CheckCircle2, X, Users, Smartphone, Download } from 'lucide-react';
 
 export const LoginPage = () => {
-  const { signIn, signInWithPin, loginAsDemo, resetPasswordWithPin, recoverAccountWithFamilyKey } = useAuth();
+  const { signIn, signInWithPin, resetPasswordWithPin, recoverAccountWithFamilyKey } = useAuth();
   const navigate = useNavigate();
 
   const [loginMode, setLoginMode] = useState('pin');
@@ -189,11 +189,6 @@ export const LoginPage = () => {
     } else {
       setForgotError(res.error || 'Hindi ma-recover ang account gamit ang Family Code.');
     }
-  };
-
-  const handleDemoLogin = (personaKey) => {
-    loginAsDemo(personaKey);
-    navigate('/');
   };
 
   return (
@@ -421,39 +416,6 @@ export const LoginPage = () => {
             </Link>
           </div>
 
-          {/* Quick Demo Section with Glass Pills */}
-          <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between text-xs">
-            <span className="text-slate-400 font-medium flex items-center gap-1">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
-              Quick Demo:
-            </span>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('maria')}
-                className="px-2.5 py-1 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-emerald-300 hover:bg-emerald-500/20 font-bold transition shadow-xs active-press"
-                title="Log in as Nanay Maria"
-              >
-                👩 Maria
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('juan')}
-                className="px-2.5 py-1 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-slate-200 hover:bg-white/20 font-semibold transition shadow-xs active-press"
-                title="Log in as Tatay Juan"
-              >
-                👨 Juan
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('angela')}
-                className="px-2.5 py-1 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-slate-200 hover:bg-white/20 font-semibold transition shadow-xs active-press"
-                title="Log in as Angela"
-              >
-                👧 Angela
-              </button>
-            </div>
-          </div>
         </div>
       </div>
 

@@ -19,7 +19,6 @@ import {
   CheckCircle2,
   Calendar,
   Sparkles,
-  RefreshCw,
   ShoppingBag,
   Download,
   Crown,
@@ -36,7 +35,7 @@ import {
 
 export const DashboardPage = () => {
   const { currentHousehold } = useHousehold();
-  const { user, profile, isDemoMode } = useAuth();
+  const { user, profile } = useAuth();
   const { isPremium, openUpgradeModal } = usePremium();
   const {
     ledgerTransactions,
@@ -51,7 +50,6 @@ export const DashboardPage = () => {
     categories,
     addTransaction,
     recordBillPayment,
-    resetToDemoData,
   } = useFinance();
 
   // Export PDF state (₱30 Pro Feature)
@@ -214,16 +212,6 @@ export const DashboardPage = () => {
               )}
               <span>{isExporting ? 'Generating...' : (isPremium ? 'Export PDF' : 'Export PDF (₱30 Pro)')}</span>
             </button>
-            {(isDemoMode || currentHousehold?.id === 'hh-santos-family') && (
-              <button
-                onClick={resetToDemoData}
-                className="group inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-2.5 text-xs font-semibold text-white backdrop-blur-xs hover:bg-white/20 active-press transition border border-white/10 cursor-pointer"
-                title="Reload sample Filipino household data"
-              >
-                <RefreshCw className="h-3.5 w-3.5 transition-transform duration-500 group-hover:rotate-180" />
-                Reload Demo Data
-              </button>
-            )}
           </div>
         </div>
       </div>
