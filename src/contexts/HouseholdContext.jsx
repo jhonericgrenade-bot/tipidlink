@@ -409,10 +409,10 @@ export const HouseholdProvider = ({ children }) => {
       }
 
       // A user only has Santos Family if in demo mode OR explicitly joined via code SANTOS2026
-      const hasJoinedSantos = isDemoMode
-        || (user?.id && localStorage.getItem(`tipidlink_user_joined_santos_${user.id}`) === 'true')
-        || (user?.user_metadata?.joined_santos === true)
-        || (profile?.phone && profile.phone.includes('JOINED:SANTOS2026'));
+      // A real account must receive households only from its server-side
+      // membership rows. Old local "joined Santos" flags can otherwise create
+      // a fake household backed by a different device's demo cache.
+      const hasJoinedSantos = isDemoMode;
 
       if (hasJoinedSantos) {
         let directCloudTarget = null;
@@ -634,10 +634,9 @@ export const HouseholdProvider = ({ children }) => {
         .filter(Boolean);
 
       // A user only has Santos Family if in demo mode OR explicitly joined via code SANTOS2026
-      const hasJoinedSantos = isDemoMode
-        || (user?.id && localStorage.getItem(`tipidlink_user_joined_santos_${user.id}`) === 'true')
-        || (user?.user_metadata?.joined_santos === true)
-        || (profile?.phone && profile.phone.includes('JOINED:SANTOS2026'));
+      // Cloud users use only the shared household_members record. Never
+      // synthesize Santos from a browser flag or account metadata.
+      const hasJoinedSantos = isDemoMode;
 
       if (hasJoinedSantos) {
         let directCloudTarget = null;
@@ -1181,9 +1180,10 @@ export const HouseholdProvider = ({ children }) => {
 
     const cleanUpper = rawCode.toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
 
-    // Universal handling for Santos Family demo & presentation code SANTOS2026 across ALL accounts
+    // The presentation-only path is limited to Demo Mode. Real accounts use
+    // the same secure, server-side invite flow as every other household code.
     const SANTOS_UUID = '0d37e235-c9dd-4876-a54a-9acb36516599';
-    if (cleanUpper === 'SANTOS2026') {
+    if (cleanUpper === 'SANTOS2026' && isDemoMode) {
       const userId = user?.id || 'usr-registered-member';
       const userFullName = user?.user_metadata?.full_name || profile?.full_name || (user?.email ? user.email.split('@')[0] : 'Family Member');
       const userEmail = profile?.email || user?.email || 'member@tipidlink.ph';
