@@ -1399,7 +1399,12 @@ export const HouseholdProvider = ({ children }) => {
     if (updates.monthly_budget_target !== undefined) dbPayload.monthly_budget_target = Number(updates.monthly_budget_target);
     if (updates.invite_code !== undefined) dbPayload.invite_code = updates.invite_code;
 
-    // Handle tier tags in description
+    // Premium is persisted through a server-side RPC. This lets a household
+    // member activate a shared plan without relying on a device-only cache,
+    // while leaving Free resets to the owner/admin permission model.
+    const hasPremiumUpdate = updates.is_premium !== undefined;
+
+    // Handle tier tags in description for the immediate local representation.
     if (updates.description !== undefined || updates.is_premium !== undefined) {
       const isPro = updates.is_premium !== undefined ? updates.is_premium : Boolean(currentHousehold.is_premium);
       const plan = updates.premium_plan || currentHousehold.premium_plan;
@@ -1553,6 +1558,36 @@ export const HouseholdProvider = ({ children }) => {
 
     if (!user || !targetHhId) {
       return { success: false, error: 'A cloud household connection is required to save this change.' };
+    }
+
+    if (hasPremiumUpdate) {
+      try {
+        const { data, error } = await supabase.rpc('set_household_premium', {
+          target_household_id: targetHhId,
+          activate_premium: Boolean(updates.is_premium),
+          requested_plan: updates.premium_plan || null,
+          requested_sponsor: updates.sponsor_details || null,
+        });
+        if (error) throw error;
+        if (data?.success === false) throw new Error(data.error || 'Could not save the household plan.');
+
+        // The database response is the canonical shared household state.
+        updates.raw_description = data?.description || updates.raw_description;
+        updates.description = parseHouseholdTier(updates.raw_description).cleanDescription || updates.description;
+        updates.clean_description = updates.description;
+        updates.is_premium = Boolean(data?.is_premium ?? updates.is_premium);
+        updates.premium_plan = data?.plan || updates.premium_plan;
+        updates.sponsor_details = data?.sponsor || null;
+      } catch (err) {
+        console.error('Supabase household premium update failed:', err);
+        return { success: false, error: err?.message || 'Could not save the household plan. Please try again.' };
+      }
+    }
+
+    // The tier RPC already wrote description, so only save unrelated columns
+    // through the ordinary household update path.
+    if (hasPremiumUpdate) {
+      delete dbPayload.description;
     }
 
     if (Object.keys(dbPayload).length > 0) {

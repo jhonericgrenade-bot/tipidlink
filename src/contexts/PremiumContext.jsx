@@ -285,50 +285,47 @@ export const PremiumProvider = ({ children }) => {
 
   // Activate ₱30 Direct Plan (Owner or member upgrading the household)
   const activatePremium = async (planName = 'TipidLink Premium Plan (₱30/mo)') => {
+    if (!hhId || !updateHousehold) {
+      return { success: false, error: 'No active household is available for this upgrade.' };
+    }
+
+    const result = await updateHousehold({ is_premium: true, premium_plan: planName, sponsor_details: null });
+    if (!result?.success) return result || { success: false, error: 'Could not activate Premium.' };
+
     setIsPremium(true);
     setPremiumPlan(planName);
     setSponsorDetails(null);
-    saveUserState(true, planName, null);
-
-    if (hhId) {
-      await saveHouseholdPremiumState(hhId, true, planName, null);
-    }
-
-    if (updateHousehold) {
-      await updateHousehold({ is_premium: true, premium_plan: planName, sponsor_details: null });
-    }
+    return { success: true };
   };
 
   // Activate Community / Sponsored Access (Cooperatives, Schools, Barangays, LGUs, NGOs)
   const activateSponsoredAccess = async (sponsorName = 'Barangay Community Partner') => {
+    if (!hhId || !updateHousehold) {
+      return { success: false, error: 'No active household is available for this upgrade.' };
+    }
+
+    const result = await updateHousehold({ is_premium: true, premium_plan: 'Sponsored Community Access', sponsor_details: sponsorName });
+    if (!result?.success) return result || { success: false, error: 'Could not activate sponsored access.' };
+
     setIsPremium(true);
     setPremiumPlan('Sponsored Community Access');
     setSponsorDetails(sponsorName);
-    saveUserState(true, 'Sponsored Community Access', sponsorName);
-
-    if (hhId) {
-      await saveHouseholdPremiumState(hhId, true, 'Sponsored Community Access', sponsorName);
-    }
-
-    if (updateHousehold) {
-      await updateHousehold({ is_premium: true, premium_plan: 'Sponsored Community Access', sponsor_details: sponsorName });
-    }
+    return { success: true };
   };
 
   // Reset back to Free
   const resetToFree = async () => {
+    if (!hhId || !updateHousehold) {
+      return { success: false, error: 'No active household is available for this change.' };
+    }
+
+    const result = await updateHousehold({ is_premium: false, premium_plan: 'Free Household Plan', sponsor_details: null });
+    if (!result?.success) return result || { success: false, error: 'Could not reset the household plan.' };
+
     setIsPremium(false);
     setPremiumPlan('Free Household Plan');
     setSponsorDetails(null);
-    saveUserState(false, 'Free Household Plan', null);
-
-    if (hhId) {
-      await saveHouseholdPremiumState(hhId, false, 'Free Household Plan', null);
-    }
-
-    if (updateHousehold) {
-      await updateHousehold({ is_premium: false, premium_plan: 'Free Household Plan', sponsor_details: null });
-    }
+    return { success: true };
   };
 
   return (

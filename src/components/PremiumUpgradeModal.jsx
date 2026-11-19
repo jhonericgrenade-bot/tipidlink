@@ -31,6 +31,7 @@ export const PremiumUpgradeModal = ({ isOpen, onClose }) => {
   const [phoneNumber, setPhoneNumber] = useState('0917 123 4567');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [activationError, setActivationError] = useState('');
 
   // Sponsored access states
   const [sponsorCode, setSponsorCode] = useState('');
@@ -49,9 +50,13 @@ export const PremiumUpgradeModal = ({ isOpen, onClose }) => {
     e.preventDefault();
     setIsProcessing(true);
 
-    setTimeout(() => {
+    setTimeout(async () => {
+      const result = await activatePremium(`TipidLink Premium Plan (₱30/mo - ${selectedMethod.toUpperCase()})`);
       setIsProcessing(false);
-      activatePremium(`TipidLink Premium Plan (₱30/mo - ${selectedMethod.toUpperCase()})`);
+      if (!result?.success) {
+        setActivationError(result?.error || 'Could not activate Premium for this household.');
+        return;
+      }
       setShowSuccessToast(true);
       setTimeout(() => {
         setShowSuccessToast(false);
@@ -73,9 +78,13 @@ export const PremiumUpgradeModal = ({ isOpen, onClose }) => {
     if (VALID_SPONSOR_CODES[cleanCode]) {
       const partner = VALID_SPONSOR_CODES[cleanCode];
       setIsProcessing(true);
-      setTimeout(() => {
+      setTimeout(async () => {
+        const result = await activateSponsoredAccess(partner);
         setIsProcessing(false);
-        activateSponsoredAccess(partner);
+        if (!result?.success) {
+          setActivationError(result?.error || 'Could not activate sponsored access for this household.');
+          return;
+        }
         setShowSuccessToast(true);
         setTimeout(() => {
           setShowSuccessToast(false);
@@ -134,13 +143,23 @@ export const PremiumUpgradeModal = ({ isOpen, onClose }) => {
             </div>
             <button
               onClick={async () => {
-                await resetToFree();
+                const result = await resetToFree();
+                if (!result?.success) {
+                  setActivationError(result?.error || 'Could not reset this household plan.');
+                  return;
+                }
                 alert('Plan reset to Free Household Tier. Lahat ng sumali sa household ay naka-Free na.');
               }}
               className="text-[11px] font-bold text-slate-500 hover:text-rose-600 underline cursor-pointer"
             >
               Reset to Free
             </button>
+          </div>
+        )}
+
+        {activationError && (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700">
+            {activationError}
           </div>
         )}
 
