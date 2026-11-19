@@ -36,9 +36,9 @@ export const Navbar = ({ onOpenCreateHousehold, onOpenJoinHousehold }) => {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* Brand & Household Switcher */}
-        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+      <div className="mx-auto flex h-16 max-w-[1600px] w-full items-center justify-between px-3 sm:px-5 lg:px-6">
+        {/* Left section: Brand Logo, Household Selector, & Desktop Navigation Links (Unified flow prevents overlaps) */}
+        <div className="flex items-center gap-2 sm:gap-3 lg:gap-3 xl:gap-5 min-w-0">
           <NavLink to="/" className="flex items-center gap-2 group shrink-0">
             <img
               src="/tipidlink-logo.png"
@@ -52,41 +52,41 @@ export const Navbar = ({ onOpenCreateHousehold, onOpenJoinHousehold }) => {
             onOpenCreateModal={onOpenCreateHousehold}
             onOpenJoinModal={onOpenJoinHousehold}
           />
+
+          {/* Desktop Navigation Links */}
+          <nav className="hidden lg:flex items-center gap-0.5 xl:gap-1 min-w-0">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) =>
+                    `flex items-center gap-1.5 xl:gap-2 rounded-xl px-2 xl:px-3 py-1.5 text-xs font-semibold transition shrink-0 ${
+                      isActive
+                        ? 'bg-emerald-50 text-emerald-800 font-bold shadow-xs'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`
+                  }
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span>{item.name}</span>
+                </NavLink>
+              );
+            })}
+          </nav>
         </div>
 
-        {/* Desktop Navigation Links */}
-        <nav className="hidden lg:flex items-center gap-0.5 xl:gap-1 shrink-0">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) =>
-                  `flex items-center gap-1.5 xl:gap-2 rounded-xl px-2.5 xl:px-3.5 py-2 text-xs font-semibold transition shrink-0 ${
-                    isActive
-                      ? 'bg-emerald-50 text-emerald-800 font-bold shadow-xs'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                  }`
-                }
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span>{item.name}</span>
-              </NavLink>
-            );
-          })}
-        </nav>
-
         {/* Right side: Mode Pill + Premium + Profile + Quick Mobile Logout */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-          {/* Install App on Phone Button - Shown on wide desktop screens (xl+) */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 ml-auto">
+          {/* Install App on Phone Button - Shown on ultra-wide screens (2xl+); always accessible in Profile menu */}
           <button
             onClick={() => {
               if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('tipidlink-open-install-modal'));
               }
             }}
-            className="hidden xl:inline-flex items-center gap-1.5 rounded-full bg-slate-900 text-white px-3 py-1.5 text-xs font-bold transition shadow-xs hover:bg-slate-800 cursor-pointer shrink-0"
+            className="hidden 2xl:inline-flex items-center gap-1.5 rounded-full bg-slate-900 text-white px-3 py-1.5 text-xs font-bold transition shadow-xs hover:bg-slate-800 cursor-pointer shrink-0"
             title="Install TipidLink app on your phone (Android & iOS)"
           >
             <Smartphone className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
@@ -110,12 +110,12 @@ export const Navbar = ({ onOpenCreateHousehold, onOpenJoinHousehold }) => {
 
           {/* Supabase or Demo Mode badge */}
           {isDemoMode ? (
-            <span className="hidden xl:inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 border border-amber-200 shrink-0">
+            <span className="hidden 2xl:inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 border border-amber-200 shrink-0">
               <Sparkles className="h-3 w-3 text-amber-600 shrink-0" />
               <span>Demo Mode</span>
             </span>
           ) : (
-            <span className="hidden xl:inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 border border-emerald-200 shrink-0">
+            <span className="hidden 2xl:inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 border border-emerald-200 shrink-0">
               <Database className="h-3 w-3 text-emerald-600 shrink-0" />
               <span>Supabase RLS</span>
             </span>

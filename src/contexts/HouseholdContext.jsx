@@ -599,8 +599,11 @@ export const HouseholdProvider = ({ children }) => {
           const hhId = row.households.id;
           const isOwnerPro = proOwnerIds.has(row.households.created_by);
 
-          // Direct cloud resolution: Pro if description has [TIER:PRO] or Owner profile has PRO
-          const isPro = Boolean(tier.isPremium || isOwnerPro);
+          // Direct cloud resolution: Pro if description has [TIER:PRO], Owner profile has PRO, or cached Pro
+          const cachedTier = typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_tier_${hhId}`) : null;
+          const isPro = tier.isExplicitFree
+            ? false
+            : Boolean(tier.isPremium || isOwnerPro || cachedTier === 'PRO');
           const plan = tier.plan || (isPro ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan');
           const sponsor = tier.sponsor || null;
 
@@ -614,7 +617,7 @@ export const HouseholdProvider = ({ children }) => {
                 localStorage.setItem(`tipidlink_code_premium_${row.households.invite_code}`, 'true');
               }
               if (sponsor) localStorage.setItem(`tipidlink_household_sponsor_${hhId}`, sponsor);
-            } else {
+            } else if (tier.isExplicitFree) {
               localStorage.setItem(`tipidlink_household_tier_${hhId}`, 'FREE');
               localStorage.removeItem(`tipidlink_household_premium_${hhId}`);
               localStorage.removeItem(`tipidlink_household_plan_${hhId}`);
@@ -904,7 +907,10 @@ export const HouseholdProvider = ({ children }) => {
           if (ownerMember) {
             const isOwnerPro = Boolean(ownerMember.phone && ownerMember.phone.includes('PREMIUM_STATUS:PRO'));
             const descTier = parseHouseholdTier(currentHousehold?.raw_description || currentHousehold?.description);
-            const isPro = Boolean(descTier.isPremium || isOwnerPro);
+            const cachedTier = typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_tier_${householdId}`) : null;
+            const isPro = descTier.isExplicitFree
+              ? false
+              : Boolean(descTier.isPremium || isOwnerPro || currentHousehold?.is_premium || cachedTier === 'PRO');
             const targetPlan = descTier.plan || (isPro ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan');
 
             setCurrentHousehold(prev => {
@@ -928,7 +934,7 @@ export const HouseholdProvider = ({ children }) => {
               if (isPro) {
                 localStorage.setItem(`tipidlink_household_tier_${householdId}`, 'PRO');
                 localStorage.setItem(`tipidlink_household_premium_${householdId}`, 'true');
-              } else {
+              } else if (descTier.isExplicitFree) {
                 localStorage.setItem(`tipidlink_household_tier_${householdId}`, 'FREE');
                 localStorage.removeItem(`tipidlink_household_premium_${householdId}`);
               }
@@ -1089,7 +1095,10 @@ export const HouseholdProvider = ({ children }) => {
       if (ownerMember) {
         const isOwnerPro = Boolean(ownerMember.phone && ownerMember.phone.includes('PREMIUM_STATUS:PRO'));
         const descTier = parseHouseholdTier(currentHousehold?.raw_description || currentHousehold?.description);
-        const isPro = Boolean(descTier.isPremium || isOwnerPro);
+        const cachedTier = typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_tier_${householdId}`) : null;
+        const isPro = descTier.isExplicitFree
+          ? false
+          : Boolean(descTier.isPremium || isOwnerPro || currentHousehold?.is_premium || cachedTier === 'PRO');
         const targetPlan = descTier.plan || (isPro ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan');
 
         setCurrentHousehold(prev => {
@@ -1113,7 +1122,7 @@ export const HouseholdProvider = ({ children }) => {
           if (isPro) {
             localStorage.setItem(`tipidlink_household_tier_${householdId}`, 'PRO');
             localStorage.setItem(`tipidlink_household_premium_${householdId}`, 'true');
-          } else {
+          } else if (descTier.isExplicitFree) {
             localStorage.setItem(`tipidlink_household_tier_${householdId}`, 'FREE');
             localStorage.removeItem(`tipidlink_household_premium_${householdId}`);
           }
