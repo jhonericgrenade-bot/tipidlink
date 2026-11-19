@@ -544,3 +544,95 @@ test('14. Household-Level Pro Status Sync Across All Family Members', () => {
   const memberCruzFreeRes = resolveHouseholdPremiumState(plainHousehold, 'member-cruz-uuid', membersWithFreeOwner);
   assert.strictEqual(memberCruzFreeRes.isPremium, false, 'Member Cruz reverts to free when Owner is free');
 });
+
+test('15. Anti-Reversion Guard & Universal Reset to Free Across Joined Household Members', () => {
+  const mockStorage = new Map();
+  global.localStorage = {
+    getItem: (key) => mockStorage.get(key) || null,
+    setItem: (key, val) => mockStorage.set(key, String(val)),
+    removeItem: (key) => mockStorage.delete(key),
+    clear: () => mockStorage.clear(),
+  };
+
+  const hhId = 'hh-reversion-test-001';
+  const inviteCode = 'TESTREV26';
+
+  // Step 1: Owner activates Pro for Household
+  mockStorage.set(`tipidlink_household_tier_${hhId}`, 'PRO');
+  mockStorage.set(`tipidlink_household_premium_${hhId}`, 'true');
+  mockStorage.set(`tipidlink_code_tier_${inviteCode}`, 'PRO');
+  mockStorage.set(`tipidlink_code_premium_${inviteCode}`, 'true');
+
+  const proHh = {
+    id: hhId,
+    name: 'Test Household',
+    invite_code: inviteCode,
+    description: 'Test budget [TIER:PRO|PLAN:TipidLink Premium Plan (₱30/mo)]',
+    is_premium: true,
+  };
+
+  const members = [
+    { user_id: 'owner-id', role: 'owner', phone: '09123456789|PREMIUM_STATUS:PRO' },
+    { user_id: 'member-id-1', role: 'member', phone: '' },
+    { user_id: 'admin-id-2', role: 'admin', phone: '' },
+  ];
+
+  // Both owner, member, and admin resolve to Pro
+  assert.strictEqual(resolveHouseholdPremiumState(proHh, 'owner-id', members).isPremium, true, 'Owner is Pro');
+  assert.strictEqual(resolveHouseholdPremiumState(proHh, 'member-id-1', members).isPremium, true, 'Member is Pro');
+  assert.strictEqual(resolveHouseholdPremiumState(proHh, 'admin-id-2', members).isPremium, true, 'Admin is Pro');
+
+  // Step 2: Owner performs Reset to Free
+  mockStorage.set(`tipidlink_household_tier_${hhId}`, 'FREE');
+  mockStorage.set(`tipidlink_code_tier_${inviteCode}`, 'FREE');
+  mockStorage.delete(`tipidlink_household_premium_${hhId}`);
+  mockStorage.delete(`tipidlink_code_premium_${inviteCode}`);
+
+  const freeHh = {
+    id: hhId,
+    name: 'Test Household',
+    invite_code: inviteCode,
+    description: 'Test budget [TIER:FREE]',
+    is_premium: false,
+  };
+
+  const freeMembers = [
+    { user_id: 'owner-id', role: 'owner', phone: '09123456789' },
+    { user_id: 'member-id-1', role: 'member', phone: '' },
+    { user_id: 'admin-id-2', role: 'admin', phone: '' },
+  ];
+
+  // Both owner, member, and admin resolve to FREE
+  assert.strictEqual(resolveHouseholdPremiumState(freeHh, 'owner-id', freeMembers).isPremium, false, 'Owner is Free after reset');
+  assert.strictEqual(resolveHouseholdPremiumState(freeHh, 'member-id-1', freeMembers).isPremium, false, 'Member is Free after reset');
+  assert.strictEqual(resolveHouseholdPremiumState(freeHh, 'admin-id-2', freeMembers).isPremium, false, 'Admin is Free after reset');
+
+  // Step 3: Anti-Reversion Check (stale in-memory flag is ignored)
+  const staleHhWithOldProFlag = {
+    id: hhId,
+    name: 'Test Household',
+    invite_code: inviteCode,
+    description: 'Test budget [TIER:FREE]',
+    is_premium: true,
+  };
+  assert.strictEqual(resolveHouseholdPremiumState(staleHhWithOldProFlag, 'member-id-1', freeMembers).isPremium, false, 'Explicit FREE override stops stale is_premium: true from resurrecting Pro');
+
+  // Step 4: Owner restores Pro
+  mockStorage.set(`tipidlink_household_tier_${hhId}`, 'PRO');
+  mockStorage.set(`tipidlink_household_premium_${hhId}`, 'true');
+  mockStorage.set(`tipidlink_code_tier_${inviteCode}`, 'PRO');
+  mockStorage.set(`tipidlink_code_premium_${inviteCode}`, 'true');
+
+  const restoredHh = {
+    id: hhId,
+    name: 'Test Household',
+    invite_code: inviteCode,
+    description: 'Test budget [TIER:PRO|PLAN:TipidLink Premium Plan (₱30/mo)]',
+    is_premium: true,
+  };
+
+  assert.strictEqual(resolveHouseholdPremiumState(restoredHh, 'member-id-1', members).isPremium, true, 'Restoring Pro immediately updates joined member');
+  assert.strictEqual(resolveHouseholdPremiumState(restoredHh, 'admin-id-2', members).isPremium, true, 'Restoring Pro immediately updates joined admin');
+
+  delete global.localStorage;
+});

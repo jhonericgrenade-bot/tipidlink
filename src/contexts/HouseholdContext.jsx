@@ -432,11 +432,19 @@ export const HouseholdProvider = ({ children }) => {
         }
 
         const santosTier = parseHouseholdTier(directCloudDesc || INITIAL_DEMO_DATA.household.description);
-        const cachedSantosPremium = (typeof localStorage !== 'undefined' && (
-          localStorage.getItem('tipidlink_household_premium_0d37e235-c9dd-4876-a54a-9acb36516599') === 'true' ||
-          localStorage.getItem('tipidlink_household_premium_hh-santos-family') === 'true'
-        ));
-        const santosIsPro = santosTier.isPremium || cachedSantosPremium;
+        const santosTierOverride = typeof localStorage !== 'undefined'
+          ? (localStorage.getItem('tipidlink_household_tier_0d37e235-c9dd-4876-a54a-9acb36516599') || localStorage.getItem('tipidlink_household_tier_hh-santos-family') || localStorage.getItem('tipidlink_code_tier_SANTOS2026'))
+          : null;
+        const santosIsExplicitFree = santosTier.isExplicitFree || santosTierOverride === 'FREE';
+        let santosIsPro = false;
+        if (!santosIsExplicitFree) {
+          const cachedSantosPremium = (typeof localStorage !== 'undefined' && (
+            localStorage.getItem('tipidlink_household_premium_0d37e235-c9dd-4876-a54a-9acb36516599') === 'true' ||
+            localStorage.getItem('tipidlink_household_premium_hh-santos-family') === 'true' ||
+            santosTierOverride === 'PRO'
+          ));
+          santosIsPro = Boolean(santosTier.isPremium || cachedSantosPremium);
+        }
         const santosPlan = santosTier.plan || (typeof localStorage !== 'undefined' ? (
           localStorage.getItem('tipidlink_household_plan_0d37e235-c9dd-4876-a54a-9acb36516599') ||
           localStorage.getItem('tipidlink_household_plan_hh-santos-family')
@@ -560,23 +568,46 @@ export const HouseholdProvider = ({ children }) => {
           if (!row.households) return null;
           const tier = parseHouseholdTier(row.households.description);
           const hhId = row.households.id;
-          const cachedPremium = typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_premium_${hhId}`) : null;
-          const cachedCodePremium = (typeof localStorage !== 'undefined' && row.households.invite_code)
-            ? localStorage.getItem(`tipidlink_code_premium_${row.households.invite_code}`)
+          const hhTierOverride = typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_tier_${hhId}`) : null;
+          const codeTierOverride = (typeof localStorage !== 'undefined' && row.households.invite_code)
+            ? localStorage.getItem(`tipidlink_code_tier_${row.households.invite_code}`)
             : null;
 
-          const isOwnerPro = proOwnerIds.has(row.households.created_by) || (row.households.created_by === user.id && user?.user_metadata?.is_premium);
-          const isPro = isOwnerPro || tier.isPremium || cachedPremium === 'true' || cachedCodePremium === 'true';
+          const isExplicitFree = tier.isExplicitFree || hhTierOverride === 'FREE' || codeTierOverride === 'FREE';
+
+          let isPro = false;
+          const isOwnerPro = proOwnerIds.has(row.households.created_by);
+          if (!isExplicitFree) {
+            const cachedPremium = typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_premium_${hhId}`) : null;
+            const cachedCodePremium = (typeof localStorage !== 'undefined' && row.households.invite_code)
+              ? localStorage.getItem(`tipidlink_code_premium_${row.households.invite_code}`)
+              : null;
+            isPro = Boolean(tier.isPremium || isOwnerPro || hhTierOverride === 'PRO' || codeTierOverride === 'PRO' || cachedPremium === 'true' || cachedCodePremium === 'true');
+          }
+
           const plan = tier.plan || (typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_plan_${hhId}`) : null) || (isPro ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan');
           const sponsor = tier.sponsor || (typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_sponsor_${hhId}`) : null);
 
-          if (isPro && typeof localStorage !== 'undefined') {
-            localStorage.setItem(`tipidlink_household_premium_${hhId}`, 'true');
-            localStorage.setItem(`tipidlink_household_plan_${hhId}`, plan);
-            if (row.households.invite_code) {
-              localStorage.setItem(`tipidlink_code_premium_${row.households.invite_code}`, 'true');
+          if (typeof localStorage !== 'undefined') {
+            if (isPro) {
+              localStorage.setItem(`tipidlink_household_tier_${hhId}`, 'PRO');
+              localStorage.setItem(`tipidlink_household_premium_${hhId}`, 'true');
+              localStorage.setItem(`tipidlink_household_plan_${hhId}`, plan);
+              if (row.households.invite_code) {
+                localStorage.setItem(`tipidlink_code_tier_${row.households.invite_code}`, 'PRO');
+                localStorage.setItem(`tipidlink_code_premium_${row.households.invite_code}`, 'true');
+              }
+              if (sponsor) localStorage.setItem(`tipidlink_household_sponsor_${hhId}`, sponsor);
+            } else {
+              localStorage.setItem(`tipidlink_household_tier_${hhId}`, 'FREE');
+              localStorage.removeItem(`tipidlink_household_premium_${hhId}`);
+              localStorage.removeItem(`tipidlink_household_plan_${hhId}`);
+              localStorage.removeItem(`tipidlink_household_sponsor_${hhId}`);
+              if (row.households.invite_code) {
+                localStorage.setItem(`tipidlink_code_tier_${row.households.invite_code}`, 'FREE');
+                localStorage.removeItem(`tipidlink_code_premium_${row.households.invite_code}`);
+              }
             }
-            if (sponsor) localStorage.setItem(`tipidlink_household_sponsor_${hhId}`, sponsor);
           }
 
           return {
@@ -620,11 +651,19 @@ export const HouseholdProvider = ({ children }) => {
         }
 
         const santosTier = parseHouseholdTier(directCloudDesc || INITIAL_DEMO_DATA.household.description);
-        const cachedSantosPremium = (typeof localStorage !== 'undefined' && (
-          localStorage.getItem('tipidlink_household_premium_0d37e235-c9dd-4876-a54a-9acb36516599') === 'true' ||
-          localStorage.getItem('tipidlink_household_premium_hh-santos-family') === 'true'
-        ));
-        const santosIsPro = santosTier.isPremium || cachedSantosPremium;
+        const santosTierOverride = typeof localStorage !== 'undefined'
+          ? (localStorage.getItem('tipidlink_household_tier_0d37e235-c9dd-4876-a54a-9acb36516599') || localStorage.getItem('tipidlink_household_tier_hh-santos-family') || localStorage.getItem('tipidlink_code_tier_SANTOS2026'))
+          : null;
+        const santosIsExplicitFree = santosTier.isExplicitFree || santosTierOverride === 'FREE';
+        let santosIsPro = false;
+        if (!santosIsExplicitFree) {
+          const cachedSantosPremium = (typeof localStorage !== 'undefined' && (
+            localStorage.getItem('tipidlink_household_premium_0d37e235-c9dd-4876-a54a-9acb36516599') === 'true' ||
+            localStorage.getItem('tipidlink_household_premium_hh-santos-family') === 'true' ||
+            santosTierOverride === 'PRO'
+          ));
+          santosIsPro = Boolean(santosTier.isPremium || cachedSantosPremium);
+        }
         const santosPlan = santosTier.plan || (typeof localStorage !== 'undefined' ? (
           localStorage.getItem('tipidlink_household_plan_0d37e235-c9dd-4876-a54a-9acb36516599') ||
           localStorage.getItem('tipidlink_household_plan_hh-santos-family')
@@ -845,13 +884,34 @@ export const HouseholdProvider = ({ children }) => {
           setMembers(formatted);
           localStorage.setItem(`tipidlink_members_${householdId}`, JSON.stringify(formatted));
 
-          // Check if the household Owner is Pro - if so, ensure household Pro state is active!
+          // Check if the household Owner is Pro - keep household Pro state in sync!
           const ownerMember = formatted.find(m => m.role === 'owner');
-          if (ownerMember?.phone && ownerMember.phone.includes('PREMIUM_STATUS:PRO')) {
+          const isOwnerPro = Boolean(ownerMember?.phone && ownerMember.phone.includes('PREMIUM_STATUS:PRO'));
+          const hhOverride = typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_tier_${householdId}`) : null;
+          const codeOverride = (typeof localStorage !== 'undefined' && currentHousehold?.invite_code)
+            ? localStorage.getItem(`tipidlink_code_tier_${currentHousehold.invite_code}`)
+            : null;
+          const isExplicitFree = hhOverride === 'FREE' || codeOverride === 'FREE';
+
+          if (!isExplicitFree && isOwnerPro) {
             setCurrentHousehold(prev => prev ? { ...prev, is_premium: true, owner_is_pro: true } : prev);
-            localStorage.setItem(`tipidlink_household_premium_${householdId}`, 'true');
-            if (currentHousehold?.invite_code) {
-              localStorage.setItem(`tipidlink_code_premium_${currentHousehold.invite_code}`, 'true');
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem(`tipidlink_household_tier_${householdId}`, 'PRO');
+              localStorage.setItem(`tipidlink_household_premium_${householdId}`, 'true');
+              if (currentHousehold?.invite_code) {
+                localStorage.setItem(`tipidlink_code_tier_${currentHousehold.invite_code}`, 'PRO');
+                localStorage.setItem(`tipidlink_code_premium_${currentHousehold.invite_code}`, 'true');
+              }
+            }
+          } else if (isExplicitFree) {
+            setCurrentHousehold(prev => prev ? { ...prev, is_premium: false, owner_is_pro: false } : prev);
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem(`tipidlink_household_tier_${householdId}`, 'FREE');
+              localStorage.removeItem(`tipidlink_household_premium_${householdId}`);
+              if (currentHousehold?.invite_code) {
+                localStorage.setItem(`tipidlink_code_tier_${currentHousehold.invite_code}`, 'FREE');
+                localStorage.removeItem(`tipidlink_code_premium_${currentHousehold.invite_code}`);
+              }
             }
           }
           return;
@@ -995,13 +1055,34 @@ export const HouseholdProvider = ({ children }) => {
 
       setMembers(formatted);
 
-      // Check if the household Owner is Pro - if so, ensure household Pro state is active!
+      // Check if the household Owner is Pro - keep household Pro state in sync!
       const ownerMember = formatted.find(m => m.role === 'owner');
-      if (ownerMember?.phone && ownerMember.phone.includes('PREMIUM_STATUS:PRO')) {
+      const isOwnerPro = Boolean(ownerMember?.phone && ownerMember.phone.includes('PREMIUM_STATUS:PRO'));
+      const hhOverride = typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_tier_${householdId}`) : null;
+      const codeOverride = (typeof localStorage !== 'undefined' && currentHousehold?.invite_code)
+        ? localStorage.getItem(`tipidlink_code_tier_${currentHousehold.invite_code}`)
+        : null;
+      const isExplicitFree = hhOverride === 'FREE' || codeOverride === 'FREE';
+
+      if (!isExplicitFree && isOwnerPro) {
         setCurrentHousehold(prev => prev ? { ...prev, is_premium: true, owner_is_pro: true } : prev);
-        localStorage.setItem(`tipidlink_household_premium_${householdId}`, 'true');
-        if (currentHousehold?.invite_code) {
-          localStorage.setItem(`tipidlink_code_premium_${currentHousehold.invite_code}`, 'true');
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(`tipidlink_household_tier_${householdId}`, 'PRO');
+          localStorage.setItem(`tipidlink_household_premium_${householdId}`, 'true');
+          if (currentHousehold?.invite_code) {
+            localStorage.setItem(`tipidlink_code_tier_${currentHousehold.invite_code}`, 'PRO');
+            localStorage.setItem(`tipidlink_code_premium_${currentHousehold.invite_code}`, 'true');
+          }
+        }
+      } else if (isExplicitFree) {
+        setCurrentHousehold(prev => prev ? { ...prev, is_premium: false, owner_is_pro: false } : prev);
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(`tipidlink_household_tier_${householdId}`, 'FREE');
+          localStorage.removeItem(`tipidlink_household_premium_${householdId}`);
+          if (currentHousehold?.invite_code) {
+            localStorage.setItem(`tipidlink_code_tier_${currentHousehold.invite_code}`, 'FREE');
+            localStorage.removeItem(`tipidlink_code_premium_${currentHousehold.invite_code}`);
+          }
         }
       }
     } catch (err) {
@@ -1384,23 +1465,43 @@ export const HouseholdProvider = ({ children }) => {
           }
         }
         if (updates.is_premium !== undefined) {
+          const invCode = updates.invite_code || currentHousehold.invite_code;
+          const isSantos = isSantosHouseholdId(currentHousehold.id) || invCode === 'SANTOS2026';
           if (updates.is_premium) {
+            localStorage.setItem(`tipidlink_household_tier_${currentHousehold.id}`, 'PRO');
             localStorage.setItem(`tipidlink_household_premium_${currentHousehold.id}`, 'true');
             localStorage.setItem(`tipidlink_household_plan_${currentHousehold.id}`, updates.premium_plan || 'TipidLink Premium Plan (₱30/mo)');
             if (updates.sponsor_details) {
               localStorage.setItem(`tipidlink_household_sponsor_${currentHousehold.id}`, updates.sponsor_details);
             }
-            if (isSantosHouseholdId(currentHousehold.id)) {
+            if (invCode) {
+              localStorage.setItem(`tipidlink_code_tier_${invCode}`, 'PRO');
+              localStorage.setItem(`tipidlink_code_premium_${invCode}`, 'true');
+            }
+            if (isSantos) {
+              localStorage.setItem(`tipidlink_household_tier_${SANTOS_UUID}`, 'PRO');
+              localStorage.setItem(`tipidlink_household_tier_${SANTOS_DEMO_ID}`, 'PRO');
+              localStorage.setItem('tipidlink_code_tier_SANTOS2026', 'PRO');
               localStorage.setItem(`tipidlink_household_premium_${SANTOS_UUID}`, 'true');
               localStorage.setItem(`tipidlink_household_premium_${SANTOS_DEMO_ID}`, 'true');
+              localStorage.setItem('tipidlink_code_premium_SANTOS2026', 'true');
             }
           } else {
+            localStorage.setItem(`tipidlink_household_tier_${currentHousehold.id}`, 'FREE');
             localStorage.removeItem(`tipidlink_household_premium_${currentHousehold.id}`);
             localStorage.removeItem(`tipidlink_household_plan_${currentHousehold.id}`);
             localStorage.removeItem(`tipidlink_household_sponsor_${currentHousehold.id}`);
-            if (isSantosHouseholdId(currentHousehold.id)) {
+            if (invCode) {
+              localStorage.setItem(`tipidlink_code_tier_${invCode}`, 'FREE');
+              localStorage.removeItem(`tipidlink_code_premium_${invCode}`);
+            }
+            if (isSantos) {
+              localStorage.setItem(`tipidlink_household_tier_${SANTOS_UUID}`, 'FREE');
+              localStorage.setItem(`tipidlink_household_tier_${SANTOS_DEMO_ID}`, 'FREE');
+              localStorage.setItem('tipidlink_code_tier_SANTOS2026', 'FREE');
               localStorage.removeItem(`tipidlink_household_premium_${SANTOS_UUID}`);
               localStorage.removeItem(`tipidlink_household_premium_${SANTOS_DEMO_ID}`);
+              localStorage.removeItem('tipidlink_code_premium_SANTOS2026');
             }
           }
         }
@@ -1708,23 +1809,43 @@ export const HouseholdProvider = ({ children }) => {
           return h;
         }));
 
+        const invCode = payload.inviteCode || currentHousehold?.invite_code;
+        const isSantos = isSantosHouseholdId(householdId) || invCode === 'SANTOS2026';
         if (isPro) {
+          localStorage.setItem(`tipidlink_household_tier_${householdId}`, 'PRO');
           localStorage.setItem(`tipidlink_household_premium_${householdId}`, 'true');
           localStorage.setItem(`tipidlink_household_plan_${householdId}`, plan);
           if (sponsor) localStorage.setItem(`tipidlink_household_sponsor_${householdId}`, sponsor);
-          if (isSantosHouseholdId(householdId)) {
+          if (invCode) {
+            localStorage.setItem(`tipidlink_code_tier_${invCode}`, 'PRO');
+            localStorage.setItem(`tipidlink_code_premium_${invCode}`, 'true');
+          }
+          if (isSantos) {
+            localStorage.setItem(`tipidlink_household_tier_${SANTOS_UUID}`, 'PRO');
+            localStorage.setItem(`tipidlink_household_tier_${SANTOS_DEMO_ID}`, 'PRO');
+            localStorage.setItem('tipidlink_code_tier_SANTOS2026', 'PRO');
             localStorage.setItem(`tipidlink_household_premium_${SANTOS_UUID}`, 'true');
             localStorage.setItem(`tipidlink_household_premium_${SANTOS_DEMO_ID}`, 'true');
+            localStorage.setItem('tipidlink_code_premium_SANTOS2026', 'true');
             localStorage.setItem(`tipidlink_household_plan_${SANTOS_UUID}`, plan);
             localStorage.setItem(`tipidlink_household_plan_${SANTOS_DEMO_ID}`, plan);
           }
         } else {
+          localStorage.setItem(`tipidlink_household_tier_${householdId}`, 'FREE');
           localStorage.removeItem(`tipidlink_household_premium_${householdId}`);
           localStorage.removeItem(`tipidlink_household_plan_${householdId}`);
           localStorage.removeItem(`tipidlink_household_sponsor_${householdId}`);
-          if (isSantosHouseholdId(householdId)) {
+          if (invCode) {
+            localStorage.setItem(`tipidlink_code_tier_${invCode}`, 'FREE');
+            localStorage.removeItem(`tipidlink_code_premium_${invCode}`);
+          }
+          if (isSantos) {
+            localStorage.setItem(`tipidlink_household_tier_${SANTOS_UUID}`, 'FREE');
+            localStorage.setItem(`tipidlink_household_tier_${SANTOS_DEMO_ID}`, 'FREE');
+            localStorage.setItem('tipidlink_code_tier_SANTOS2026', 'FREE');
             localStorage.removeItem(`tipidlink_household_premium_${SANTOS_UUID}`);
             localStorage.removeItem(`tipidlink_household_premium_${SANTOS_DEMO_ID}`);
+            localStorage.removeItem('tipidlink_code_premium_SANTOS2026');
             localStorage.removeItem(`tipidlink_household_plan_${SANTOS_UUID}`);
             localStorage.removeItem(`tipidlink_household_plan_${SANTOS_DEMO_ID}`);
             localStorage.removeItem(`tipidlink_household_sponsor_${SANTOS_UUID}`);
@@ -1777,14 +1898,25 @@ export const HouseholdProvider = ({ children }) => {
                 sponsor_details: sponsor,
               });
 
+              const invCode = change.new.invite_code || currentHousehold?.invite_code;
               if (isPro) {
+                localStorage.setItem(`tipidlink_household_tier_${targetHhId}`, 'PRO');
                 localStorage.setItem(`tipidlink_household_premium_${targetHhId}`, 'true');
                 localStorage.setItem(`tipidlink_household_plan_${targetHhId}`, plan);
                 if (sponsor) localStorage.setItem(`tipidlink_household_sponsor_${targetHhId}`, sponsor);
+                if (invCode) {
+                  localStorage.setItem(`tipidlink_code_tier_${invCode}`, 'PRO');
+                  localStorage.setItem(`tipidlink_code_premium_${invCode}`, 'true');
+                }
               } else {
+                localStorage.setItem(`tipidlink_household_tier_${targetHhId}`, 'FREE');
                 localStorage.removeItem(`tipidlink_household_premium_${targetHhId}`);
                 localStorage.removeItem(`tipidlink_household_plan_${targetHhId}`);
                 localStorage.removeItem(`tipidlink_household_sponsor_${targetHhId}`);
+                if (invCode) {
+                  localStorage.setItem(`tipidlink_code_tier_${invCode}`, 'FREE');
+                  localStorage.removeItem(`tipidlink_code_premium_${invCode}`);
+                }
               }
 
               if (change.new.monthly_budget_target !== undefined) {
