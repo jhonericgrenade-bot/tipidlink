@@ -3,9 +3,9 @@
  *
  * Implements ISO/IEC 25010 functional correctness and cross-device consistency:
  * - A single ₱30 Pro subscription or Sponsored Community Access covers the ENTIRE household.
- * - When the household owner (or any member) upgrades or restores Pro, ALL members of that household
+ * - When the household owner (or any member) upgrades or restores Pro, ALL members and admins of that household
  *   across all devices (mobile, desktop, tablet) inherit Pro access.
- * - When reverted to Free, all members revert to Free.
+ * - When reverted to Free by the owner, all members and admins revert to Free.
  */
 
 export const SANTOS_UUID = '0d37e235-c9dd-4876-a54a-9acb36516599';
@@ -85,7 +85,6 @@ export const parseHouseholdTier = (description = '') => {
  * Encode tier metadata into household description for seamless cloud persistence in Supabase
  */
 export const formatHouseholdDescription = (cleanDescription = '', isPremium = false, plan = '', sponsor = null) => {
-  // Strip any existing tags
   const base = (cleanDescription || '')
     .replace(/\[TIER:(?:PRO|FREE)[^\]]*\]/gi, '')
     .replace(/\[PRO[^\]]*\]/gi, '')
@@ -103,9 +102,52 @@ export const formatHouseholdDescription = (cleanDescription = '', isPremium = fa
 };
 
 /**
- * Resolve household premium state across all storage layers (cloud, cache, aliases)
+ * Update the user's public profile in Supabase to record their Pro status.
+ * Standard Supabase RLS ('auth.uid() = id') ALWAYS allows users to update their own profile.
+ * Public profiles are viewable by all authenticated users, allowing all members to inherit Pro.
  */
-export const resolveHouseholdPremiumState = (household, userKey = null) => {
+export const syncOwnerProfilePremium = async (supabase, userId, isPremium, plan = '', sponsor = null) => {
+  if (!supabase || !userId) return;
+
+  try {
+    const { data: currentP } = await supabase
+      .from('profiles')
+      .select('phone')
+      .eq('id', userId)
+      .maybeSingle();
+
+    const rawPhone = currentP?.phone || '';
+    // Strip existing PREMIUM_STATUS tags
+    const cleanPhone = rawPhone
+      .replace(/\|?PREMIUM_STATUS:[^|]+/gi, '')
+      .replace(/\|?PLAN:[^|]+/gi, '')
+      .replace(/\|?SPONSOR:[^|]+/gi, '')
+      .trim();
+
+    let newPhone = cleanPhone;
+    if (isPremium) {
+      const planTag = plan || 'TipidLink Premium Plan (₱30/mo)';
+      const sponsorTag = sponsor || 'none';
+      const proTag = `PREMIUM_STATUS:PRO|PLAN:${planTag}|SPONSOR:${sponsorTag}`;
+      newPhone = cleanPhone ? `${cleanPhone}|${proTag}` : proTag;
+    }
+
+    await supabase
+      .from('profiles')
+      .update({
+        phone: newPhone,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId);
+  } catch (err) {
+    console.warn('syncOwnerProfilePremium note:', err);
+  }
+};
+
+/**
+ * Resolve household premium state across all storage layers (cloud, cache, owner status, aliases)
+ */
+export const resolveHouseholdPremiumState = (household, userKey = null, members = []) => {
   if (!household) {
     return {
       isPremium: false,
@@ -136,10 +178,34 @@ export const resolveHouseholdPremiumState = (household, userKey = null) => {
     };
   }
 
-  // 3. LocalStorage household cache
+  // 3. Inspect members list for a Pro Owner
+  if (Array.isArray(members) && members.length > 0) {
+    const ownerMember = members.find(m => m.role === 'owner' || (household.created_by && m.user_id === household.created_by));
+    if (ownerMember?.phone && ownerMember.phone.includes('PREMIUM_STATUS:PRO')) {
+      const match = ownerMember.phone.match(/PLAN:([^|]+)/i);
+      const sponsorMatch = ownerMember.phone.match(/SPONSOR:([^|]+)/i);
+      const plan = match ? match[1] : 'TipidLink Premium Plan (₱30/mo)';
+      const sponsor = sponsorMatch && sponsorMatch[1] !== 'none' ? sponsorMatch[1] : null;
+      return {
+        isPremium: true,
+        plan,
+        sponsor,
+      };
+    }
+  }
+
+  // 4. LocalStorage household and invite code caches
   if (typeof localStorage !== 'undefined' && hhId) {
     const hhCache = localStorage.getItem(`tipidlink_household_premium_${hhId}`);
     if (hhCache === 'true') {
+      return {
+        isPremium: true,
+        plan: localStorage.getItem(`tipidlink_household_plan_${hhId}`) || 'TipidLink Premium Plan (₱30/mo)',
+        sponsor: localStorage.getItem(`tipidlink_household_sponsor_${hhId}`) || null,
+      };
+    }
+
+    if (household.invite_code && localStorage.getItem(`tipidlink_code_premium_${household.invite_code}`) === 'true') {
       return {
         isPremium: true,
         plan: localStorage.getItem(`tipidlink_household_plan_${hhId}`) || 'TipidLink Premium Plan (₱30/mo)',
@@ -151,7 +217,8 @@ export const resolveHouseholdPremiumState = (household, userKey = null) => {
     if (isSantos) {
       const alias1 = localStorage.getItem(`tipidlink_household_premium_${SANTOS_UUID}`);
       const alias2 = localStorage.getItem(`tipidlink_household_premium_${SANTOS_DEMO_ID}`);
-      if (alias1 === 'true' || alias2 === 'true') {
+      const alias3 = localStorage.getItem('tipidlink_code_premium_SANTOS2026');
+      if (alias1 === 'true' || alias2 === 'true' || alias3 === 'true') {
         const plan = localStorage.getItem(`tipidlink_household_plan_${SANTOS_UUID}`)
           || localStorage.getItem(`tipidlink_household_plan_${SANTOS_DEMO_ID}`)
           || 'TipidLink Premium Plan (₱30/mo)';

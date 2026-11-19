@@ -6,6 +6,7 @@ import { broadcastSyncEvent, subscribeToSyncEvents, isMatchingHouseholdId } from
 import {
   parseHouseholdTier,
   formatHouseholdDescription,
+  syncOwnerProfilePremium,
   resolveHouseholdPremiumState,
   isSantosHouseholdId,
   SANTOS_UUID,
@@ -16,7 +17,7 @@ const PremiumContext = createContext();
 
 export const PremiumProvider = ({ children }) => {
   const { user, isDemoMode } = useAuth();
-  const { currentHousehold, updateHousehold } = useHousehold();
+  const { currentHousehold, updateHousehold, members, currentUserRole } = useHousehold();
   const userKey = isDemoMode ? 'demo' : (user?.id || 'guest');
   const hhId = currentHousehold?.id;
 
@@ -29,20 +30,26 @@ export const PremiumProvider = ({ children }) => {
   const saveHouseholdPremiumState = useCallback(async (targetHouseholdId, newIsPremium, newPlan, newSponsor) => {
     if (!targetHouseholdId) return;
 
-    // 1. LocalStorage for householdId and Santos aliases
+    const planTag = newPlan || (newIsPremium ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan');
+
+    // 1. LocalStorage caches for householdId, inviteCode, and Santos aliases
     if (newIsPremium) {
       localStorage.setItem(`tipidlink_household_premium_${targetHouseholdId}`, 'true');
-      localStorage.setItem(`tipidlink_household_plan_${targetHouseholdId}`, newPlan);
+      localStorage.setItem(`tipidlink_household_plan_${targetHouseholdId}`, planTag);
       if (newSponsor) {
         localStorage.setItem(`tipidlink_household_sponsor_${targetHouseholdId}`, newSponsor);
       } else {
         localStorage.removeItem(`tipidlink_household_sponsor_${targetHouseholdId}`);
       }
+      if (currentHousehold?.invite_code) {
+        localStorage.setItem(`tipidlink_code_premium_${currentHousehold.invite_code}`, 'true');
+      }
       if (isSantosHouseholdId(targetHouseholdId)) {
         localStorage.setItem(`tipidlink_household_premium_${SANTOS_UUID}`, 'true');
         localStorage.setItem(`tipidlink_household_premium_${SANTOS_DEMO_ID}`, 'true');
-        localStorage.setItem(`tipidlink_household_plan_${SANTOS_UUID}`, newPlan);
-        localStorage.setItem(`tipidlink_household_plan_${SANTOS_DEMO_ID}`, newPlan);
+        localStorage.setItem('tipidlink_code_premium_SANTOS2026', 'true');
+        localStorage.setItem(`tipidlink_household_plan_${SANTOS_UUID}`, planTag);
+        localStorage.setItem(`tipidlink_household_plan_${SANTOS_DEMO_ID}`, planTag);
         if (newSponsor) {
           localStorage.setItem(`tipidlink_household_sponsor_${SANTOS_UUID}`, newSponsor);
           localStorage.setItem(`tipidlink_household_sponsor_${SANTOS_DEMO_ID}`, newSponsor);
@@ -52,9 +59,13 @@ export const PremiumProvider = ({ children }) => {
       localStorage.removeItem(`tipidlink_household_premium_${targetHouseholdId}`);
       localStorage.removeItem(`tipidlink_household_plan_${targetHouseholdId}`);
       localStorage.removeItem(`tipidlink_household_sponsor_${targetHouseholdId}`);
+      if (currentHousehold?.invite_code) {
+        localStorage.removeItem(`tipidlink_code_premium_${currentHousehold.invite_code}`);
+      }
       if (isSantosHouseholdId(targetHouseholdId)) {
         localStorage.removeItem(`tipidlink_household_premium_${SANTOS_UUID}`);
         localStorage.removeItem(`tipidlink_household_premium_${SANTOS_DEMO_ID}`);
+        localStorage.removeItem('tipidlink_code_premium_SANTOS2026');
         localStorage.removeItem(`tipidlink_household_plan_${SANTOS_UUID}`);
         localStorage.removeItem(`tipidlink_household_plan_${SANTOS_DEMO_ID}`);
         localStorage.removeItem(`tipidlink_household_sponsor_${SANTOS_UUID}`);
@@ -67,12 +78,18 @@ export const PremiumProvider = ({ children }) => {
       householdId: targetHouseholdId,
       inviteCode: currentHousehold?.invite_code,
       isPremium: newIsPremium,
-      plan: newPlan,
+      plan: planTag,
       sponsor: newSponsor,
+      ownerId: user?.id,
     });
 
-    // 3. Supabase Cloud update to households table
-    if (isSupabaseConfigured && !isDemoMode) {
+    // 3. Supabase Cloud Sync
+    if (isSupabaseConfigured && !isDemoMode && user?.id) {
+      // Sync Owner's profile with PREMIUM_STATUS:PRO (100% permitted by RLS 'auth.uid() = id')
+      // This allows ANY member who queries the owner's profile to instantly inherit Pro!
+      await syncOwnerProfilePremium(supabase, user.id, newIsPremium, planTag, newSponsor);
+
+      // Also attempt updating households.description in cloud
       const isUuid = typeof targetHouseholdId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetHouseholdId);
       const cloudTargetId = isUuid ? targetHouseholdId : (targetHouseholdId === SANTOS_DEMO_ID ? SANTOS_UUID : null);
 
@@ -80,25 +97,21 @@ export const PremiumProvider = ({ children }) => {
         try {
           const rawDesc = currentHousehold?.raw_description || currentHousehold?.description || '';
           const cleanDesc = (currentHousehold?.clean_description || rawDesc).replace(/\[TIER:[^\]]*\]/gi, '').replace(/\[PRO[^\]]*\]/gi, '').trim();
-          const formatted = formatHouseholdDescription(cleanDesc, newIsPremium, newPlan, newSponsor);
+          const formatted = formatHouseholdDescription(cleanDesc, newIsPremium, planTag, newSponsor);
 
-          const { error } = await supabase
+          await supabase
             .from('households')
             .update({
               description: formatted,
               updated_at: new Date().toISOString(),
             })
             .eq('id', cloudTargetId);
-
-          if (error) {
-            console.warn('Supabase household description tier update note:', error.message);
-          }
         } catch (err) {
-          console.warn('Cloud household tier sync note:', err.message);
+          console.warn('Cloud household description tier update note:', err);
         }
       }
     }
-  }, [currentHousehold, isDemoMode]);
+  }, [currentHousehold, isDemoMode, user?.id]);
 
   // Sync premium status per authenticated user and active household
   useEffect(() => {
@@ -110,7 +123,7 @@ export const PremiumProvider = ({ children }) => {
     }
 
     // 1. Check household-specific premium status (Pro covers the entire household!)
-    const hhTier = resolveHouseholdPremiumState(currentHousehold, userKey);
+    const hhTier = resolveHouseholdPremiumState(currentHousehold, userKey, members);
     if (hhTier.isPremium) {
       setIsPremium(true);
       setPremiumPlan(hhTier.plan);
@@ -118,7 +131,7 @@ export const PremiumProvider = ({ children }) => {
       return;
     }
 
-    // 2. Check cloud user_metadata for personal/owner status
+    // 2. Check if current user is an Owner who is Pro in auth metadata or personal cache
     const cloudPremium = Boolean(user?.user_metadata?.is_premium);
     const cloudPlan = user?.user_metadata?.premium_plan || 'TipidLink Premium Plan (₱30/mo)';
     const cloudSponsor = user?.user_metadata?.sponsor_details || null;
@@ -128,9 +141,12 @@ export const PremiumProvider = ({ children }) => {
       setPremiumPlan(cloudPlan);
       setSponsorDetails(cloudSponsor);
 
-      // If user is Owner or creator of current household, propagate Pro to the whole household in the cloud!
-      if (currentHousehold?.id && !currentHousehold.is_premium) {
-        saveHouseholdPremiumState(currentHousehold.id, true, cloudPlan, cloudSponsor);
+      // Auto-heal / sync Owner Pro status to public profile and household so members inherit it!
+      if (user?.id && isSupabaseConfigured && !isDemoMode) {
+        syncOwnerProfilePremium(supabase, user.id, true, cloudPlan, cloudSponsor);
+        if (currentHousehold?.id && !currentHousehold.is_premium) {
+          saveHouseholdPremiumState(currentHousehold.id, true, cloudPlan, cloudSponsor);
+        }
       }
       return;
     }
@@ -151,7 +167,48 @@ export const PremiumProvider = ({ children }) => {
       }
     }
 
-    // 4. Default: Every new user and free household starts on the clean Free Household Plan
+    // 4. For Members & Admins: Query whether the Owner of this household is Pro in Supabase
+    if (isSupabaseConfigured && !isDemoMode && currentHousehold?.id) {
+      const isUuid = typeof currentHousehold.id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentHousehold.id);
+      const queryId = isUuid ? currentHousehold.id : (isSantosHouseholdId(currentHousehold.id) ? SANTOS_UUID : null);
+
+      if (queryId) {
+        supabase
+          .from('household_members')
+          .select(`
+            user_id,
+            role,
+            profiles:user_id (
+              id,
+              phone
+            )
+          `)
+          .eq('household_id', queryId)
+          .eq('role', 'owner')
+          .maybeSingle()
+          .then(({ data: ownerData }) => {
+            if (ownerData?.profiles?.phone && ownerData.profiles.phone.includes('PREMIUM_STATUS:PRO')) {
+              const match = ownerData.profiles.phone.match(/PLAN:([^|]+)/i);
+              const sponsorMatch = ownerData.profiles.phone.match(/SPONSOR:([^|]+)/i);
+              const resolvedPlan = match ? match[1] : 'TipidLink Premium Plan (₱30/mo)';
+              const resolvedSponsor = sponsorMatch && sponsorMatch[1] !== 'none' ? sponsorMatch[1] : null;
+
+              setIsPremium(true);
+              setPremiumPlan(resolvedPlan);
+              setSponsorDetails(resolvedSponsor);
+
+              localStorage.setItem(`tipidlink_household_premium_${currentHousehold.id}`, 'true');
+              localStorage.setItem(`tipidlink_household_plan_${currentHousehold.id}`, resolvedPlan);
+              if (currentHousehold.invite_code) {
+                localStorage.setItem(`tipidlink_code_premium_${currentHousehold.invite_code}`, 'true');
+              }
+            }
+          })
+          .catch(() => {});
+      }
+    }
+
+    // 5. Default: Every new user and free household starts on the clean Free Household Plan
     setIsPremium(false);
     setPremiumPlan('Free Household Plan');
     setSponsorDetails(null);
@@ -161,6 +218,7 @@ export const PremiumProvider = ({ children }) => {
     currentHousehold?.id,
     currentHousehold?.is_premium,
     currentHousehold?.description,
+    members,
     isDemoMode,
     userKey,
     saveHouseholdPremiumState,
@@ -193,17 +251,25 @@ export const PremiumProvider = ({ children }) => {
               if (newSponsor) {
                 localStorage.setItem(`tipidlink_household_sponsor_${hhId}`, newSponsor);
               }
+              if (payload.inviteCode || currentHousehold?.invite_code) {
+                localStorage.setItem(`tipidlink_code_premium_${payload.inviteCode || currentHousehold?.invite_code}`, 'true');
+              }
               if (isSantosHouseholdId(hhId)) {
                 localStorage.setItem(`tipidlink_household_premium_${SANTOS_UUID}`, 'true');
                 localStorage.setItem(`tipidlink_household_premium_${SANTOS_DEMO_ID}`, 'true');
+                localStorage.setItem('tipidlink_code_premium_SANTOS2026', 'true');
               }
             } else {
               localStorage.removeItem(`tipidlink_household_premium_${hhId}`);
               localStorage.removeItem(`tipidlink_household_plan_${hhId}`);
               localStorage.removeItem(`tipidlink_household_sponsor_${hhId}`);
+              if (payload.inviteCode || currentHousehold?.invite_code) {
+                localStorage.removeItem(`tipidlink_code_premium_${payload.inviteCode || currentHousehold?.invite_code}`);
+              }
               if (isSantosHouseholdId(hhId)) {
                 localStorage.removeItem(`tipidlink_household_premium_${SANTOS_UUID}`);
                 localStorage.removeItem(`tipidlink_household_premium_${SANTOS_DEMO_ID}`);
+                localStorage.removeItem('tipidlink_code_premium_SANTOS2026');
               }
             }
           }
@@ -225,7 +291,7 @@ export const PremiumProvider = ({ children }) => {
       })
     );
 
-    // Persist to Supabase Auth cloud so user's own profile remembers Pro across devices
+    // Persist to Supabase Auth cloud
     if (!isDemoMode && isSupabaseConfigured && supabase?.auth?.updateUser) {
       supabase.auth.updateUser({
         data: {
@@ -234,6 +300,11 @@ export const PremiumProvider = ({ children }) => {
           sponsor_details: newSponsor,
         },
       }).catch(err => console.warn('Cloud premium metadata sync note:', err));
+    }
+
+    // Persist to Supabase public profiles table
+    if (!isDemoMode && isSupabaseConfigured && user?.id) {
+      syncOwnerProfilePremium(supabase, user.id, newIsPremium, newPlan, newSponsor);
     }
   };
 
@@ -266,9 +337,8 @@ export const PremiumProvider = ({ children }) => {
     setIsPremium(false);
     setPremiumPlan('Free Household Plan');
     setSponsorDetails(null);
-    if (user) {
-      localStorage.removeItem(`tipidlink_premium_${userKey}`);
-    }
+    saveUserState(false, 'Free Household Plan', null);
+
     if (hhId) {
       saveHouseholdPremiumState(hhId, false, 'Free Household Plan', null);
     }

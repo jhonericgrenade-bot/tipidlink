@@ -540,19 +540,42 @@ export const HouseholdProvider = ({ children }) => {
 
       if (memberErr) throw memberErr;
 
+      // Query all users/owners with active PREMIUM_STATUS:PRO in Supabase
+      let proOwnerIds = new Set();
+      try {
+        const { data: proProfiles } = await supabase
+          .from('profiles')
+          .select('id, phone')
+          .not('phone', 'is', null)
+          .ilike('phone', '%PREMIUM_STATUS:PRO%');
+        if (proProfiles) {
+          proProfiles.forEach(p => proOwnerIds.add(p.id));
+        }
+      } catch (e) {
+        console.warn('proProfiles fetch notice:', e);
+      }
+
       let hhList = (memberRows || [])
         .map(row => {
           if (!row.households) return null;
           const tier = parseHouseholdTier(row.households.description);
           const hhId = row.households.id;
           const cachedPremium = typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_premium_${hhId}`) : null;
-          const isPro = tier.isPremium || cachedPremium === 'true';
+          const cachedCodePremium = (typeof localStorage !== 'undefined' && row.households.invite_code)
+            ? localStorage.getItem(`tipidlink_code_premium_${row.households.invite_code}`)
+            : null;
+
+          const isOwnerPro = proOwnerIds.has(row.households.created_by) || (row.households.created_by === user.id && user?.user_metadata?.is_premium);
+          const isPro = isOwnerPro || tier.isPremium || cachedPremium === 'true' || cachedCodePremium === 'true';
           const plan = tier.plan || (typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_plan_${hhId}`) : null) || (isPro ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan');
           const sponsor = tier.sponsor || (typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_sponsor_${hhId}`) : null);
 
           if (isPro && typeof localStorage !== 'undefined') {
             localStorage.setItem(`tipidlink_household_premium_${hhId}`, 'true');
             localStorage.setItem(`tipidlink_household_plan_${hhId}`, plan);
+            if (row.households.invite_code) {
+              localStorage.setItem(`tipidlink_code_premium_${row.households.invite_code}`, 'true');
+            }
             if (sponsor) localStorage.setItem(`tipidlink_household_sponsor_${hhId}`, sponsor);
           }
 
@@ -562,6 +585,7 @@ export const HouseholdProvider = ({ children }) => {
             clean_description: tier.cleanDescription || row.households.description,
             raw_description: row.households.description,
             is_premium: isPro,
+            owner_is_pro: isOwnerPro,
             premium_plan: plan,
             sponsor_details: sponsor,
             user_role: row.role || (row.households.created_by === user.id ? 'owner' : 'member'),
@@ -815,10 +839,21 @@ export const HouseholdProvider = ({ children }) => {
               : (m.profiles?.full_name || m.nickname || 'Family Member'),
             email: m.profiles?.email || '',
             avatar_url: m.profiles?.avatar_url || '',
+            phone: m.profiles?.phone || '',
           }));
 
           setMembers(formatted);
           localStorage.setItem(`tipidlink_members_${householdId}`, JSON.stringify(formatted));
+
+          // Check if the household Owner is Pro - if so, ensure household Pro state is active!
+          const ownerMember = formatted.find(m => m.role === 'owner');
+          if (ownerMember?.phone && ownerMember.phone.includes('PREMIUM_STATUS:PRO')) {
+            setCurrentHousehold(prev => prev ? { ...prev, is_premium: true, owner_is_pro: true } : prev);
+            localStorage.setItem(`tipidlink_household_premium_${householdId}`, 'true');
+            if (currentHousehold?.invite_code) {
+              localStorage.setItem(`tipidlink_code_premium_${currentHousehold.invite_code}`, 'true');
+            }
+          }
           return;
         }
       } catch (err) {
@@ -955,9 +990,20 @@ export const HouseholdProvider = ({ children }) => {
           : (m.profiles?.full_name || m.nickname || 'Family Member'),
         email: m.profiles?.email || '',
         avatar_url: m.profiles?.avatar_url || '',
+        phone: m.profiles?.phone || '',
       }));
 
       setMembers(formatted);
+
+      // Check if the household Owner is Pro - if so, ensure household Pro state is active!
+      const ownerMember = formatted.find(m => m.role === 'owner');
+      if (ownerMember?.phone && ownerMember.phone.includes('PREMIUM_STATUS:PRO')) {
+        setCurrentHousehold(prev => prev ? { ...prev, is_premium: true, owner_is_pro: true } : prev);
+        localStorage.setItem(`tipidlink_household_premium_${householdId}`, 'true');
+        if (currentHousehold?.invite_code) {
+          localStorage.setItem(`tipidlink_code_premium_${currentHousehold.invite_code}`, 'true');
+        }
+      }
     } catch (err) {
       console.error('Error loading household members:', err);
     }

@@ -479,4 +479,68 @@ test('14. Household-Level Pro Status Sync Across All Family Members', () => {
   };
   const memberRestoredResolution = resolveHouseholdPremiumState(restoredHousehold, 'member-uuid-pedro');
   assert.strictEqual(memberRestoredResolution.isPremium, true, 'Member gets Pro back when Owner restores household Pro');
+
+  // 4. Owner-Profile-based Pro inheritance across accounts and devices
+  // Even if the household description in the database hasn't synced the tier tag yet,
+  // if the Owner's profile has PREMIUM_STATUS:PRO, all members in that household inherit Pro!
+  const plainHousehold = {
+    id: 'hh-cruz-999',
+    name: 'Cruz Household',
+    description: 'Shared family home in Quezon City',
+    created_by: 'owner-cruz-uuid',
+  };
+  const membersWithProOwner = [
+    {
+      id: 'm1',
+      user_id: 'owner-cruz-uuid',
+      role: 'owner',
+      phone: '09171234567|INVITES:CRUZ2026:hh-cruz-999|PREMIUM_STATUS:PRO|PLAN:TipidLink Premium Plan (₱30/mo)|SPONSOR:none',
+    },
+    {
+      id: 'm2',
+      user_id: 'admin-cruz-uuid',
+      role: 'admin',
+      phone: '',
+    },
+    {
+      id: 'm3',
+      user_id: 'member-cruz-uuid',
+      role: 'member',
+      phone: '',
+    },
+  ];
+
+  const adminCruzRes = resolveHouseholdPremiumState(plainHousehold, 'admin-cruz-uuid', membersWithProOwner);
+  assert.strictEqual(adminCruzRes.isPremium, true, 'Admin Cruz inherits Pro from Pro Owner');
+
+  const memberCruzRes = resolveHouseholdPremiumState(plainHousehold, 'member-cruz-uuid', membersWithProOwner);
+  assert.strictEqual(memberCruzRes.isPremium, true, 'Member Cruz inherits Pro from Pro Owner');
+
+  // When Owner Cruz resets to free:
+  const membersWithFreeOwner = [
+    {
+      id: 'm1',
+      user_id: 'owner-cruz-uuid',
+      role: 'owner',
+      phone: '09171234567|INVITES:CRUZ2026:hh-cruz-999',
+    },
+    {
+      id: 'm2',
+      user_id: 'admin-cruz-uuid',
+      role: 'admin',
+      phone: '',
+    },
+    {
+      id: 'm3',
+      user_id: 'member-cruz-uuid',
+      role: 'member',
+      phone: '',
+    },
+  ];
+
+  const adminCruzFreeRes = resolveHouseholdPremiumState(plainHousehold, 'admin-cruz-uuid', membersWithFreeOwner);
+  assert.strictEqual(adminCruzFreeRes.isPremium, false, 'Admin Cruz reverts to free when Owner is free');
+
+  const memberCruzFreeRes = resolveHouseholdPremiumState(plainHousehold, 'member-cruz-uuid', membersWithFreeOwner);
+  assert.strictEqual(memberCruzFreeRes.isPremium, false, 'Member Cruz reverts to free when Owner is free');
 });
