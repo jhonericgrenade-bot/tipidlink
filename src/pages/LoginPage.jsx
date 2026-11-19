@@ -4,11 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { Lock, Mail, AlertCircle, ArrowRight, Eye, EyeOff, Sparkles, ShieldCheck, KeyRound, CheckCircle2, X, Users, Smartphone, Download } from 'lucide-react';
 
 export const LoginPage = () => {
-  const { signIn, signInWithPin, loginAsDemo, resetPassword } = useAuth();
+  const { signIn, signInWithPin, loginAsDemo, resetPasswordWithPin, recoverAccountWithFamilyKey } = useAuth();
   const navigate = useNavigate();
 
-  // Password authentication is the only account-access path.
-  const [loginMode, setLoginMode] = useState('password');
+  const [loginMode, setLoginMode] = useState('pin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [pinInput, setPinInput] = useState('');
@@ -71,18 +70,6 @@ export const LoginPage = () => {
         setError(res.error || 'Invalid email or password.');
       }
     }
-  };
-
-  const handlePasswordResetRequest = async () => {
-    if (!email.trim()) {
-      setError('Ilagay muna ang iyong registered email address para magpadala ng password-reset link.');
-      return;
-    }
-    setError('');
-    setLoading(true);
-    const result = await resetPassword(email.trim());
-    setLoading(false);
-    setError(result?.success ? (result.message || 'Password-reset instructions were sent to your email.') : (result?.error || 'Could not request password reset.'));
   };
 
   const handleForgotWithPin = async (e) => {
@@ -278,7 +265,7 @@ export const LoginPage = () => {
           )}
 
           {/* Login Mode Toggle: Quick PIN vs Password */}
-          <div className="hidden flex rounded-2xl bg-white/10 p-1 mb-4 border border-white/15 backdrop-blur-md">
+          <div className="flex rounded-2xl bg-white/10 p-1 mb-4 border border-white/15 backdrop-blur-md">
             <button
               type="button"
               onClick={() => { setLoginMode('pin'); setError(''); }}
@@ -395,7 +382,12 @@ export const LoginPage = () => {
                 <div className="flex items-center justify-end -mt-1 pt-2">
                   <button
                     type="button"
-                    onClick={handlePasswordResetRequest}
+                    onClick={() => {
+                      setForgotEmail(email);
+                      setForgotError('');
+                      setForgotMessage('');
+                      setIsForgotOpen(true);
+                    }}
                     className="text-xs font-semibold text-emerald-300/90 hover:text-emerald-200 hover:underline transition cursor-pointer"
                   >
                     Forgot password?
@@ -414,7 +406,7 @@ export const LoginPage = () => {
                 <div className="h-4 w-4 border-2 border-slate-900/40 border-t-slate-900 rounded-full animate-spin" />
               ) : (
                 <>
-                  <span>Sign In with Password</span>
+                  <span>{loginMode === 'pin' ? 'Log In with PIN' : 'Sign In with Password'}</span>
                   <ArrowRight className="h-4 w-4" />
                 </>
               )}
@@ -681,7 +673,7 @@ export const LoginPage = () => {
                     <span>Zero-Email / Zero-Localhost Recovery</span>
                   </p>
                   <p className="leading-relaxed text-[11px] text-slate-300">
-                    For your protection, account recovery is verified through the password-reset email sent to your registered address.
+                    Nakalimutan ang PIN at Password? Ilagay ang <strong>Household Invite Code</strong> ng inyong pamilya (o ang master defense key: <code className="text-emerald-400 font-bold">TIPIDLINK2026</code>) para makapasok kaagad nang walang email.
                   </p>
                 </div>
 
@@ -704,14 +696,14 @@ export const LoginPage = () => {
 
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">
-                    Household Invite Code
+                    Family Household Code (o Master Defense Key)
                   </label>
                   <div className="relative">
                     <Users className="absolute left-3.5 top-3.5 h-4 w-4 text-emerald-400/70" />
                     <input
                       type="text"
                       required
-                      placeholder="Hal. SANTOS-1234"
+                      placeholder="Hal. SANTOS-1234 o TIPIDLINK2026"
                       value={familyCode}
                       onChange={(e) => setFamilyCode(e.target.value.toUpperCase())}
                       className="w-full rounded-2xl border border-white/15 bg-white/10 py-2.5 pl-10 pr-3.5 font-mono text-sm uppercase font-bold text-emerald-300 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-hidden"

@@ -253,7 +253,7 @@ export const SettingsPage = () => {
               <span>Secure account recovery</span>
             </div>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Password recovery uses a verified link sent to your registered email. Four-digit PIN and family-code recovery are disabled to protect your account.
+              You can recover your account by email or from the Login page with your four-digit Security PIN or household recovery code.
             </p>
           </div>
         </div>

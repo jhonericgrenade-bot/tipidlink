@@ -247,17 +247,86 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Kept as a compatibility response for old browser tabs. Password is the
-  // only account-authentication method supported by the current application.
-  const signInWithPin = async () => ({
-    success: false,
-    error: 'PIN sign-in has been retired for account security. Please sign in with your password or use email password recovery.',
-  });
+  // Sign in directly using Email + 4-Digit Security PIN.
+  const signInWithPin = async (email, pin) => {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanPin = (pin || '').trim();
+
+    if (!cleanEmail) {
+      return { success: false, error: 'Pakilagay ang iyong rehistradong email address.' };
+    }
+    if (!/^\d{4}$/.test(cleanPin)) {
+      return { success: false, error: 'Pakilagay ang 4-digit Security PIN.' };
+    }
+
+    localStorage.removeItem('tipidlink_demo_user');
+    localStorage.removeItem('tipidlink_demo_active');
+    if (localStorage.getItem('tipidlink_active_household_id') === 'hh-santos-family') {
+      localStorage.removeItem('tipidlink_active_household_id');
+    }
+    setIsDemoMode(false);
+
+    if (!isSupabaseConfigured) {
+      const fallbackName = cleanEmail.split('@')[0];
+      const offlineProfile = {
+        id: `usr-${Date.now()}`,
+        email: cleanEmail,
+        full_name: fallbackName,
+        avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fallbackName)}`,
+        security_pin: cleanPin,
+      };
+      setUser({ id: offlineProfile.id, email: offlineProfile.email });
+      setProfile(offlineProfile);
+      return { success: true };
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('login_with_pin', {
+        target_email: cleanEmail,
+        security_pin: cleanPin,
+      });
+
+      if (error) throw error;
+      if (data?.success === false) {
+        return { success: false, error: data.error || 'Hindi makapag-log in gamit ang PIN.' };
+      }
+
+      const sessionKey = data?.session_key;
+      if (!sessionKey) {
+        return { success: false, error: 'Failed to establish session from PIN.' };
+      }
+
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password: sessionKey,
+      });
+      if (authError) throw authError;
+
+      // Restore the account password after the PIN session is created so both
+      // sign-in methods remain available for the account.
+      await supabase.rpc('restore_password_after_pin_login', { target_email: cleanEmail });
+
+      if (authData?.user) {
+        setIsDemoMode(false);
+        setUser(authData.user);
+        await fetchUserProfile(authData.user);
+      }
+
+      return { success: true, data: authData };
+    } catch (err) {
+      return { success: false, error: err.message || 'Hindi makapag-log in gamit ang PIN.' };
+    }
+  };
 
   // Sign up with Supabase Auth or offline fallback
-  const signUp = async (email, password, fullName) => {
+  const signUp = async (email, password, fullName, securityPin = '0000') => {
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanName = (fullName || '').trim() || cleanEmail.split('@')[0];
+    const cleanPin = (securityPin || '0000').trim() || '0000';
+
+    if (!/^\d{4}$/.test(cleanPin)) {
+      return { success: false, error: 'Ang 4-Digit PIN ay dapat eksaktong 4 na numero.' };
+    }
 
     // Immediately clear state and all previous user caches so new account is totally clean
     setUser(null);
@@ -271,6 +340,7 @@ export const AuthProvider = ({ children }) => {
         email: cleanEmail,
         full_name: cleanName,
         avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanName)}`,
+        security_pin: cleanPin,
       };
       setUser({ id: demoProfile.id, email: cleanEmail });
       setProfile(demoProfile);
@@ -285,7 +355,7 @@ export const AuthProvider = ({ children }) => {
         email: cleanEmail,
         password,
         options: {
-          data: { full_name: cleanName },
+          data: { full_name: cleanName, security_pin: cleanPin },
         },
       });
       if (error) throw error;
@@ -296,6 +366,7 @@ export const AuthProvider = ({ children }) => {
           email: cleanEmail,
           full_name: cleanName,
           avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanName)}`,
+          security_pin: cleanPin,
         };
         setUser(data.user);
         setProfile(newProfile);
@@ -532,25 +603,69 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const resetPasswordWithPin = async () => ({
-    success: false,
-    error: 'PIN password reset has been retired for account security. Request a password-reset email instead.',
-  });
+  const resetPasswordWithPin = async (targetEmail, securityPin, newPassword) => {
+    const cleanEmail = (targetEmail || '').trim().toLowerCase();
+    const cleanPin = (securityPin || '').trim();
 
-  const updateSecurityPin = async () => ({
-    success: false,
-    error: 'Security PIN is no longer used for account access. Use a strong password and email recovery instead.',
-  });
+    if (!cleanEmail) {
+      return { success: false, error: 'Pakilagay ang iyong rehistradong email address.' };
+    }
+    if (!/^\d{4}$/.test(cleanPin)) {
+      return { success: false, error: 'Pakilagay ang 4-digit Security PIN.' };
+    }
+    if (!newPassword || newPassword.length < 8) {
+      return { success: false, error: 'Ang bagong password ay dapat hindi bababa sa 8 characters.' };
+    }
+
+    if (isDemoMode || !isSupabaseConfigured) {
+      return { success: true, message: 'Matagumpay na nabago ang iyong password gamit ang Security PIN!' };
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('reset_password_with_pin', {
+        target_email: cleanEmail,
+        security_pin: cleanPin,
+        new_password: newPassword,
+      });
+      if (error) throw error;
+      if (data?.success === false) {
+        return { success: false, error: data.error || 'Hindi mabago ang password.' };
+      }
+      return { success: true, message: data?.message || 'Matagumpay na nabago ang iyong password!' };
+    } catch (err) {
+      return { success: false, error: err.message || 'Hindi mabago ang password.' };
+    }
+  };
+
+  const updateSecurityPin = async (newPin) => {
+    const cleanPin = (newPin || '').trim();
+    if (!/^\d{4}$/.test(cleanPin)) {
+      return { success: false, error: 'Ang Security PIN ay dapat 4 na numero (hal. 1234).' };
+    }
+
+    if (isDemoMode || !isSupabaseConfigured) {
+      const updated = { ...profile, security_pin: cleanPin };
+      setProfile(updated);
+      return { success: true, message: 'Matagumpay na na-update ang iyong Security PIN!' };
+    }
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ security_pin: cleanPin })
+        .eq('id', user.id);
+      if (error) throw error;
+
+      await supabase.auth.updateUser({ data: { security_pin: cleanPin } });
+      setProfile(prev => ({ ...prev, security_pin: cleanPin }));
+      return { success: true, message: 'Matagumpay na na-update ang iyong Security PIN!' };
+    } catch (err) {
+      return { success: false, error: err.message || 'Hindi ma-update ang Security PIN.' };
+    }
+  };
 
   // Emergency Recovery via Family Household Code or Master Key (Zero Email / Zero Localhost)
   const recoverAccountWithFamilyKey = async (targetEmail, familyCode, newPassword, newPin = '0000') => {
-    return {
-      success: false,
-      error: 'Family-code account recovery has been retired for account security. Request a password-reset email instead.',
-    };
-
-    /* Legacy implementation retained temporarily for migration compatibility.
-       The server RPC is revoked by migration 004 and this code is unreachable. */
     const cleanEmail = (targetEmail || '').trim().toLowerCase();
     const cleanCode = (familyCode || '').trim();
     const cleanPin = (newPin || '0000').trim() || '0000';
