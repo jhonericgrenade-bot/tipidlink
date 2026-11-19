@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tipidlink-v7';
+const CACHE_NAME = 'tipidlink-v8';
 
 const STATIC_ASSETS = [
   '/',

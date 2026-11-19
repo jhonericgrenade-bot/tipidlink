@@ -26,6 +26,7 @@ import {
   autoDetectBillCategory,
 } from '../src/lib/formatters.js';
 import {
+  areFinancialRecordArraysEqual,
   reconcileBillPaymentLedger,
 } from '../src/lib/billPaymentLedger.js';
 
@@ -812,4 +813,30 @@ test('17. Bill payments reconcile into every budget-facing ledger without duplic
   const restoredWaterPayment = ledger.find((transaction) => transaction.bill_payment_id === 'payment-missing-transaction');
   assert.ok(restoredWaterPayment, 'Missing payment is materialized into the ledger');
   assert.strictEqual(restoredWaterPayment.category_id, 'cat-3', 'Recovered payment is assigned to the Water category budget');
+});
+
+test('18. Finance sync recognizes newly loaded nested bill payments', () => {
+  const beforePayment = [{
+    id: 'bill-1',
+    amount: 4200,
+    status: 'unpaid',
+    payments: [],
+  }];
+  const afterPayment = [{
+    id: 'bill-1',
+    amount: 4200,
+    status: 'paid',
+    payments: [{ id: 'payment-1', amount: 4200, payment_date: '2026-11-19' }],
+  }];
+
+  assert.strictEqual(
+    areFinancialRecordArraysEqual(beforePayment, afterPayment),
+    false,
+    'A newly loaded bill payment must replace the stale cached bill state'
+  );
+  assert.strictEqual(
+    areFinancialRecordArraysEqual(afterPayment, structuredClone(afterPayment)),
+    true,
+    'Identical financial records avoid unnecessary state updates'
+  );
 });

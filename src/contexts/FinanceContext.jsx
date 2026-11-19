@@ -10,6 +10,7 @@ import {
   MOCK_TO_SUPABASE_CATEGORY_MAP,
 } from '../lib/formatters';
 import {
+  areFinancialRecordArraysEqual,
   reconcileBillPaymentLedger,
   resolveBillPaymentCategory,
 } from '../lib/billPaymentLedger';
@@ -36,28 +37,6 @@ export const resolveCategoryId = (catId, categoriesList = []) => {
   }
   if (MOCK_TO_SUPABASE_CATEGORY_MAP[catId]) return MOCK_TO_SUPABASE_CATEGORY_MAP[catId];
   return null;
-};
-
-const areArraysShallowEqual = (a, b) => {
-  if (a === b) return true;
-  if (!Array.isArray(a) || !Array.isArray(b)) return false;
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    const itemA = a[i];
-    const itemB = b[i];
-    if (
-      itemA?.id !== itemB?.id ||
-      itemA?.amount !== itemB?.amount ||
-      itemA?.updated_at !== itemB?.updated_at ||
-      itemA?.is_paid !== itemB?.is_paid ||
-      itemA?.current_amount !== itemB?.current_amount ||
-      itemA?.target_amount !== itemB?.target_amount ||
-      itemA?.notes !== itemB?.notes
-    ) {
-      return false;
-    }
-  }
-  return true;
 };
 
 // Instant warm-cache hydration on initial page open to prevent data disappearing
@@ -179,6 +158,11 @@ export const FinanceProvider = ({ children }) => {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'bills', filter: `household_id=eq.${targetHhId}` }, () => {
           loadHouseholdData(householdId, { silent: true });
         })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'bill_payments', filter: `household_id=eq.${targetHhId}` }, () => {
+          // A payment changes both the bill balance and its budget expense.
+          // Listen directly instead of relying only on the bill-status trigger.
+          loadHouseholdData(householdId, { silent: true });
+        })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'savings_goals', filter: `household_id=eq.${targetHhId}` }, () => {
           loadHouseholdData(householdId, { silent: true });
         })
@@ -250,11 +234,11 @@ export const FinanceProvider = ({ children }) => {
             categories: parsed.categories || INITIAL_DEMO_DATA.categories,
           }));
 
-          setTransactions(prev => areArraysShallowEqual(prev, loadedTx) ? prev : loadedTx);
-          setBudgets(prev => areArraysShallowEqual(prev, loadedBudgets) ? prev : loadedBudgets);
-          setBills(prev => areArraysShallowEqual(prev, loadedBills) ? prev : loadedBills);
-          setSavingsGoals(prev => areArraysShallowEqual(prev, parsed.savingsGoals || INITIAL_DEMO_DATA.savingsGoals) ? prev : (parsed.savingsGoals || INITIAL_DEMO_DATA.savingsGoals));
-          setCategories(prev => areArraysShallowEqual(prev, parsed.categories || INITIAL_DEMO_DATA.categories) ? prev : (parsed.categories || INITIAL_DEMO_DATA.categories));
+          setTransactions(prev => areFinancialRecordArraysEqual(prev, loadedTx) ? prev : loadedTx);
+          setBudgets(prev => areFinancialRecordArraysEqual(prev, loadedBudgets) ? prev : loadedBudgets);
+          setBills(prev => areFinancialRecordArraysEqual(prev, loadedBills) ? prev : loadedBills);
+          setSavingsGoals(prev => areFinancialRecordArraysEqual(prev, parsed.savingsGoals || INITIAL_DEMO_DATA.savingsGoals) ? prev : (parsed.savingsGoals || INITIAL_DEMO_DATA.savingsGoals));
+          setCategories(prev => areFinancialRecordArraysEqual(prev, parsed.categories || INITIAL_DEMO_DATA.categories) ? prev : (parsed.categories || INITIAL_DEMO_DATA.categories));
           if (!isSilent) setLoading(false);
           return;
         } catch (e) {
@@ -263,11 +247,11 @@ export const FinanceProvider = ({ children }) => {
       }
 
       if (householdId === 'hh-santos-family' || isDemoMode) {
-        setTransactions(prev => areArraysShallowEqual(prev, INITIAL_DEMO_DATA.transactions) ? prev : INITIAL_DEMO_DATA.transactions);
-        setBudgets(prev => areArraysShallowEqual(prev, INITIAL_DEMO_DATA.budgets) ? prev : INITIAL_DEMO_DATA.budgets);
-        setBills(prev => areArraysShallowEqual(prev, INITIAL_DEMO_DATA.bills) ? prev : INITIAL_DEMO_DATA.bills);
-        setSavingsGoals(prev => areArraysShallowEqual(prev, INITIAL_DEMO_DATA.savingsGoals) ? prev : INITIAL_DEMO_DATA.savingsGoals);
-        setCategories(prev => areArraysShallowEqual(prev, INITIAL_DEMO_DATA.categories) ? prev : INITIAL_DEMO_DATA.categories);
+        setTransactions(prev => areFinancialRecordArraysEqual(prev, INITIAL_DEMO_DATA.transactions) ? prev : INITIAL_DEMO_DATA.transactions);
+        setBudgets(prev => areFinancialRecordArraysEqual(prev, INITIAL_DEMO_DATA.budgets) ? prev : INITIAL_DEMO_DATA.budgets);
+        setBills(prev => areFinancialRecordArraysEqual(prev, INITIAL_DEMO_DATA.bills) ? prev : INITIAL_DEMO_DATA.bills);
+        setSavingsGoals(prev => areFinancialRecordArraysEqual(prev, INITIAL_DEMO_DATA.savingsGoals) ? prev : INITIAL_DEMO_DATA.savingsGoals);
+        setCategories(prev => areFinancialRecordArraysEqual(prev, INITIAL_DEMO_DATA.categories) ? prev : INITIAL_DEMO_DATA.categories);
 
         localStorage.setItem(storageKey, JSON.stringify({
           transactions: INITIAL_DEMO_DATA.transactions,
@@ -397,11 +381,11 @@ export const FinanceProvider = ({ children }) => {
         : formattedGoals;
 
       const categoriesList = (catData && catData.length > 0) ? catData : INITIAL_DEMO_DATA.categories;
-      setCategories(prev => areArraysShallowEqual(prev, categoriesList) ? prev : categoriesList);
-      setTransactions(prev => areArraysShallowEqual(prev, finalTx) ? prev : finalTx);
-      setBudgets(prev => areArraysShallowEqual(prev, finalBudgets) ? prev : finalBudgets);
-      setBills(prev => areArraysShallowEqual(prev, finalBills) ? prev : finalBills);
-      setSavingsGoals(prev => areArraysShallowEqual(prev, finalGoals) ? prev : finalGoals);
+      setCategories(prev => areFinancialRecordArraysEqual(prev, categoriesList) ? prev : categoriesList);
+      setTransactions(prev => areFinancialRecordArraysEqual(prev, finalTx) ? prev : finalTx);
+      setBudgets(prev => areFinancialRecordArraysEqual(prev, finalBudgets) ? prev : finalBudgets);
+      setBills(prev => areFinancialRecordArraysEqual(prev, finalBills) ? prev : finalBills);
+      setSavingsGoals(prev => areFinancialRecordArraysEqual(prev, finalGoals) ? prev : finalGoals);
 
       // Persist to warm cache for instant 0ms load on next visit
       const cacheBlob = JSON.stringify({
@@ -424,10 +408,10 @@ export const FinanceProvider = ({ children }) => {
         try {
           const parsed = JSON.parse(savedData);
           if (Array.isArray(parsed.transactions) && parsed.transactions.length > 0) {
-            setTransactions(prev => areArraysShallowEqual(prev, parsed.transactions) ? prev : parsed.transactions);
-            if (parsed.budgets) setBudgets(prev => areArraysShallowEqual(prev, parsed.budgets) ? prev : parsed.budgets);
-            if (parsed.bills) setBills(prev => areArraysShallowEqual(prev, parsed.bills) ? prev : parsed.bills);
-            if (parsed.savingsGoals) setSavingsGoals(prev => areArraysShallowEqual(prev, parsed.savingsGoals) ? prev : parsed.savingsGoals);
+            setTransactions(prev => areFinancialRecordArraysEqual(prev, parsed.transactions) ? prev : parsed.transactions);
+            if (parsed.budgets) setBudgets(prev => areFinancialRecordArraysEqual(prev, parsed.budgets) ? prev : parsed.budgets);
+            if (parsed.bills) setBills(prev => areFinancialRecordArraysEqual(prev, parsed.bills) ? prev : parsed.bills);
+            if (parsed.savingsGoals) setSavingsGoals(prev => areFinancialRecordArraysEqual(prev, parsed.savingsGoals) ? prev : parsed.savingsGoals);
           }
         } catch {}
       }

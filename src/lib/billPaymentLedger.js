@@ -9,6 +9,16 @@ const normalizeText = (value) => String(value || '')
 
 const isSameAmount = (first, second) => Number(first || 0) === Number(second || 0);
 
+// Bills, payment histories, and savings contributions are nested records. A
+// top-level id/amount comparison is not enough to detect a payment that was
+// just loaded from Supabase after a refresh or a family member's update.
+export const areFinancialRecordArraysEqual = (first = [], second = []) => {
+  if (first === second) return true;
+  if (!Array.isArray(first) || !Array.isArray(second)) return false;
+  if (first.length !== second.length) return false;
+  return first.every((item, index) => JSON.stringify(item) === JSON.stringify(second[index]));
+};
+
 /**
  * Resolves the category used by a bill payment. Keeping this in one place means
  * a bill payment is counted in the same category across the dashboard, budgets,
