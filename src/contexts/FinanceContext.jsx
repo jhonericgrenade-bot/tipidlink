@@ -4,6 +4,12 @@ import { useAuth } from './AuthContext';
 import { useHousehold } from './HouseholdContext';
 import { INITIAL_DEMO_DATA } from '../lib/mockData';
 import { broadcastSyncEvent, subscribeToSyncEvents, isMatchingHouseholdId } from '../lib/realtimeSync';
+import {
+  matchCategoryId,
+  autoDetectBillCategory,
+  doesTransactionMatchCategory,
+  MOCK_TO_SUPABASE_CATEGORY_MAP,
+} from '../lib/formatters';
 
 const isUuid = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
@@ -18,24 +24,13 @@ export const resolveCloudHouseholdId = (id) => {
   return null;
 };
 
-const MOCK_TO_SUPABASE_CATEGORY_MAP = {
-  'cat-1': '74401ce1-ae2f-4be2-a7e8-420437d2969a', // Groceries & Food (Palengke / Supermarket)
-  'cat-2': '5b18d8f3-037c-45ee-880a-1e92842ec867', // Electricity (Meralco / Coop)
-  'cat-3': '42edf785-decf-4d1e-a451-6d2ca1cb2547', // Water Bill (Maynilad / Manila Water)
-  'cat-4': '4419c6fe-3897-4f13-b77c-c6a1c97bcc54', // Internet & Mobile Load (PLDT / Converge / Globe)
-  'cat-5': 'd516e37e-001d-45ce-b6d2-be9036b6cef6', // Transportation & Gas (Jeep / Tricycle / MRT)
-  'cat-6': 'a3be1471-efec-4deb-a371-c39d0f7349dd', // Education & School Baon
-  'cat-7': '87cff36c-1103-4f77-a2a3-4c7d766e40d5', // Dining Out & Delivery (Jollibee / Grab)
-  'cat-8': '4fc83ede-a6b9-45ef-bc06-352218b4c8d7', // Health, Medicine & Emergencies
-  'cat-9': '83219194-afe1-4910-b6c9-8a1aad9ccfa2', // Salary / Regular Employment
-  'cat-10': '254a0f56-4b21-4916-88bd-b0bcba714d03', // Freelance & Side Hustles (Raket)
-  'cat-11': '31c82139-a899-415f-8d94-c79a33e72696', // Remittance / Padala (OFW)
-  'cat-12': '25de8199-3408-4143-9de9-1a84977b6bb9', // Small Business / Sari-Sari Store
-};
-
-export const resolveCategoryId = (catId) => {
+export const resolveCategoryId = (catId, categoriesList = []) => {
   if (!catId) return null;
   if (isUuid(catId)) return catId;
+  if (Array.isArray(categoriesList) && categoriesList.length > 0) {
+    const found = categoriesList.find(c => c.id === catId || matchCategoryId(c.id, catId, categoriesList));
+    if (found && isUuid(found.id)) return found.id;
+  }
   if (MOCK_TO_SUPABASE_CATEGORY_MAP[catId]) return MOCK_TO_SUPABASE_CATEGORY_MAP[catId];
   return null;
 };
@@ -807,11 +802,25 @@ export const FinanceProvider = ({ children }) => {
   const addBill = async (billData) => {
     if (!currentHousehold) return { success: false, error: 'No active household' };
     const targetHhId = resolveCloudHouseholdId(currentHousehold.id);
-    const resolvedCatId = resolveCategoryId(billData.category_id);
+
+    // Resolve matching category with intelligence
+    let matchedCat = categories.find(c => c.id === billData.category_id || matchCategoryId(c.id, billData.category_id, categories));
+    if (!matchedCat && billData.title) {
+      matchedCat = autoDetectBillCategory(billData.title, billData.biller_name, categories);
+    }
+    if (!matchedCat) {
+      matchedCat = categories.find(c => c.type === 'expense' && /utilities|bill/i.test(c.name))
+        || categories.find(c => c.type === 'expense')
+        || { id: 'cat-2', name: 'Utilities & Bills', icon: 'receipt', color: '#F59E0B' };
+    }
+
+    const assignedCatId = billData.category_id || matchedCat?.id || 'cat-2';
+    const assignedCatName = matchedCat?.name || 'Utilities & Bills';
 
     const newBill = {
       household_id: targetHhId || currentHousehold.id,
-      category_id: resolvedCatId || null,
+      category_id: assignedCatId,
+      category_name: assignedCatName,
       title: billData.title,
       biller_name: billData.biller_name || '',
       account_number: billData.account_number || '',
@@ -847,10 +856,14 @@ export const FinanceProvider = ({ children }) => {
     }
 
     try {
+      const isCatUuid = isUuid(assignedCatId);
+      const dbCatId = isCatUuid ? assignedCatId : (resolveCategoryId(assignedCatId, categories) || null);
+
       const { data, error } = await supabase
         .from('bills')
         .insert({
           ...newBill,
+          category_id: dbCatId,
           household_id: targetHhId,
           created_by: user.id,
         })
@@ -861,7 +874,7 @@ export const FinanceProvider = ({ children }) => {
 
       const formatted = {
         ...data,
-        category_name: data.categories?.name || 'Bill',
+        category_name: data.categories?.name || assignedCatName || 'Bill',
         payments: [],
       };
 
@@ -921,9 +934,30 @@ export const FinanceProvider = ({ children }) => {
     if (!targetBill) return { success: false, error: 'Bill not found' };
     const targetHhId = resolveCloudHouseholdId(currentHousehold?.id);
 
+    // Resolve matching category with intelligence
+    let matchedCat = categories.find(c => c.id === targetBill.category_id || matchCategoryId(c.id, targetBill.category_id, categories));
+    if (!matchedCat && targetBill.category_name) {
+      matchedCat = categories.find(c => c.name && c.name.toLowerCase().trim() === targetBill.category_name.toLowerCase().trim());
+    }
+    if (!matchedCat) {
+      matchedCat = autoDetectBillCategory(targetBill.title, targetBill.biller_name, categories);
+    }
+    if (!matchedCat) {
+      matchedCat = categories.find(c => c.type === 'expense' && /utilities|bill/i.test(c.name))
+        || categories.find(c => c.type === 'expense')
+        || { id: 'cat-2', name: 'Utilities & Bills', icon: 'receipt', color: '#F59E0B' };
+    }
+
+    const assignedCatId = matchedCat.id || targetBill.category_id || 'cat-2';
+    const assignedCatName = matchedCat.name || targetBill.category_name || 'Utilities & Bills';
+    const assignedCatIcon = matchedCat.icon || 'receipt';
+    const assignedCatColor = matchedCat.color || '#F59E0B';
+
+    const paymentDate = payment.payment_date || new Date().toISOString().split('T')[0];
+
     const applyLocal = (newPayment) => {
       const updatedPayments = [...(targetBill.payments || []), newPayment];
-      const totalPaid = updatedPayments.reduce((acc, p) => acc + p.amount, 0);
+      const totalPaid = updatedPayments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
 
       let newStatus = 'unpaid';
       if (totalPaid >= targetBill.amount) {
@@ -935,22 +969,28 @@ export const FinanceProvider = ({ children }) => {
       const autoTx = {
         id: `tx-bill-${Date.now()}`,
         household_id: currentHousehold?.id,
-        category_id: targetBill.category_id,
-        category_name: targetBill.category_name || 'Bill Payment',
-        category_icon: 'receipt',
-        category_color: '#3B82F6',
+        category_id: assignedCatId,
+        category_name: assignedCatName,
+        category_icon: assignedCatIcon,
+        category_color: assignedCatColor,
         user_id: user?.id,
         user_name: profile?.full_name || 'You',
         type: 'expense',
         amount: payAmount,
         description: `Payment for ${targetBill.title}`,
-        transaction_date: payment.payment_date || new Date().toISOString().split('T')[0],
+        transaction_date: paymentDate,
         payment_method: payment.payment_method || 'gcash',
         notes: `Ref: ${payment.reference_number || 'N/A'}. ${payment.notes || ''}`.trim(),
         created_at: new Date().toISOString(),
       };
 
-      const updatedBills = bills.map(b => b.id === billId ? { ...b, status: newStatus, payments: updatedPayments } : b);
+      const updatedBills = bills.map(b => b.id === billId ? {
+        ...b,
+        status: newStatus,
+        payments: updatedPayments,
+        category_id: assignedCatId,
+        category_name: assignedCatName,
+      } : b);
       const updatedTx = [autoTx, ...transactions];
 
       setBills(updatedBills);
@@ -971,7 +1011,7 @@ export const FinanceProvider = ({ children }) => {
         id: `bp-${Date.now()}`,
         bill_id: billId,
         amount: payAmount,
-        payment_date: payment.payment_date || new Date().toISOString().split('T')[0],
+        payment_date: paymentDate,
         payment_method: payment.payment_method || 'gcash',
         reference_number: payment.reference_number || '',
         notes: payment.notes || '',
@@ -985,9 +1025,9 @@ export const FinanceProvider = ({ children }) => {
         .insert({
           bill_id: billId,
           household_id: targetHhId,
-          paid_by: user.id,
+          paid_by: user?.id,
           amount: payAmount,
-          payment_date: payment.payment_date || new Date().toISOString().split('T')[0],
+          payment_date: paymentDate,
           payment_method: payment.payment_method || 'gcash',
           reference_number: payment.reference_number || null,
           notes: payment.notes || null,
@@ -995,29 +1035,35 @@ export const FinanceProvider = ({ children }) => {
         .select()
         .single();
 
-      if (payErr) throw payErr;
+      if (payErr) console.warn('Supabase bill payment record note:', payErr.message);
 
-      // Also log as household expense transaction in Supabase
-      const resolvedCatId = resolveCategoryId(targetBill.category_id);
-      await supabase
+      // Resolve valid UUID for transactions table in Supabase
+      const isCatUuid = isUuid(assignedCatId);
+      const dbCatId = isCatUuid ? assignedCatId : (resolveCategoryId(assignedCatId, categories) || null);
+
+      const { error: txErr } = await supabase
         .from('transactions')
         .insert({
           household_id: targetHhId,
-          category_id: resolvedCatId || null,
-          user_id: user.id,
+          category_id: dbCatId,
+          user_id: user?.id,
           type: 'expense',
           amount: payAmount,
           description: `Bill Payment: ${targetBill.title}`,
-          transaction_date: payment.payment_date || new Date().toISOString().split('T')[0],
+          transaction_date: paymentDate,
           payment_method: payment.payment_method || 'gcash',
           notes: `Ref: ${payment.reference_number || 'N/A'}`,
         });
+
+      if (txErr) console.warn('Supabase bill transaction insert note:', txErr.message);
+
+      loadHouseholdData(targetHhId, { silent: true });
 
       return applyLocal(payRow || {
         id: `bp-${Date.now()}`,
         bill_id: billId,
         amount: payAmount,
-        payment_date: payment.payment_date || new Date().toISOString().split('T')[0],
+        payment_date: paymentDate,
         payment_method: payment.payment_method || 'gcash',
         reference_number: payment.reference_number || '',
         notes: payment.notes || '',
@@ -1028,7 +1074,7 @@ export const FinanceProvider = ({ children }) => {
         id: `bp-${Date.now()}`,
         bill_id: billId,
         amount: payAmount,
-        payment_date: payment.payment_date || new Date().toISOString().split('T')[0],
+        payment_date: paymentDate,
         payment_method: payment.payment_method || 'gcash',
         reference_number: payment.reference_number || '',
         notes: payment.notes || '',
@@ -1287,11 +1333,20 @@ export const FinanceProvider = ({ children }) => {
   // DYNAMIC FINANCIAL CALCULATIONS (Computed from real items, no hardcoding)
   // ----------------------------------------------------------------------------
   const calculations = useMemo(() => {
-    // Filter transactions for selected month/year
+    // Filter transactions for selected month/year (robust parsing without UTC drift)
     const monthlyTransactions = transactions.filter(t => {
       if (!t.transaction_date) return false;
-      const d = new Date(t.transaction_date);
-      return (d.getMonth() + 1) === Number(selectedMonth) && d.getFullYear() === Number(selectedYear);
+      let m, y;
+      if (typeof t.transaction_date === 'string' && /^\d{4}-\d{2}/.test(t.transaction_date)) {
+        const parts = t.transaction_date.split('T')[0].split('-');
+        y = Number(parts[0]);
+        m = Number(parts[1]);
+      } else {
+        const d = new Date(t.transaction_date);
+        y = d.getFullYear();
+        m = d.getMonth() + 1;
+      }
+      return m === Number(selectedMonth) && y === Number(selectedYear);
     });
 
     const totalIncome = monthlyTransactions

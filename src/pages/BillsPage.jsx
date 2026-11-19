@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useFinance } from '../contexts/FinanceContext';
 import { useHousehold } from '../contexts/HouseholdContext';
 import { usePremium } from '../contexts/PremiumContext';
-import { formatPHP, formatDate, getDueDateStatus } from '../lib/formatters';
+import { formatPHP, formatDate, getDueDateStatus, autoDetectBillCategory } from '../lib/formatters';
 import { exportBillsPDF } from '../lib/exportUtils';
 import { StatusBadge } from '../components/StatusBadge';
 import { Modal } from '../components/Modal';
@@ -173,7 +173,15 @@ export const BillsPage = () => {
     if (!billForm.title || !billForm.amount || !billForm.due_date) return;
     setFormLoading(true);
 
-    await addBill(billForm);
+    const payload = { ...billForm };
+    if (!payload.category_id) {
+      const autoCat = autoDetectBillCategory(payload.title, payload.biller_name, categories);
+      if (autoCat) {
+        payload.category_id = autoCat.id;
+      }
+    }
+
+    await addBill(payload);
     setFormLoading(false);
     setIsAddBillOpen(false);
   };

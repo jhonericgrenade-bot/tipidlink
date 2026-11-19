@@ -7,6 +7,7 @@
 
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { matchCategoryId, doesTransactionMatchCategory } from './formatters.js';
 
 // Format currency safely for PDF (WinAnsi compatible without corrupted symbols)
 export const formatPDFMoney = (amount) => {
@@ -607,10 +608,10 @@ export const exportBudgetsPDF = async ({
   const rows = categories
     .filter(c => c.name && c.name.toLowerCase() !== 'income')
     .map(cat => {
-      const budgetObj = budgets.find(b => b.category_id === cat.id);
+      const budgetObj = budgets.find(b => b.category_id === cat.id || matchCategoryId(b.category_id, cat.id, categories));
       const allocated = budgetObj ? Number(budgetObj.amount) : 0;
       const spent = monthlyExpenses
-        .filter(t => t.category_id === cat.id)
+        .filter(t => doesTransactionMatchCategory(t, cat.id, cat, categories))
         .reduce((sum, t) => sum + Number(t.amount), 0);
       const remaining = allocated > 0 ? allocated - spent : 0;
       const utilization = allocated > 0 ? ((spent / allocated) * 100).toFixed(1) : (spent > 0 ? '100.0' : '0.0');
@@ -1058,10 +1059,10 @@ export const exportFullFinancialStatementPDF = async ({
     .filter(c => c.name && c.name.toLowerCase() !== 'income')
     .slice(0, 10)
     .map(cat => {
-      const bObj = budgets.find(b => b.category_id === cat.id);
+      const bObj = budgets.find(b => b.category_id === cat.id || matchCategoryId(b.category_id, cat.id, categories));
       const allocated = bObj ? Number(bObj.amount) : 0;
       const spent = transactions
-        .filter(t => t.type === 'expense' && t.category_id === cat.id)
+        .filter(t => t.type === 'expense' && doesTransactionMatchCategory(t, cat.id, cat, categories))
         .reduce((s, t) => s + Number(t.amount || 0), 0);
       const remaining = allocated > 0 ? allocated - spent : 0;
       const pct = allocated > 0 ? ((spent / allocated) * 100).toFixed(0) : 0;

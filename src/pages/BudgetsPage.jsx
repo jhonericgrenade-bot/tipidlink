@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useFinance } from '../contexts/FinanceContext';
 import { useHousehold } from '../contexts/HouseholdContext';
 import { usePremium } from '../contexts/PremiumContext';
-import { formatPHP } from '../lib/formatters';
+import { formatPHP, matchCategoryId, doesTransactionMatchCategory } from '../lib/formatters';
 import { exportBudgetsPDF } from '../lib/exportUtils';
 import { Modal } from '../components/Modal';
 import {
@@ -91,23 +91,17 @@ export const BudgetsPage = () => {
   const categoryBudgetsWithSpending = useMemo(() => {
     // Current period budgets
     const periodBudgets = budgets.filter(
-      (b) => b.month === Number(selectedMonth) && b.year === Number(selectedYear)
+      (b) => Number(b.month) === Number(selectedMonth) && Number(b.year) === Number(selectedYear)
     );
 
-    // Sum expenses by category for current period
-    const expenseByCat = {};
-    calculations.monthlyTransactions
-      .filter((t) => t.type === 'expense')
-      .forEach((t) => {
-        if (t.category_id) {
-          expenseByCat[t.category_id] = (expenseByCat[t.category_id] || 0) + Number(t.amount);
-        }
-      });
-
     return periodBudgets.map((b) => {
-      const cat = categories.find((c) => c.id === b.category_id);
-      const spent = expenseByCat[b.category_id] || 0;
+      const cat = categories.find((c) => c.id === b.category_id || matchCategoryId(c.id, b.category_id, categories));
       const budgetAmount = Number(b.amount);
+
+      const spent = calculations.monthlyTransactions
+        .filter((t) => t.type === 'expense' && doesTransactionMatchCategory(t, b.category_id, cat, categories))
+        .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
       const remaining = budgetAmount - spent;
       const percent = budgetAmount > 0 ? (spent / budgetAmount) * 100 : 0;
       const isOver = spent > budgetAmount;

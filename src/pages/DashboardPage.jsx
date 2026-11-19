@@ -327,7 +327,9 @@ export const DashboardPage = () => {
               {calculations.budgetUsagePercent.toFixed(1)}% Spent
             </span>
             <p className="text-xs text-slate-400">
-              {calculations.isOverspent ? 'Over budget limit' : '30.3% Spent / ₱45,300.00 Remaining'}
+              {calculations.isOverspent
+                ? 'Over budget limit'
+                : `${calculations.budgetUsagePercent.toFixed(1)}% Spent / ${formatPHP(calculations.remainingBudget)} Remaining`}
             </p>
           </div>
         </div>

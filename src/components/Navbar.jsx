@@ -38,8 +38,8 @@ export const Navbar = ({ onOpenCreateHousehold, onOpenJoinHousehold }) => {
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-[1600px] w-full items-center justify-between px-3 sm:px-5 lg:px-6">
         {/* Left section: Brand Logo, Household Selector, & Desktop Navigation Links (Unified flow prevents overlaps) */}
-        <div className="flex items-center gap-2 sm:gap-3 lg:gap-3 xl:gap-5 min-w-0">
-          <NavLink to="/" className="flex items-center gap-2 group shrink-0">
+        <div className="flex items-center flex-nowrap gap-2 sm:gap-3 lg:gap-3 xl:gap-5 min-w-0">
+          <NavLink to="/" className="flex items-center gap-2 group shrink-0" title="TipidLink Dashboard" aria-label="TipidLink Dashboard">
             <img
               src="/tipidlink-logo.png"
               alt="TipidLink Logo"
@@ -54,7 +54,7 @@ export const Navbar = ({ onOpenCreateHousehold, onOpenJoinHousehold }) => {
           />
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-0.5 xl:gap-1 min-w-0">
+          <nav className="hidden lg:flex items-center flex-nowrap gap-0.5 xl:gap-1 min-w-0">
             {navItems.map((item) => {
               const Icon = item.icon;
               return (

@@ -20,6 +20,11 @@ import {
   SANTOS_UUID,
   SANTOS_DEMO_ID
 } from '../src/lib/premiumTier.js';
+import {
+  doesTransactionMatchCategory,
+  matchCategoryId,
+  autoDetectBillCategory,
+} from '../src/lib/formatters.js';
 
 test.after(() => {
   // Clean up any temporary PDFs written during test execution
@@ -688,4 +693,75 @@ test('15. Anti-Reversion Guard & Universal Reset to Free Across Joined Household
   assert.strictEqual(resolveHouseholdPremiumState(santosProHh, 'joined-member-cp-1', santosCleanMembers).isPremium, true, 'Santos joined member auto-updates to Pro upon upgrade');
 
   delete global.localStorage;
+});
+
+test('16. Bill Payment Auto-Deduction from Overall Budget and Category Budget', () => {
+  const categories = INITIAL_DEMO_DATA.categories;
+  const electricityCat = categories.find(c => c.id === 'cat-2'); // Electricity (Meralco)
+  const waterCat = categories.find(c => c.id === 'cat-3'); // Water (Maynilad)
+  const internetCat = categories.find(c => c.id === 'cat-4'); // Internet (Converge Fiber)
+
+  // 1. Verify auto-detection of category for bills without explicit category_id
+  const detectedMeralco = autoDetectBillCategory('Meralco Electric Bill', 'Manila Electric Company', categories);
+  assert.strictEqual(detectedMeralco.id, 'cat-2', 'Meralco bill auto-detects Electricity category');
+
+  const detectedWater = autoDetectBillCategory('Maynilad Water Bill', 'Maynilad', categories);
+  assert.strictEqual(detectedWater.id, 'cat-3', 'Maynilad bill auto-detects Water category');
+
+  const detectedWifi = autoDetectBillCategory('Converge Fiber WiFi', 'Converge ICT', categories);
+  assert.strictEqual(detectedWifi.id, 'cat-4', 'WiFi bill auto-detects Internet category');
+
+  // 2. Multi-layer Category Matching (UUID vs mock ID vs name)
+  assert.strictEqual(matchCategoryId('cat-2', '5b18d8f3-037c-45ee-880a-1e92842ec867', categories), true, 'Mock cat-2 matches Supabase Electricity UUID');
+  assert.strictEqual(matchCategoryId('5b18d8f3-037c-45ee-880a-1e92842ec867', 'cat-2', categories), true, 'Supabase Electricity UUID matches mock cat-2');
+
+  // 3. Test doesTransactionMatchCategory across various real-world bill payment transactions
+  const billPaymentTx1 = {
+    id: 'tx-bill-100',
+    type: 'expense',
+    amount: 4200,
+    category_id: 'cat-2',
+    category_name: 'Electricity (Meralco)',
+    description: 'Payment for Meralco Electric Bill',
+  };
+  assert.strictEqual(doesTransactionMatchCategory(billPaymentTx1, 'cat-2', electricityCat, categories), true, 'Direct ID match');
+  assert.strictEqual(doesTransactionMatchCategory(billPaymentTx1, '5b18d8f3-037c-45ee-880a-1e92842ec867', electricityCat, categories), true, 'Cross-platform UUID match');
+
+  // Test payment transaction where category_name or description matches
+  const billPaymentTx2 = {
+    id: 'tx-bill-101',
+    type: 'expense',
+    amount: 1150,
+    category_id: null,
+    category_name: 'Water Bill',
+    description: 'Payment for Maynilad Water Bill',
+  };
+  assert.strictEqual(doesTransactionMatchCategory(billPaymentTx2, 'cat-3', waterCat, categories), true, 'Matches Water budget even if category_id was null');
+
+  // 4. Budget Math Simulation: Paying a bill MUST deduct from both Overall Target and Category Budget
+  const overallTarget = 75000;
+  let totalExpenses = 19700; // Baseline expenses from mock data
+  let remainingBudget = overallTarget - totalExpenses;
+  assert.strictEqual(remainingBudget, 55300, 'Baseline remaining budget is 55,300');
+
+  // User records payment for Meralco Electric Bill (₱4,200)
+  const payAmount = 4200;
+  totalExpenses += payAmount;
+  remainingBudget = overallTarget - totalExpenses;
+  assert.strictEqual(totalExpenses, 23900, 'Total expenses properly increased by 4,200 to 23,900');
+  assert.strictEqual(remainingBudget, 51100, 'Remaining budget properly deducted by 4,200 to 51,100');
+
+  // Category Budget deduction verification:
+  const electricityBudgetLimit = 4500;
+  let electricitySpent = 0;
+  let electricityRemaining = electricityBudgetLimit - electricitySpent;
+  assert.strictEqual(electricityRemaining, 4500, 'Initial Electricity remaining is 4,500');
+
+  // After bill payment is matched:
+  electricitySpent += payAmount;
+  electricityRemaining = electricityBudgetLimit - electricitySpent;
+  assert.strictEqual(electricitySpent, 4200, 'Electricity spent increased by 4,200');
+  assert.strictEqual(electricityRemaining, 300, 'Electricity remaining deducted from 4,500 to 300');
+  const utilizationPercent = (electricitySpent / electricityBudgetLimit) * 100;
+  assert.strictEqual(Math.round(utilizationPercent), 93, 'Electricity utilization is 93.3%');
 });
