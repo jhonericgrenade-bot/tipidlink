@@ -179,11 +179,11 @@ export const SettingsPage = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${
-              isPremium ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-slate-100 text-slate-700'
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
+              isPremium ? 'bg-amber-100 text-amber-900 border border-amber-200 shadow-2xs' : 'bg-slate-100 text-slate-700'
             }`}>
               <Crown className="h-3.5 w-3.5 text-amber-500 fill-current" />
-              <span>{isPremium ? 'Pro Account' : 'Free Plan'}</span>
+              <span>{isPremium ? (currentHousehold?.name ? `Pro (${currentHousehold.name})` : 'Pro Household Plan') : 'Free Plan'}</span>
             </span>
             <button
               type="button"

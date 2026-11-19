@@ -483,8 +483,17 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 self-end sm:self-auto">
+                <div className="flex items-center gap-2 self-end sm:self-auto">
                   <StatusBadge status={member.role} type="role" />
+                  {isPremium && (
+                    <span
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200 shadow-2xs"
+                      title="Kasama at protektado sa Pro subscription ng household"
+                    >
+                      <Crown className="w-3 h-3 text-amber-500 fill-amber-500" />
+                      Pro
+                    </span>
+                  )}
 
                   {!isSelf && (currentUserRole === 'owner' || (currentUserRole === 'admin' && member.role === 'member')) ? (
                     <div className="flex items-center gap-2">
