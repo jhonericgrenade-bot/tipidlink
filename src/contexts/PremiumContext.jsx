@@ -136,93 +136,17 @@ export const PremiumProvider = ({ children }) => {
 
     // 1. Resolve household-specific premium status (Pro covers the entire household!)
     const hhTier = resolveHouseholdPremiumState(currentHousehold, userKey, members);
-    if (hhTier.isPremium) {
-      setIsPremium(true);
-      setPremiumPlan(hhTier.plan);
-      setSponsorDetails(hhTier.sponsor);
-      return;
-    }
-
-    // 2. If household is explicitly marked FREE or not Pro, respect Free!
-    const hhOverride = hhId ? localStorage.getItem(`tipidlink_household_tier_${hhId}`) : null;
-    const codeOverride = inviteCode ? localStorage.getItem(`tipidlink_code_tier_${inviteCode}`) : null;
-    if (hhOverride === 'FREE' || codeOverride === 'FREE') {
-      setIsPremium(false);
-      setPremiumPlan('Free Household Plan');
-      setSponsorDetails(null);
-      return;
-    }
-
-    // 3. Check for Pro Owner in Supabase (for newly joined members on fresh devices)
-    if (isSupabaseConfigured && !isDemoMode && currentHousehold?.id) {
-      const isUuid = typeof currentHousehold.id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentHousehold.id);
-      const queryId = isUuid ? currentHousehold.id : (isSantosHouseholdId(currentHousehold.id) ? SANTOS_UUID : null);
-
-      if (queryId) {
-        supabase
-          .from('household_members')
-          .select(`
-            user_id,
-            role,
-            profiles:user_id (
-              id,
-              phone
-            )
-          `)
-          .eq('household_id', queryId)
-          .eq('role', 'owner')
-          .maybeSingle()
-          .then(({ data: ownerData }) => {
-            const currentOverride = (currentHousehold?.id && localStorage.getItem(`tipidlink_household_tier_${currentHousehold.id}`))
-              || (inviteCode && localStorage.getItem(`tipidlink_code_tier_${inviteCode}`));
-            if (currentOverride === 'FREE') {
-              setIsPremium(false);
-              setPremiumPlan('Free Household Plan');
-              setSponsorDetails(null);
-              return;
-            }
-
-            if (ownerData?.profiles?.phone && ownerData.profiles.phone.includes('PREMIUM_STATUS:PRO')) {
-              const match = ownerData.profiles.phone.match(/PLAN:([^|]+)/i);
-              const sponsorMatch = ownerData.profiles.phone.match(/SPONSOR:([^|]+)/i);
-              const resolvedPlan = match ? match[1] : 'TipidLink Premium Plan (₱30/mo)';
-              const resolvedSponsor = sponsorMatch && sponsorMatch[1] !== 'none' ? sponsorMatch[1] : null;
-
-              setIsPremium(true);
-              setPremiumPlan(resolvedPlan);
-              setSponsorDetails(resolvedSponsor);
-
-              localStorage.setItem(`tipidlink_household_tier_${currentHousehold.id}`, 'PRO');
-              localStorage.setItem(`tipidlink_household_premium_${currentHousehold.id}`, 'true');
-              localStorage.setItem(`tipidlink_household_plan_${currentHousehold.id}`, resolvedPlan);
-              if (inviteCode) {
-                localStorage.setItem(`tipidlink_code_tier_${inviteCode}`, 'PRO');
-                localStorage.setItem(`tipidlink_code_premium_${inviteCode}`, 'true');
-              }
-            } else {
-              setIsPremium(false);
-              setPremiumPlan('Free Household Plan');
-              setSponsorDetails(null);
-            }
-          })
-          .catch(() => {
-            setIsPremium(false);
-            setPremiumPlan('Free Household Plan');
-            setSponsorDetails(null);
-          });
-        return;
-      }
-    }
-
-    // 4. Default: Free Household Plan
-    setIsPremium(false);
-    setPremiumPlan('Free Household Plan');
-    setSponsorDetails(null);
+    setIsPremium(hhTier.isPremium);
+    setPremiumPlan(hhTier.plan);
+    setSponsorDetails(hhTier.sponsor);
   }, [
     user?.id,
     currentHousehold?.id,
     currentHousehold?.is_premium,
     currentHousehold?.description,
+    currentHousehold?.raw_description,
+    currentHousehold?.premium_plan,
+    currentHousehold?.sponsor_details,
     members,
     isDemoMode,
     userKey,

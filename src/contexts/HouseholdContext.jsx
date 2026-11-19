@@ -568,25 +568,12 @@ export const HouseholdProvider = ({ children }) => {
           if (!row.households) return null;
           const tier = parseHouseholdTier(row.households.description);
           const hhId = row.households.id;
-          const hhTierOverride = typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_tier_${hhId}`) : null;
-          const codeTierOverride = (typeof localStorage !== 'undefined' && row.households.invite_code)
-            ? localStorage.getItem(`tipidlink_code_tier_${row.households.invite_code}`)
-            : null;
-
-          const isExplicitFree = tier.isExplicitFree || hhTierOverride === 'FREE' || codeTierOverride === 'FREE';
-
-          let isPro = false;
           const isOwnerPro = proOwnerIds.has(row.households.created_by);
-          if (!isExplicitFree) {
-            const cachedPremium = typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_premium_${hhId}`) : null;
-            const cachedCodePremium = (typeof localStorage !== 'undefined' && row.households.invite_code)
-              ? localStorage.getItem(`tipidlink_code_premium_${row.households.invite_code}`)
-              : null;
-            isPro = Boolean(tier.isPremium || isOwnerPro || hhTierOverride === 'PRO' || codeTierOverride === 'PRO' || cachedPremium === 'true' || cachedCodePremium === 'true');
-          }
 
-          const plan = tier.plan || (typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_plan_${hhId}`) : null) || (isPro ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan');
-          const sponsor = tier.sponsor || (typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_sponsor_${hhId}`) : null);
+          // Direct cloud resolution: Pro if description has [TIER:PRO] or Owner profile has PRO
+          const isPro = Boolean(tier.isPremium || isOwnerPro);
+          const plan = tier.plan || (isPro ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan');
+          const sponsor = tier.sponsor || null;
 
           if (typeof localStorage !== 'undefined') {
             if (isPro) {
@@ -884,33 +871,27 @@ export const HouseholdProvider = ({ children }) => {
           setMembers(formatted);
           localStorage.setItem(`tipidlink_members_${householdId}`, JSON.stringify(formatted));
 
-          // Check if the household Owner is Pro - keep household Pro state in sync!
+          // Check if the household Owner is Pro - keep household Pro state in sync with cloud!
           const ownerMember = formatted.find(m => m.role === 'owner');
-          const isOwnerPro = Boolean(ownerMember?.phone && ownerMember.phone.includes('PREMIUM_STATUS:PRO'));
-          const hhOverride = typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_tier_${householdId}`) : null;
-          const codeOverride = (typeof localStorage !== 'undefined' && currentHousehold?.invite_code)
-            ? localStorage.getItem(`tipidlink_code_tier_${currentHousehold.invite_code}`)
-            : null;
-          const isExplicitFree = hhOverride === 'FREE' || codeOverride === 'FREE';
+          if (ownerMember) {
+            const isOwnerPro = Boolean(ownerMember.phone && ownerMember.phone.includes('PREMIUM_STATUS:PRO'));
+            const descTier = parseHouseholdTier(currentHousehold?.raw_description || currentHousehold?.description);
+            const isPro = Boolean(descTier.isPremium || isOwnerPro);
 
-          if (!isExplicitFree && isOwnerPro) {
-            setCurrentHousehold(prev => prev ? { ...prev, is_premium: true, owner_is_pro: true } : prev);
+            setCurrentHousehold(prev => prev ? {
+              ...prev,
+              is_premium: isPro,
+              owner_is_pro: isOwnerPro,
+              premium_plan: descTier.plan || (isPro ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan'),
+            } : prev);
+
             if (typeof localStorage !== 'undefined') {
-              localStorage.setItem(`tipidlink_household_tier_${householdId}`, 'PRO');
-              localStorage.setItem(`tipidlink_household_premium_${householdId}`, 'true');
-              if (currentHousehold?.invite_code) {
-                localStorage.setItem(`tipidlink_code_tier_${currentHousehold.invite_code}`, 'PRO');
-                localStorage.setItem(`tipidlink_code_premium_${currentHousehold.invite_code}`, 'true');
-              }
-            }
-          } else if (isExplicitFree) {
-            setCurrentHousehold(prev => prev ? { ...prev, is_premium: false, owner_is_pro: false } : prev);
-            if (typeof localStorage !== 'undefined') {
-              localStorage.setItem(`tipidlink_household_tier_${householdId}`, 'FREE');
-              localStorage.removeItem(`tipidlink_household_premium_${householdId}`);
-              if (currentHousehold?.invite_code) {
-                localStorage.setItem(`tipidlink_code_tier_${currentHousehold.invite_code}`, 'FREE');
-                localStorage.removeItem(`tipidlink_code_premium_${currentHousehold.invite_code}`);
+              if (isPro) {
+                localStorage.setItem(`tipidlink_household_tier_${householdId}`, 'PRO');
+                localStorage.setItem(`tipidlink_household_premium_${householdId}`, 'true');
+              } else {
+                localStorage.setItem(`tipidlink_household_tier_${householdId}`, 'FREE');
+                localStorage.removeItem(`tipidlink_household_premium_${householdId}`);
               }
             }
           }
@@ -1055,33 +1036,27 @@ export const HouseholdProvider = ({ children }) => {
 
       setMembers(formatted);
 
-      // Check if the household Owner is Pro - keep household Pro state in sync!
+      // Check if the household Owner is Pro - keep household Pro state in sync with cloud!
       const ownerMember = formatted.find(m => m.role === 'owner');
-      const isOwnerPro = Boolean(ownerMember?.phone && ownerMember.phone.includes('PREMIUM_STATUS:PRO'));
-      const hhOverride = typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_tier_${householdId}`) : null;
-      const codeOverride = (typeof localStorage !== 'undefined' && currentHousehold?.invite_code)
-        ? localStorage.getItem(`tipidlink_code_tier_${currentHousehold.invite_code}`)
-        : null;
-      const isExplicitFree = hhOverride === 'FREE' || codeOverride === 'FREE';
+      if (ownerMember) {
+        const isOwnerPro = Boolean(ownerMember.phone && ownerMember.phone.includes('PREMIUM_STATUS:PRO'));
+        const descTier = parseHouseholdTier(currentHousehold?.raw_description || currentHousehold?.description);
+        const isPro = Boolean(descTier.isPremium || isOwnerPro);
 
-      if (!isExplicitFree && isOwnerPro) {
-        setCurrentHousehold(prev => prev ? { ...prev, is_premium: true, owner_is_pro: true } : prev);
+        setCurrentHousehold(prev => prev ? {
+          ...prev,
+          is_premium: isPro,
+          owner_is_pro: isOwnerPro,
+          premium_plan: descTier.plan || (isPro ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan'),
+        } : prev);
+
         if (typeof localStorage !== 'undefined') {
-          localStorage.setItem(`tipidlink_household_tier_${householdId}`, 'PRO');
-          localStorage.setItem(`tipidlink_household_premium_${householdId}`, 'true');
-          if (currentHousehold?.invite_code) {
-            localStorage.setItem(`tipidlink_code_tier_${currentHousehold.invite_code}`, 'PRO');
-            localStorage.setItem(`tipidlink_code_premium_${currentHousehold.invite_code}`, 'true');
-          }
-        }
-      } else if (isExplicitFree) {
-        setCurrentHousehold(prev => prev ? { ...prev, is_premium: false, owner_is_pro: false } : prev);
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem(`tipidlink_household_tier_${householdId}`, 'FREE');
-          localStorage.removeItem(`tipidlink_household_premium_${householdId}`);
-          if (currentHousehold?.invite_code) {
-            localStorage.setItem(`tipidlink_code_tier_${currentHousehold.invite_code}`, 'FREE');
-            localStorage.removeItem(`tipidlink_code_premium_${currentHousehold.invite_code}`);
+          if (isPro) {
+            localStorage.setItem(`tipidlink_household_tier_${householdId}`, 'PRO');
+            localStorage.setItem(`tipidlink_household_premium_${householdId}`, 'true');
+          } else {
+            localStorage.setItem(`tipidlink_household_tier_${householdId}`, 'FREE');
+            localStorage.removeItem(`tipidlink_household_premium_${householdId}`);
           }
         }
       }
@@ -1931,13 +1906,13 @@ export const HouseholdProvider = ({ children }) => {
       }
     }
 
-    // 3. Light auto-sync heartbeat every 8 seconds so no unit is ever stale
+    // 3. Fast auto-sync heartbeat every 3 seconds so no unit is ever stale
     const interval = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         loadHouseholds(householdId);
         loadMembers(householdId);
       }
-    }, 8000);
+    }, 3000);
 
     return () => {
       unsubscribe();

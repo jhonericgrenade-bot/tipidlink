@@ -169,36 +169,37 @@ export const resolveHouseholdPremiumState = (household, userKey = null, members 
   const hhId = household.id;
   const isSantos = isSantosHouseholdId(hhId) || household.invite_code === 'SANTOS2026';
 
-  // 1. Explicit local override check: If marked FREE, respect FREE!
-  if (typeof localStorage !== 'undefined' && hhId) {
-    const tierOverride = localStorage.getItem(`tipidlink_household_tier_${hhId}`);
-    if (tierOverride === 'FREE') {
-      return {
-        isPremium: false,
-        plan: 'Free Household Plan',
-        sponsor: null,
-      };
-    }
-    if (household.invite_code && localStorage.getItem(`tipidlink_code_tier_${household.invite_code}`) === 'FREE') {
-      return {
-        isPremium: false,
-        plan: 'Free Household Plan',
-        sponsor: null,
-      };
-    }
-  }
+  // 1. Check if explicitly marked FREE in description or storage override
+  const parsed = parseHouseholdTier(household.raw_description || household.description);
+  const hhTier = typeof localStorage !== 'undefined' && hhId ? localStorage.getItem(`tipidlink_household_tier_${hhId}`) : null;
+  const codeTier = typeof localStorage !== 'undefined' && household.invite_code ? localStorage.getItem(`tipidlink_code_tier_${household.invite_code}`) : null;
 
-  // 2. Direct explicit boolean on household object
-  if (household.is_premium === true) {
+  if (parsed.isExplicitFree || hhTier === 'FREE' || codeTier === 'FREE') {
     return {
-      isPremium: true,
-      plan: household.premium_plan || 'TipidLink Premium Plan (₱30/mo)',
-      sponsor: household.sponsor_details || null,
+      isPremium: false,
+      plan: 'Free Household Plan',
+      sponsor: null,
     };
   }
 
-  // 3. Parse from description
-  const parsed = parseHouseholdTier(household.raw_description || household.description);
+  // 2. Direct explicit boolean on household object if already evaluated from cloud / state
+  if (typeof household.is_premium === 'boolean') {
+    if (household.is_premium === true) {
+      return {
+        isPremium: true,
+        plan: household.premium_plan || 'TipidLink Premium Plan (₱30/mo)',
+        sponsor: household.sponsor_details || null,
+      };
+    } else {
+      return {
+        isPremium: false,
+        plan: 'Free Household Plan',
+        sponsor: null,
+      };
+    }
+  }
+
+  // 3. Parse from description (cloud record)
   if (parsed.isPremium) {
     return {
       isPremium: true,
@@ -207,7 +208,7 @@ export const resolveHouseholdPremiumState = (household, userKey = null, members 
     };
   }
 
-  // 4. Inspect members list for a Pro Owner
+  // 3. Inspect members list for a Pro Owner (cloud record)
   if (Array.isArray(members) && members.length > 0) {
     const ownerMember = members.find(m => m.role === 'owner' || (household.created_by && m.user_id === household.created_by));
     if (ownerMember?.phone && ownerMember.phone.includes('PREMIUM_STATUS:PRO')) {
@@ -220,14 +221,27 @@ export const resolveHouseholdPremiumState = (household, userKey = null, members 
         plan,
         sponsor,
       };
+    } else if (ownerMember) {
+      // Owner exists in members list and is explicitly NOT Pro
+      return {
+        isPremium: false,
+        plan: 'Free Household Plan',
+        sponsor: null,
+      };
     }
   }
 
-  // 5. LocalStorage household and invite code caches
+  // 4. LocalStorage explicit tier override fallback
   if (typeof localStorage !== 'undefined' && hhId) {
     const hhTier = localStorage.getItem(`tipidlink_household_tier_${hhId}`);
-    const hhCache = localStorage.getItem(`tipidlink_household_premium_${hhId}`);
-    if (hhTier === 'PRO' || hhCache === 'true') {
+    if (hhTier === 'FREE') {
+      return {
+        isPremium: false,
+        plan: 'Free Household Plan',
+        sponsor: null,
+      };
+    }
+    if (hhTier === 'PRO') {
       return {
         isPremium: true,
         plan: localStorage.getItem(`tipidlink_household_plan_${hhId}`) || 'TipidLink Premium Plan (₱30/mo)',
@@ -235,42 +249,16 @@ export const resolveHouseholdPremiumState = (household, userKey = null, members 
       };
     }
 
-    if (household.invite_code && (
-      localStorage.getItem(`tipidlink_code_tier_${household.invite_code}`) === 'PRO' ||
-      localStorage.getItem(`tipidlink_code_premium_${household.invite_code}`) === 'true'
-    )) {
-      return {
-        isPremium: true,
-        plan: localStorage.getItem(`tipidlink_household_plan_${hhId}`) || 'TipidLink Premium Plan (₱30/mo)',
-        sponsor: localStorage.getItem(`tipidlink_household_sponsor_${hhId}`) || null,
-      };
-    }
-
-    // Santos aliases cross-check
     if (isSantos) {
       const aliasTier = localStorage.getItem(`tipidlink_household_tier_${SANTOS_UUID}`)
         || localStorage.getItem(`tipidlink_household_tier_${SANTOS_DEMO_ID}`)
         || localStorage.getItem('tipidlink_code_tier_SANTOS2026');
 
-      if (aliasTier === 'FREE') {
-        return { isPremium: false, plan: 'Free Household Plan', sponsor: null };
-      }
-
-      const alias1 = localStorage.getItem(`tipidlink_household_premium_${SANTOS_UUID}`);
-      const alias2 = localStorage.getItem(`tipidlink_household_premium_${SANTOS_DEMO_ID}`);
-      const alias3 = localStorage.getItem('tipidlink_code_premium_SANTOS2026');
-
-      if (alias1 === 'true' || alias2 === 'true' || alias3 === 'true' || aliasTier === 'PRO') {
-        const plan = localStorage.getItem(`tipidlink_household_plan_${SANTOS_UUID}`)
-          || localStorage.getItem(`tipidlink_household_plan_${SANTOS_DEMO_ID}`)
-          || 'TipidLink Premium Plan (₱30/mo)';
-        const sponsor = localStorage.getItem(`tipidlink_household_sponsor_${SANTOS_UUID}`)
-          || localStorage.getItem(`tipidlink_household_sponsor_${SANTOS_DEMO_ID}`)
-          || null;
+      if (aliasTier === 'PRO') {
         return {
           isPremium: true,
-          plan,
-          sponsor,
+          plan: 'TipidLink Premium Plan (₱30/mo)',
+          sponsor: null,
         };
       }
     }
