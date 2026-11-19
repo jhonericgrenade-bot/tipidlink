@@ -245,101 +245,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Sign in directly using Email + 4-Digit Security PIN (Direct / No Password)
-  const signInWithPin = async (email, pin) => {
-    return {
-      success: false,
-      error: 'PIN sign-in has been retired for account security. Please sign in with your password or use email password recovery.',
-    };
-
-    /* Legacy implementation retained temporarily for migration compatibility.
-       The server RPC is revoked by migration 004 and this code is unreachable. */
-    const cleanEmail = (email || '').trim().toLowerCase();
-    const cleanPin = (pin || '').trim();
-    const isSantos = cleanEmail.endsWith('@tipidlink.ph');
-
-    if (!cleanEmail) {
-      return { success: false, error: 'Pakilagay ang iyong rehistradong email address.' };
-    }
-    if (!cleanPin || cleanPin.length !== 4) {
-      return { success: false, error: 'Pakilagay ang 4-digit Security PIN (default: 0000).' };
-    }
-
-    // Clear any previous demo state
-    localStorage.removeItem('tipidlink_demo_user');
-    localStorage.removeItem('tipidlink_demo_active');
-    if (localStorage.getItem('tipidlink_active_household_id') === 'hh-santos-family' && !isSantos) {
-      localStorage.removeItem('tipidlink_active_household_id');
-    }
-    setIsDemoMode(isSantos);
-
-    if (!isSupabaseConfigured) {
-      const fallbackName = cleanEmail.split('@')[0];
-      const offlineProfile = {
-        id: `usr-${Date.now()}`,
-        email: cleanEmail,
-        full_name: fallbackName,
-        avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fallbackName)}`,
-        security_pin: cleanPin,
-      };
-      setUser({ id: offlineProfile.id, email: offlineProfile.email });
-      setProfile(offlineProfile);
-      return { success: true };
-    }
-
-    try {
-      // 1. Verify PIN in database & retrieve session key
-      const { data, error } = await supabase.rpc('login_with_pin', {
-        target_email: cleanEmail,
-        security_pin: cleanPin,
-      });
-
-      if (error) {
-        if (error.code === 'PGRST202') {
-          return {
-            success: false,
-            error: 'Kailangang patakbuhin ang 002_security_pin_password_reset.sql sa Supabase SQL Editor para maging aktibo ang Direct PIN Login.'
-          };
-        }
-        return { success: false, error: error.message };
-      }
-
-      if (data && data.success === false) {
-        return { success: false, error: data.error || 'Hindi makapag-log in gamit ang PIN.' };
-      }
-
-      const sessionKey = data?.session_key;
-      if (!sessionKey) {
-        return { success: false, error: 'Failed to establish session from PIN.' };
-      }
-
-      // 2. Sign in with the temporary session key to obtain official Supabase JWT session
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password: sessionKey,
-      });
-
-      if (authError) throw authError;
-
-      // 3. Immediately restore original registered password in the background so password login continues to work seamlessly!
-      try {
-        await supabase.rpc('restore_password_after_pin_login', {
-          target_email: cleanEmail,
-        });
-      } catch (restoreErr) {
-        console.warn('Password restore notice:', restoreErr);
-      }
-
-      if (authData?.user) {
-        setUser(authData.user);
-        await fetchUserProfile(authData.user);
-      }
-
-      return { success: true, data: authData };
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
-  };
+  // Kept as a compatibility response for old browser tabs. Password is the
+  // only account-authentication method supported by the current application.
+  const signInWithPin = async () => ({
+    success: false,
+    error: 'PIN sign-in has been retired for account security. Please sign in with your password or use email password recovery.',
+  });
 
   // Sign up with Supabase Auth or offline fallback
   const signUp = async (email, password, fullName) => {
@@ -619,107 +530,15 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Reset Password using 4-digit Security PIN (Zero Email / Zero Localhost)
-  const resetPasswordWithPin = async (targetEmail, securityPin, newPassword) => {
-    return {
-      success: false,
-      error: 'PIN password reset has been retired for account security. Request a password-reset email instead.',
-    };
+  const resetPasswordWithPin = async () => ({
+    success: false,
+    error: 'PIN password reset has been retired for account security. Request a password-reset email instead.',
+  });
 
-    /* Legacy implementation retained temporarily for migration compatibility.
-       The server RPC is revoked by migration 004 and this code is unreachable. */
-    const cleanEmail = (targetEmail || '').trim().toLowerCase();
-    const cleanPin = (securityPin || '').trim();
-
-    if (!cleanEmail) {
-      return { success: false, error: 'Pakilagay ang iyong rehistradong email address.' };
-    }
-    if (!cleanPin || cleanPin.length !== 4) {
-      return { success: false, error: 'Pakilagay ang 4-digit Security PIN (default: 0000).' };
-    }
-    if (!newPassword || newPassword.length < 8) {
-      return { success: false, error: 'Ang bagong password ay dapat hindi bababa sa 8 characters.' };
-    }
-
-    if (isDemoMode || !isSupabaseConfigured) {
-      return {
-        success: true,
-        message: 'Matagumpay na nabago ang iyong password gamit ang Security PIN!'
-      };
-    }
-
-    try {
-      const { data, error } = await supabase.rpc('reset_password_with_pin', {
-        target_email: cleanEmail,
-        security_pin: cleanPin,
-        new_password: newPassword,
-      });
-
-      if (error) {
-        if (error.code === 'PGRST202') {
-          return {
-            success: false,
-            error: 'Kailangang patakbuhin ang 002_security_pin_password_reset.sql sa Supabase SQL Editor para maging aktibo ang PIN reset sa cloud database.'
-          };
-        }
-        return { success: false, error: error.message };
-      }
-
-      if (data && data.success === false) {
-        return { success: false, error: data.error || 'Hindi mabago ang password.' };
-      }
-
-      return {
-        success: true,
-        message: data?.message || 'Matagumpay na nabago ang iyong password!'
-      };
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
-  };
-
-  // Update Security PIN for currently logged-in user
-  const updateSecurityPin = async (newPin) => {
-    return {
-      success: false,
-      error: 'Security PIN is no longer used for account access. Use a strong password and email recovery instead.',
-    };
-
-    /* Legacy implementation retained temporarily for migration compatibility. */
-    const cleanPin = (newPin || '').trim();
-    if (!cleanPin || cleanPin.length !== 4 || !/^\d{4}$/.test(cleanPin)) {
-      return { success: false, error: 'Ang Security PIN ay dapat 4 na numero (hal. 1234).' };
-    }
-
-    if (isDemoMode || !isSupabaseConfigured) {
-      const updated = { ...profile, security_pin: cleanPin };
-      setProfile(updated);
-      return { success: true, message: 'Matagumpay na na-update ang iyong Security PIN!' };
-    }
-
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ security_pin: cleanPin })
-        .eq('id', user.id);
-
-      if (error) throw error;
-
-      // Also update auth user metadata so login_with_pin recognizes the new PIN immediately
-      try {
-        await supabase.auth.updateUser({
-          data: { security_pin: cleanPin }
-        });
-      } catch (metaErr) {
-        console.warn('Metadata PIN sync notice:', metaErr);
-      }
-
-      setProfile(prev => ({ ...prev, security_pin: cleanPin }));
-      return { success: true, message: 'Matagumpay na na-update ang iyong Security PIN!' };
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
-  };
+  const updateSecurityPin = async () => ({
+    success: false,
+    error: 'Security PIN is no longer used for account access. Use a strong password and email recovery instead.',
+  });
 
   // Emergency Recovery via Family Household Code or Master Key (Zero Email / Zero Localhost)
   const recoverAccountWithFamilyKey = async (targetEmail, familyCode, newPassword, newPin = '0000') => {

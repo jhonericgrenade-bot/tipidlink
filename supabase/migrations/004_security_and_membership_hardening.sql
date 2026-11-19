@@ -183,13 +183,14 @@ CREATE POLICY "Owners remove any member, admins remove members, members leave"
 ON public.household_members FOR DELETE
 TO authenticated
 USING (
-    public.is_household_owner(household_id, auth.uid())
+    (public.is_household_owner(household_id, auth.uid()) AND user_id <> auth.uid())
     OR (public.is_household_admin(household_id, auth.uid()) AND role = 'member')
     OR (user_id = auth.uid() AND role <> 'owner')
 );
 
--- Never allow a direct member operation to leave a live household without an
--- owner. Cascades from deleting the household itself are intentionally skipped.
+-- Never allow the last owner to be demoted. Owner deletion is already blocked
+-- by RLS; this UPDATE-only trigger deliberately does not interfere with a
+-- cascading household deletion.
 CREATE OR REPLACE FUNCTION public.prevent_orphaned_household()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -197,14 +198,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    IF pg_trigger_depth() > 1 THEN
-        IF TG_OP = 'DELETE' THEN
-            RETURN OLD;
-        END IF;
-        RETURN NEW;
-    END IF;
-
-    IF TG_OP = 'UPDATE' AND OLD.role = 'owner' AND NEW.role <> 'owner'
+    IF OLD.role = 'owner' AND NEW.role <> 'owner'
        AND EXISTS (SELECT 1 FROM public.households WHERE id = OLD.household_id)
        AND NOT EXISTS (
            SELECT 1 FROM public.household_members
@@ -215,27 +209,13 @@ BEGIN
         RAISE EXCEPTION 'A household must retain at least one owner';
     END IF;
 
-    IF TG_OP = 'DELETE' AND OLD.role = 'owner'
-       AND EXISTS (SELECT 1 FROM public.households WHERE id = OLD.household_id)
-       AND NOT EXISTS (
-           SELECT 1 FROM public.household_members
-           WHERE household_id = OLD.household_id
-             AND role = 'owner'
-             AND id <> OLD.id
-       ) THEN
-        RAISE EXCEPTION 'A household must retain at least one owner';
-    END IF;
-
-    IF TG_OP = 'DELETE' THEN
-        RETURN OLD;
-    END IF;
     RETURN NEW;
 END;
 $$;
 
 DROP TRIGGER IF EXISTS prevent_orphaned_household_member ON public.household_members;
 CREATE TRIGGER prevent_orphaned_household_member
-BEFORE UPDATE OR DELETE ON public.household_members
+BEFORE UPDATE ON public.household_members
 FOR EACH ROW EXECUTE FUNCTION public.prevent_orphaned_household();
 
 -- Budgets represent the household plan, so they follow the owner/admin UI
