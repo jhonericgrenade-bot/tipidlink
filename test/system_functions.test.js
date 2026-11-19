@@ -652,5 +652,40 @@ test('15. Anti-Reversion Guard & Universal Reset to Free Across Joined Household
   assert.strictEqual(resolveHouseholdPremiumState(plainRevertedHh, 'owner-id', staleMembersBeforeFetch).isPremium, false, 'Owner is Free even if members list has old phone tag');
   assert.strictEqual(resolveHouseholdPremiumState(plainRevertedHh, 'member-id-1', staleMembersBeforeFetch).isPremium, false, 'Member is Free even if members list has old phone tag');
 
+  // Step 6: Santos Family Household Auto-Update from Pro to Free & Back
+  const santosUuid = '0d37e235-c9dd-4876-a54a-9acb36516599';
+  mockStorage.set(`tipidlink_household_tier_${santosUuid}`, 'FREE');
+  mockStorage.set('tipidlink_code_tier_SANTOS2026', 'FREE');
+  mockStorage.delete(`tipidlink_household_premium_${santosUuid}`);
+  mockStorage.delete('tipidlink_code_premium_SANTOS2026');
+
+  const santosRevertedHh = {
+    id: santosUuid,
+    name: 'Santos Family Household',
+    invite_code: 'SANTOS2026',
+    description: 'Shared budget and expenses for the Santos family home in Pasig City',
+    is_premium: false,
+  };
+  const santosCleanMembers = [
+    { user_id: 'demo-user-santos-father', role: 'owner', phone: '' },
+    { user_id: 'demo-user-santos-mother', role: 'admin', phone: '' },
+    { user_id: 'joined-member-cp-1', role: 'member', phone: '' },
+  ];
+  assert.strictEqual(resolveHouseholdPremiumState(santosRevertedHh, 'joined-member-cp-1', santosCleanMembers).isPremium, false, 'Santos joined member immediately updates to Free');
+
+  // Step 7: Santos Family Owner upgrades back to Pro
+  mockStorage.set(`tipidlink_household_tier_${santosUuid}`, 'PRO');
+  mockStorage.set('tipidlink_code_tier_SANTOS2026', 'PRO');
+  mockStorage.set(`tipidlink_household_premium_${santosUuid}`, 'true');
+  mockStorage.set('tipidlink_code_premium_SANTOS2026', 'true');
+  const santosProHh = {
+    id: santosUuid,
+    name: 'Santos Family Household',
+    invite_code: 'SANTOS2026',
+    description: 'Shared budget [TIER:PRO|PLAN:TipidLink Premium Plan (₱30/mo)]',
+    is_premium: true,
+  };
+  assert.strictEqual(resolveHouseholdPremiumState(santosProHh, 'joined-member-cp-1', santosCleanMembers).isPremium, true, 'Santos joined member auto-updates to Pro upon upgrade');
+
   delete global.localStorage;
 });

@@ -461,13 +461,28 @@ export const HouseholdProvider = ({ children }) => {
           : null;
         const santosIsExplicitFree = santosTier.isExplicitFree || santosTierOverride === 'FREE';
         let santosIsPro = false;
-        if (!santosIsExplicitFree) {
+        if (directCloudDesc !== null || isSupabaseConfigured) {
+          santosIsPro = Boolean(santosTier.isPremium || (typeof proOwnerIds !== 'undefined' && proOwnerIds.has('0d37e235-c9dd-4876-a54a-9acb36516599')));
+        } else if (!santosIsExplicitFree) {
           const cachedSantosPremium = (typeof localStorage !== 'undefined' && (
             localStorage.getItem('tipidlink_household_premium_0d37e235-c9dd-4876-a54a-9acb36516599') === 'true' ||
             localStorage.getItem('tipidlink_household_premium_hh-santos-family') === 'true' ||
             santosTierOverride === 'PRO'
           ));
           santosIsPro = Boolean(santosTier.isPremium || cachedSantosPremium);
+        }
+
+        if (!santosIsPro && typeof localStorage !== 'undefined') {
+          localStorage.setItem('tipidlink_household_tier_0d37e235-c9dd-4876-a54a-9acb36516599', 'FREE');
+          localStorage.setItem('tipidlink_household_tier_hh-santos-family', 'FREE');
+          localStorage.setItem('tipidlink_code_tier_SANTOS2026', 'FREE');
+          localStorage.removeItem('tipidlink_household_premium_0d37e235-c9dd-4876-a54a-9acb36516599');
+          localStorage.removeItem('tipidlink_household_premium_hh-santos-family');
+          localStorage.removeItem('tipidlink_code_premium_SANTOS2026');
+          localStorage.removeItem('tipidlink_household_plan_0d37e235-c9dd-4876-a54a-9acb36516599');
+          localStorage.removeItem('tipidlink_household_plan_hh-santos-family');
+          localStorage.removeItem('tipidlink_household_sponsor_0d37e235-c9dd-4876-a54a-9acb36516599');
+          localStorage.removeItem('tipidlink_household_sponsor_hh-santos-family');
         }
         const santosPlan = santosTier.plan || (typeof localStorage !== 'undefined' ? (
           localStorage.getItem('tipidlink_household_plan_0d37e235-c9dd-4876-a54a-9acb36516599') ||
@@ -599,16 +614,8 @@ export const HouseholdProvider = ({ children }) => {
           const hhId = row.households.id;
           const isOwnerPro = proOwnerIds.has(row.households.created_by);
 
-          // Direct cloud resolution: Pro if description has [TIER:PRO], Owner profile has PRO, or cached Pro
-          const cachedTier = typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_tier_${hhId}`) : null;
-          const isExplicitlyFree = tier.isExplicitFree || cachedTier === 'FREE';
-
-          let isPro = false;
-          if (isExplicitlyFree && !tier.isPremium) {
-            isPro = false;
-          } else {
-            isPro = Boolean(tier.isPremium || isOwnerPro || cachedTier === 'PRO');
-          }
+          // Direct cloud resolution: Pro if description has [TIER:PRO] or Owner profile has PRO in Supabase
+          const isPro = Boolean(tier.isPremium || isOwnerPro);
           const plan = tier.plan || (isPro ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan');
           const sponsor = tier.sponsor || null;
 
@@ -622,7 +629,7 @@ export const HouseholdProvider = ({ children }) => {
                 localStorage.setItem(`tipidlink_code_premium_${row.households.invite_code}`, 'true');
               }
               if (sponsor) localStorage.setItem(`tipidlink_household_sponsor_${hhId}`, sponsor);
-            } else if (isExplicitlyFree || !isPro) {
+            } else {
               localStorage.setItem(`tipidlink_household_tier_${hhId}`, 'FREE');
               localStorage.removeItem(`tipidlink_household_premium_${hhId}`);
               localStorage.removeItem(`tipidlink_household_plan_${hhId}`);
@@ -680,13 +687,28 @@ export const HouseholdProvider = ({ children }) => {
           : null;
         const santosIsExplicitFree = santosTier.isExplicitFree || santosTierOverride === 'FREE';
         let santosIsPro = false;
-        if (!santosIsExplicitFree) {
+        if (directCloudDesc !== null || isSupabaseConfigured) {
+          santosIsPro = Boolean(santosTier.isPremium || (typeof proOwnerIds !== 'undefined' && proOwnerIds.has('0d37e235-c9dd-4876-a54a-9acb36516599')));
+        } else if (!santosIsExplicitFree) {
           const cachedSantosPremium = (typeof localStorage !== 'undefined' && (
             localStorage.getItem('tipidlink_household_premium_0d37e235-c9dd-4876-a54a-9acb36516599') === 'true' ||
             localStorage.getItem('tipidlink_household_premium_hh-santos-family') === 'true' ||
             santosTierOverride === 'PRO'
           ));
           santosIsPro = Boolean(santosTier.isPremium || cachedSantosPremium);
+        }
+
+        if (!santosIsPro && typeof localStorage !== 'undefined') {
+          localStorage.setItem('tipidlink_household_tier_0d37e235-c9dd-4876-a54a-9acb36516599', 'FREE');
+          localStorage.setItem('tipidlink_household_tier_hh-santos-family', 'FREE');
+          localStorage.setItem('tipidlink_code_tier_SANTOS2026', 'FREE');
+          localStorage.removeItem('tipidlink_household_premium_0d37e235-c9dd-4876-a54a-9acb36516599');
+          localStorage.removeItem('tipidlink_household_premium_hh-santos-family');
+          localStorage.removeItem('tipidlink_code_premium_SANTOS2026');
+          localStorage.removeItem('tipidlink_household_plan_0d37e235-c9dd-4876-a54a-9acb36516599');
+          localStorage.removeItem('tipidlink_household_plan_hh-santos-family');
+          localStorage.removeItem('tipidlink_household_sponsor_0d37e235-c9dd-4876-a54a-9acb36516599');
+          localStorage.removeItem('tipidlink_household_sponsor_hh-santos-family');
         }
         const santosPlan = santosTier.plan || (typeof localStorage !== 'undefined' ? (
           localStorage.getItem('tipidlink_household_plan_0d37e235-c9dd-4876-a54a-9acb36516599') ||
@@ -912,15 +934,7 @@ export const HouseholdProvider = ({ children }) => {
           if (ownerMember) {
             const isOwnerPro = Boolean(ownerMember.phone && ownerMember.phone.includes('PREMIUM_STATUS:PRO'));
             const descTier = parseHouseholdTier(currentHousehold?.raw_description || currentHousehold?.description);
-            const cachedTier = typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_tier_${householdId}`) : null;
-            
-            const isExplicitlyFree = descTier.isExplicitFree || cachedTier === 'FREE' || currentHousehold?.is_premium === false;
-            let isPro = false;
-            if (isExplicitlyFree && !descTier.isPremium) {
-              isPro = false;
-            } else {
-              isPro = Boolean(descTier.isPremium || isOwnerPro || currentHousehold?.is_premium === true || cachedTier === 'PRO');
-            }
+            const isPro = Boolean(descTier.isPremium || isOwnerPro);
             const targetPlan = descTier.plan || (isPro ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan');
 
             setCurrentHousehold(prev => {
@@ -944,9 +958,20 @@ export const HouseholdProvider = ({ children }) => {
               if (isPro) {
                 localStorage.setItem(`tipidlink_household_tier_${householdId}`, 'PRO');
                 localStorage.setItem(`tipidlink_household_premium_${householdId}`, 'true');
-              } else if (isExplicitlyFree || !isPro) {
+                localStorage.setItem(`tipidlink_household_plan_${householdId}`, targetPlan);
+              } else {
                 localStorage.setItem(`tipidlink_household_tier_${householdId}`, 'FREE');
                 localStorage.removeItem(`tipidlink_household_premium_${householdId}`);
+                localStorage.removeItem(`tipidlink_household_plan_${householdId}`);
+                localStorage.removeItem(`tipidlink_household_sponsor_${householdId}`);
+                if (isSantosHouseholdId(householdId) || currentHousehold?.invite_code === 'SANTOS2026') {
+                  localStorage.setItem('tipidlink_household_tier_0d37e235-c9dd-4876-a54a-9acb36516599', 'FREE');
+                  localStorage.setItem('tipidlink_household_tier_hh-santos-family', 'FREE');
+                  localStorage.setItem('tipidlink_code_tier_SANTOS2026', 'FREE');
+                  localStorage.removeItem('tipidlink_household_premium_0d37e235-c9dd-4876-a54a-9acb36516599');
+                  localStorage.removeItem('tipidlink_household_premium_hh-santos-family');
+                  localStorage.removeItem('tipidlink_code_premium_SANTOS2026');
+                }
               }
             }
           }
@@ -1105,15 +1130,7 @@ export const HouseholdProvider = ({ children }) => {
       if (ownerMember) {
         const isOwnerPro = Boolean(ownerMember.phone && ownerMember.phone.includes('PREMIUM_STATUS:PRO'));
         const descTier = parseHouseholdTier(currentHousehold?.raw_description || currentHousehold?.description);
-        const cachedTier = typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_tier_${householdId}`) : null;
-        
-        const isExplicitlyFree = descTier.isExplicitFree || cachedTier === 'FREE' || currentHousehold?.is_premium === false;
-        let isPro = false;
-        if (isExplicitlyFree && !descTier.isPremium) {
-          isPro = false;
-        } else {
-          isPro = Boolean(descTier.isPremium || isOwnerPro || currentHousehold?.is_premium === true || cachedTier === 'PRO');
-        }
+        const isPro = Boolean(descTier.isPremium || isOwnerPro);
         const targetPlan = descTier.plan || (isPro ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan');
 
         setCurrentHousehold(prev => {
@@ -1137,9 +1154,20 @@ export const HouseholdProvider = ({ children }) => {
           if (isPro) {
             localStorage.setItem(`tipidlink_household_tier_${householdId}`, 'PRO');
             localStorage.setItem(`tipidlink_household_premium_${householdId}`, 'true');
-          } else if (isExplicitlyFree || !isPro) {
+            localStorage.setItem(`tipidlink_household_plan_${householdId}`, targetPlan);
+          } else {
             localStorage.setItem(`tipidlink_household_tier_${householdId}`, 'FREE');
             localStorage.removeItem(`tipidlink_household_premium_${householdId}`);
+            localStorage.removeItem(`tipidlink_household_plan_${householdId}`);
+            localStorage.removeItem(`tipidlink_household_sponsor_${householdId}`);
+            if (isSantosHouseholdId(householdId) || currentHousehold?.invite_code === 'SANTOS2026') {
+              localStorage.setItem('tipidlink_household_tier_0d37e235-c9dd-4876-a54a-9acb36516599', 'FREE');
+              localStorage.setItem('tipidlink_household_tier_hh-santos-family', 'FREE');
+              localStorage.setItem('tipidlink_code_tier_SANTOS2026', 'FREE');
+              localStorage.removeItem('tipidlink_household_premium_0d37e235-c9dd-4876-a54a-9acb36516599');
+              localStorage.removeItem('tipidlink_household_premium_hh-santos-family');
+              localStorage.removeItem('tipidlink_code_premium_SANTOS2026');
+            }
           }
         }
       }

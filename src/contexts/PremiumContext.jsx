@@ -119,9 +119,11 @@ export const PremiumProvider = ({ children }) => {
     });
 
     // 3. Supabase Cloud Sync
-    if (isSupabaseConfigured && !isDemoMode && user?.id) {
-      // Sync Owner's profile phone with PREMIUM_STATUS:PRO or strip it
-      await syncOwnerProfilePremium(supabase, user.id, newIsPremium, planTag, newSponsor);
+    if (isSupabaseConfigured) {
+      if (!isDemoMode && user?.id) {
+        // Sync Owner's profile phone with PREMIUM_STATUS:PRO or strip it
+        await syncOwnerProfilePremium(supabase, user.id, newIsPremium, planTag, newSponsor);
+      }
 
       // Update households.description in cloud
       const isUuid = typeof targetHouseholdId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetHouseholdId);
