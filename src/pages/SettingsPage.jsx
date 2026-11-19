@@ -423,6 +423,10 @@ export const SettingsPage = () => {
             </div>
             <button
               onClick={async () => {
+                if (!isPremium) {
+                  openUpgradeModal();
+                  return;
+                }
                 setExportLoading(true);
                 try {
                   await exportFullFinancialStatementPDF({
@@ -445,10 +449,18 @@ export const SettingsPage = () => {
                 }
               }}
               disabled={exportLoading}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-rose-600 px-3.5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-rose-700 active-press transition cursor-pointer disabled:opacity-50"
+              className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-3.5 py-2.5 text-xs font-bold shadow-xs active-press transition cursor-pointer disabled:opacity-50 ${
+                isPremium
+                  ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                  : 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-900 shadow-md ring-2 ring-amber-300/50'
+              }`}
             >
-              <FileText className="h-4 w-4" />
-              <span>Download Full PDF</span>
+              {isPremium ? (
+                <FileText className="h-4 w-4" />
+              ) : (
+                <Crown className="h-4 w-4 fill-slate-900 text-slate-900" />
+              )}
+              <span>{isPremium ? 'Download Full PDF' : 'Download Full PDF (₱30 Pro)'}</span>
             </button>
           </div>
 
@@ -465,14 +477,26 @@ export const SettingsPage = () => {
             </div>
             <button
               onClick={() => {
+                if (!isPremium) {
+                  openUpgradeModal();
+                  return;
+                }
                 printFinancialStatement();
                 setExportStatus('Print dialog opened');
                 setTimeout(() => setExportStatus(''), 4000);
               }}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-white px-3.5 py-2.5 text-xs font-bold text-emerald-700 shadow-xs hover:bg-emerald-50 active-press transition cursor-pointer"
+              className={`inline-flex items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-xs font-bold shadow-xs active-press transition cursor-pointer ${
+                isPremium
+                  ? 'border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-50'
+                  : 'border-amber-300 bg-amber-50/80 text-amber-900 hover:bg-amber-100 ring-1 ring-amber-300/60'
+              }`}
             >
-              <Printer className="h-3.5 w-3.5" />
-              <span>Print / Save as PDF</span>
+              {isPremium ? (
+                <Printer className="h-3.5 w-3.5" />
+              ) : (
+                <Crown className="h-3.5 w-3.5 text-amber-600 fill-amber-500" />
+              )}
+              <span>{isPremium ? 'Print / Save as PDF' : 'Print / Save PDF (₱30 Pro)'}</span>
             </button>
           </div>
 
@@ -537,44 +561,90 @@ export const SettingsPage = () => {
               <FileText className="h-3.5 w-3.5 text-rose-600" />
               Quick Module PDF Statements (Direct Download):
             </span>
+            {!isPremium && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-100/80 px-2.5 py-0.5 rounded-full border border-amber-300">
+                <Crown className="h-3 w-3 fill-amber-500 text-amber-500" />
+                ₱30 Pro Feature
+              </span>
+            )}
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <button
-              onClick={() => exportTransactionsPDF(transactions, currentHousehold?.name || 'Household')}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/60 p-2.5 text-xs font-bold text-rose-700 hover:bg-rose-100 active-press transition cursor-pointer"
+              onClick={() => {
+                if (!isPremium) {
+                  openUpgradeModal();
+                  return;
+                }
+                exportTransactionsPDF(transactions, currentHousehold?.name || 'Household');
+              }}
+              className={`inline-flex items-center justify-center gap-1.5 rounded-xl border p-2.5 text-xs font-bold active-press transition cursor-pointer ${
+                isPremium
+                  ? 'border-rose-200 bg-rose-50/60 text-rose-700 hover:bg-rose-100'
+                  : 'border-amber-300 bg-amber-50/80 text-amber-900 hover:bg-amber-100'
+              }`}
             >
-              <FileText className="h-3.5 w-3.5" />
-              Transactions PDF
+              {isPremium ? <FileText className="h-3.5 w-3.5" /> : <Crown className="h-3.5 w-3.5 text-amber-600 fill-amber-500" />}
+              <span>{isPremium ? 'Transactions PDF' : 'Transactions (Pro)'}</span>
             </button>
             <button
-              onClick={() => exportBudgetsPDF({
-                budgets,
-                categories,
-                transactions,
-                householdName: currentHousehold?.name || 'Household',
-                month: selectedMonth,
-                year: selectedYear,
-                overallMonthlyTarget: currentHousehold?.monthly_budget_target || calculations.activeBudgetTarget || 0,
-              })}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/60 p-2.5 text-xs font-bold text-rose-700 hover:bg-rose-100 active-press transition cursor-pointer"
+              onClick={() => {
+                if (!isPremium) {
+                  openUpgradeModal();
+                  return;
+                }
+                exportBudgetsPDF({
+                  budgets,
+                  categories,
+                  transactions,
+                  householdName: currentHousehold?.name || 'Household',
+                  month: selectedMonth,
+                  year: selectedYear,
+                  overallMonthlyTarget: currentHousehold?.monthly_budget_target || calculations.activeBudgetTarget || 0,
+                });
+              }}
+              className={`inline-flex items-center justify-center gap-1.5 rounded-xl border p-2.5 text-xs font-bold active-press transition cursor-pointer ${
+                isPremium
+                  ? 'border-rose-200 bg-rose-50/60 text-rose-700 hover:bg-rose-100'
+                  : 'border-amber-300 bg-amber-50/80 text-amber-900 hover:bg-amber-100'
+              }`}
             >
-              <FileText className="h-3.5 w-3.5" />
-              Budgets PDF
+              {isPremium ? <FileText className="h-3.5 w-3.5" /> : <Crown className="h-3.5 w-3.5 text-amber-600 fill-amber-500" />}
+              <span>{isPremium ? 'Budgets PDF' : 'Budgets (Pro)'}</span>
             </button>
             <button
-              onClick={() => exportBillsPDF(bills, currentHousehold?.name || 'Household')}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/60 p-2.5 text-xs font-bold text-rose-700 hover:bg-rose-100 active-press transition cursor-pointer"
+              onClick={() => {
+                if (!isPremium) {
+                  openUpgradeModal();
+                  return;
+                }
+                exportBillsPDF(bills, currentHousehold?.name || 'Household');
+              }}
+              className={`inline-flex items-center justify-center gap-1.5 rounded-xl border p-2.5 text-xs font-bold active-press transition cursor-pointer ${
+                isPremium
+                  ? 'border-rose-200 bg-rose-50/60 text-rose-700 hover:bg-rose-100'
+                  : 'border-amber-300 bg-amber-50/80 text-amber-900 hover:bg-amber-100'
+              }`}
             >
-              <FileText className="h-3.5 w-3.5" />
-              Bills PDF
+              {isPremium ? <FileText className="h-3.5 w-3.5" /> : <Crown className="h-3.5 w-3.5 text-amber-600 fill-amber-500" />}
+              <span>{isPremium ? 'Bills PDF' : 'Bills (Pro)'}</span>
             </button>
             <button
-              onClick={() => exportSavingsPDF(savingsGoals, currentHousehold?.name || 'Household')}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/60 p-2.5 text-xs font-bold text-rose-700 hover:bg-rose-100 active-press transition cursor-pointer"
+              onClick={() => {
+                if (!isPremium) {
+                  openUpgradeModal();
+                  return;
+                }
+                exportSavingsPDF(savingsGoals, currentHousehold?.name || 'Household');
+              }}
+              className={`inline-flex items-center justify-center gap-1.5 rounded-xl border p-2.5 text-xs font-bold active-press transition cursor-pointer ${
+                isPremium
+                  ? 'border-rose-200 bg-rose-50/60 text-rose-700 hover:bg-rose-100'
+                  : 'border-amber-300 bg-amber-50/80 text-amber-900 hover:bg-amber-100'
+              }`}
             >
-              <FileText className="h-3.5 w-3.5" />
-              Savings PDF
+              {isPremium ? <FileText className="h-3.5 w-3.5" /> : <Crown className="h-3.5 w-3.5 text-amber-600 fill-amber-500" />}
+              <span>{isPremium ? 'Savings PDF' : 'Savings (Pro)'}</span>
             </button>
           </div>
         </div>

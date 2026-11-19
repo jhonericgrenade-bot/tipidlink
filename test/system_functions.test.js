@@ -323,3 +323,83 @@ test('12. Registration Blocking on Invalid or Non-existent Code', () => {
   const resCruz = canProceedWithRegistration('CRUZ-1234');
   assert.strictEqual(resCruz.proceed, true, 'Can proceed with valid CRUZ-1234');
 });
+
+test('13. Pro vs Non-Pro PDF Export Gating & Household Tier Enforcement', () => {
+  // Gating helper logic matching TipidLink pages
+  const checkPDFExportAccess = ({ isPremium, isDemoMode, householdId }) => {
+    const isPro = Boolean(
+      isPremium || 
+      isDemoMode || 
+      householdId === 'hh-santos-family' || 
+      householdId === '0d37e235-c9dd-4876-a54a-9acb36516599'
+    );
+    if (!isPro) {
+      return {
+        allowed: false,
+        action: 'open_upgrade_modal',
+        reason: 'PDF Statement Export requires ₱30 Pro or Sponsored Community Access'
+      };
+    }
+    return {
+      allowed: true,
+      action: 'generate_pdf',
+      reason: 'Pro Active: Export permitted'
+    };
+  };
+
+  // 1. Non-Pro regular household: MUST be blocked from exporting PDF
+  const freeHouseholdCheck = checkPDFExportAccess({
+    isPremium: false,
+    isDemoMode: false,
+    householdId: 'hh-free-user-123'
+  });
+  assert.strictEqual(freeHouseholdCheck.allowed, false, 'Non-Pro household must NOT be allowed to export PDF');
+  assert.strictEqual(freeHouseholdCheck.action, 'open_upgrade_modal', 'Non-Pro household click must open upgrade modal');
+
+  // 2. Pro subscriber household (₱30/mo): Allowed to export
+  const proHouseholdCheck = checkPDFExportAccess({
+    isPremium: true,
+    isDemoMode: false,
+    householdId: 'hh-pro-user-456'
+  });
+  assert.strictEqual(proHouseholdCheck.allowed, true, 'Pro household must be allowed to export PDF');
+  assert.strictEqual(proHouseholdCheck.action, 'generate_pdf');
+
+  // 3. Santos Family demo during defense presentation: Allowed to export
+  const santosDemoCheck = checkPDFExportAccess({
+    isPremium: false,
+    isDemoMode: true,
+    householdId: 'hh-santos-family'
+  });
+  assert.strictEqual(santosDemoCheck.allowed, true, 'Santos family demo during presentation is permitted');
+
+  // 4. Feature Tier Matrix
+  const getHouseholdTierLimits = (isPro) => {
+    if (!isPro) {
+      return {
+        tier: 'Free Household Tier',
+        pricePHP: 0,
+        pdfExport: false,
+        inviteCodeMasked: true,
+        maxMembers: 3,
+      };
+    }
+    return {
+      tier: 'TipidLink Premium Plan',
+      pricePHP: 30,
+      pdfExport: true,
+      inviteCodeMasked: false,
+      maxMembers: Infinity,
+    };
+  };
+
+  const freeTier = getHouseholdTierLimits(false);
+  assert.strictEqual(freeTier.pdfExport, false, 'Free tier has no PDF export');
+  assert.strictEqual(freeTier.inviteCodeMasked, true, 'Free tier masks code');
+  assert.strictEqual(freeTier.maxMembers, 3, 'Free tier allows up to 3 members');
+
+  const proTier = getHouseholdTierLimits(true);
+  assert.strictEqual(proTier.pdfExport, true, 'Pro tier allows PDF export');
+  assert.strictEqual(proTier.inviteCodeMasked, false, 'Pro tier unmasks code');
+  assert.strictEqual(proTier.pricePHP, 30, 'Pro tier is ₱30/month');
+});

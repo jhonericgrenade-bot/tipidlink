@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useFinance } from '../contexts/FinanceContext';
 import { useHousehold } from '../contexts/HouseholdContext';
+import { usePremium } from '../contexts/PremiumContext';
 import { formatPHP, formatDate, getDueDateStatus } from '../lib/formatters';
 import { exportBillsPDF } from '../lib/exportUtils';
 import { StatusBadge } from '../components/StatusBadge';
@@ -18,14 +19,20 @@ import {
   Calendar,
   Download,
   FileText,
+  Crown,
 } from 'lucide-react';
 
 export const BillsPage = () => {
   const { bills, categories, addBill, deleteBill, recordBillPayment } = useFinance();
   const { currentHousehold } = useHousehold();
+  const { isPremium, openUpgradeModal } = usePremium();
   const [isExporting, setIsExporting] = useState(false);
 
   const handleExportPDF = async () => {
+    if (!isPremium) {
+      openUpgradeModal();
+      return;
+    }
     setIsExporting(true);
     try {
       await exportBillsPDF(bills, currentHousehold?.name || 'Household');
@@ -207,11 +214,19 @@ export const BillsPage = () => {
           <button
             onClick={handleExportPDF}
             disabled={isExporting}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/70 px-3.5 py-2 text-xs font-bold text-rose-700 shadow-xs hover:bg-rose-100 active-press hover-lift transition cursor-pointer disabled:opacity-50"
-            title="Download formatted PDF Bills Statement"
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-bold shadow-xs active-press hover-lift transition cursor-pointer disabled:opacity-50 ${
+              isPremium
+                ? 'border-rose-200 bg-rose-50/70 text-rose-700 hover:bg-rose-100'
+                : 'border-amber-300 bg-amber-50/80 text-amber-900 hover:bg-amber-100 ring-1 ring-amber-300/60'
+            }`}
+            title={isPremium ? "Download formatted PDF Bills Statement" : "Upgrade to ₱30 Pro to export PDF statements"}
           >
-            <FileText className="h-4 w-4 text-rose-600" />
-            <span>{isExporting ? 'Generating...' : 'Export PDF'}</span>
+            {isPremium ? (
+              <FileText className="h-4 w-4 text-rose-600" />
+            ) : (
+              <Crown className="h-4 w-4 text-amber-500 fill-amber-500" />
+            )}
+            <span>{isExporting ? 'Generating...' : (isPremium ? 'Export PDF' : 'Export PDF (₱30 Pro)')}</span>
           </button>
 
           <button

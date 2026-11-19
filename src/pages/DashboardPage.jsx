@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useHousehold } from '../contexts/HouseholdContext';
 import { useFinance } from '../contexts/FinanceContext';
 import { useAuth } from '../contexts/AuthContext';
+import { usePremium } from '../contexts/PremiumContext';
 import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/StatusBadge';
 import { Modal } from '../components/Modal';
@@ -21,6 +22,7 @@ import {
   RefreshCw,
   ShoppingBag,
   Download,
+  Crown,
 } from 'lucide-react';
 import { exportFullFinancialStatementPDF } from '../lib/exportUtils';
 import { Link } from 'react-router-dom';
@@ -35,6 +37,7 @@ import {
 export const DashboardPage = () => {
   const { currentHousehold } = useHousehold();
   const { user, profile, isDemoMode } = useAuth();
+  const { isPremium, openUpgradeModal } = usePremium();
   const {
     transactions,
     budgets,
@@ -51,10 +54,14 @@ export const DashboardPage = () => {
     resetToDemoData,
   } = useFinance();
 
-  // Export PDF state
+  // Export PDF state (₱30 Pro Feature)
   const [isExporting, setIsExporting] = useState(false);
 
   const handleExportPDF = async () => {
+    if (!isPremium) {
+      openUpgradeModal();
+      return;
+    }
     setIsExporting(true);
     try {
       await exportFullFinancialStatementPDF({
@@ -189,11 +196,19 @@ export const DashboardPage = () => {
             <button
               onClick={handleExportPDF}
               disabled={isExporting}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white px-3.5 py-2.5 text-xs font-bold transition shadow-xs cursor-pointer backdrop-blur-xs border border-white/20 active-press"
-              title="Universal 1-Tap PDF Action Sheet"
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-xs font-bold transition shadow-xs cursor-pointer backdrop-blur-xs border active-press ${
+                isPremium
+                  ? 'bg-white/15 hover:bg-white/25 text-white border-white/20'
+                  : 'bg-amber-400/25 hover:bg-amber-400/35 text-amber-200 border-amber-300/40 ring-1 ring-amber-300/50'
+              }`}
+              title={isPremium ? "Universal 1-Tap PDF Action Sheet" : "Upgrade to ₱30 Pro to export PDF statements"}
             >
-              <Download className="h-3.5 w-3.5 text-emerald-300" />
-              <span>{isExporting ? 'Generating...' : 'Export PDF'}</span>
+              {isPremium ? (
+                <Download className="h-3.5 w-3.5 text-emerald-300" />
+              ) : (
+                <Crown className="h-3.5 w-3.5 text-amber-300 fill-amber-300" />
+              )}
+              <span>{isExporting ? 'Generating...' : (isPremium ? 'Export PDF' : 'Export PDF (₱30 Pro)')}</span>
             </button>
             {(isDemoMode || currentHousehold?.id === 'hh-santos-family') && (
               <button
