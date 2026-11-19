@@ -40,7 +40,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
     refreshMembers,
   } = useHousehold();
   const { user, profile, isDemoMode, signOut } = useAuth();
-  const { isPremium, openUpgradeModal } = usePremium();
+  const { isPremium, openUpgradeModal, resetToFree } = usePremium();
 
   const [copied, setCopied] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -208,14 +208,41 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-xl font-black text-slate-900">{currentHousehold?.name}</h3>
                   {isPremium ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 border border-amber-300 font-extrabold px-2.5 py-0.5 text-[11px] shadow-2xs">
-                      <Crown className="h-3 w-3 fill-slate-900 text-slate-900" />
-                      <span>Pro Household</span>
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 border border-amber-300 font-extrabold px-2.5 py-0.5 text-[11px] shadow-2xs">
+                        <Crown className="h-3 w-3 fill-slate-900 text-slate-900" />
+                        <span>Pro Household</span>
+                      </span>
+                      {isOwnerOrAdmin && (
+                        <button
+                          onClick={async () => {
+                            if (window.confirm('Sigurado ka bang ibabalik sa Free ang household? Mawawala ang Pro features sa lahat ng sumali.')) {
+                              await resetToFree();
+                            }
+                          }}
+                          className="text-[10px] text-slate-400 hover:text-rose-600 underline font-semibold cursor-pointer"
+                          title="Reset household to Free Tier"
+                        >
+                          Reset to Free
+                        </button>
+                      )}
+                    </div>
                   ) : (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200 font-medium px-2.5 py-0.5 text-[11px]">
-                      <span>Free Household Tier</span>
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200 font-medium px-2.5 py-0.5 text-[11px]">
+                        <span>Free Household Tier</span>
+                      </span>
+                      {isOwnerOrAdmin && (
+                        <button
+                          onClick={openUpgradeModal}
+                          className="text-[10px] text-emerald-600 hover:text-emerald-700 font-bold hover:underline cursor-pointer flex items-center gap-0.5"
+                          title="Upgrade household to Pro (₱30)"
+                        >
+                          <Crown className="h-2.5 w-2.5 text-amber-500 fill-amber-500" />
+                          <span>Upgrade to Pro</span>
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">

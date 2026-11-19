@@ -84,6 +84,28 @@ export const PremiumProvider = ({ children }) => {
         localStorage.removeItem(`tipidlink_household_sponsor_${SANTOS_UUID}`);
         localStorage.removeItem(`tipidlink_household_sponsor_${SANTOS_DEMO_ID}`);
       }
+
+      // Clean cached members to remove PREMIUM_STATUS:PRO tag from owner
+      const rawCachedMembers = localStorage.getItem(`tipidlink_members_${targetHouseholdId}`);
+      if (rawCachedMembers) {
+        try {
+          const list = JSON.parse(rawCachedMembers);
+          const cleaned = list.map(m => {
+            if (m.role === 'owner' || (user?.id && m.user_id === user.id)) {
+              return {
+                ...m,
+                phone: (m.phone || '').replace(/\|?PREMIUM_STATUS:[^|]+/gi, '').replace(/\|?PLAN:[^|]+/gi, '').replace(/\|?SPONSOR:[^|]+/gi, '').trim(),
+              };
+            }
+            return m;
+          });
+          localStorage.setItem(`tipidlink_members_${targetHouseholdId}`, JSON.stringify(cleaned));
+          if (isSantos) {
+            localStorage.setItem(`tipidlink_members_${SANTOS_UUID}`, JSON.stringify(cleaned));
+            localStorage.setItem(`tipidlink_members_${SANTOS_DEMO_ID}`, JSON.stringify(cleaned));
+          }
+        } catch (e) {}
+      }
     }
 
     // 2. Broadcast realtime sync event to ALL member devices!
@@ -271,7 +293,7 @@ export const PremiumProvider = ({ children }) => {
     }
 
     if (updateHousehold) {
-      updateHousehold({ is_premium: true, premium_plan: planName, sponsor_details: null });
+      await updateHousehold({ is_premium: true, premium_plan: planName, sponsor_details: null });
     }
   };
 
@@ -287,7 +309,7 @@ export const PremiumProvider = ({ children }) => {
     }
 
     if (updateHousehold) {
-      updateHousehold({ is_premium: true, premium_plan: 'Sponsored Community Access', sponsor_details: sponsorName });
+      await updateHousehold({ is_premium: true, premium_plan: 'Sponsored Community Access', sponsor_details: sponsorName });
     }
   };
 
@@ -303,7 +325,7 @@ export const PremiumProvider = ({ children }) => {
     }
 
     if (updateHousehold) {
-      updateHousehold({ is_premium: false, premium_plan: 'Free Household Plan', sponsor_details: null });
+      await updateHousehold({ is_premium: false, premium_plan: 'Free Household Plan', sponsor_details: null });
     }
   };
 

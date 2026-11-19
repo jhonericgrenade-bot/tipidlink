@@ -634,5 +634,23 @@ test('15. Anti-Reversion Guard & Universal Reset to Free Across Joined Household
   assert.strictEqual(resolveHouseholdPremiumState(restoredHh, 'member-id-1', members).isPremium, true, 'Restoring Pro immediately updates joined member');
   assert.strictEqual(resolveHouseholdPremiumState(restoredHh, 'admin-id-2', members).isPremium, true, 'Restoring Pro immediately updates joined admin');
 
+  // Step 5: Plain description without tags (reverted to free via formatHouseholdDescription)
+  mockStorage.set(`tipidlink_household_tier_${hhId}`, 'FREE');
+  mockStorage.delete(`tipidlink_household_premium_${hhId}`);
+  const plainRevertedHh = {
+    id: hhId,
+    name: 'Test Household',
+    invite_code: inviteCode,
+    description: 'Pampamilyang budget',
+    is_premium: false,
+  };
+  // Even if members in memory still had old PREMIUM_STATUS:PRO tag before fetch:
+  const staleMembersBeforeFetch = [
+    { user_id: 'owner-id', role: 'owner', phone: '09123456789|PREMIUM_STATUS:PRO' },
+    { user_id: 'member-id-1', role: 'member', phone: '' },
+  ];
+  assert.strictEqual(resolveHouseholdPremiumState(plainRevertedHh, 'owner-id', staleMembersBeforeFetch).isPremium, false, 'Owner is Free even if members list has old phone tag');
+  assert.strictEqual(resolveHouseholdPremiumState(plainRevertedHh, 'member-id-1', staleMembersBeforeFetch).isPremium, false, 'Member is Free even if members list has old phone tag');
+
   delete global.localStorage;
 });

@@ -133,9 +133,9 @@ export const PremiumUpgradeModal = ({ isOpen, onClose }) => {
               </div>
             </div>
             <button
-              onClick={() => {
-                resetToFree();
-                alert('Plan reset to Free Household Tier for demo purposes.');
+              onClick={async () => {
+                await resetToFree();
+                alert('Plan reset to Free Household Tier. Lahat ng sumali sa household ay naka-Free na.');
               }}
               className="text-[11px] font-bold text-slate-500 hover:text-rose-600 underline cursor-pointer"
             >

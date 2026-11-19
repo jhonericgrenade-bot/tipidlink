@@ -175,17 +175,24 @@ export const resolveHouseholdPremiumState = (household, userKey = null, members 
   const hhId = household.id;
   const isSantos = isSantosHouseholdId(hhId) || household.invite_code === 'SANTOS2026';
 
-  // 1. Explicit FREE in cloud description always wins
   const parsed = parseHouseholdTier(household.raw_description || household.description);
-  if (parsed.isExplicitFree) {
-    return {
-      isPremium: false,
-      plan: 'Free Household Plan',
-      sponsor: null,
-    };
+  const hhTier = typeof localStorage !== 'undefined' && hhId ? localStorage.getItem(`tipidlink_household_tier_${hhId}`) : null;
+  const codeTier = typeof localStorage !== 'undefined' && household.invite_code ? localStorage.getItem(`tipidlink_code_tier_${household.invite_code}`) : null;
+
+  // 1. Explicit FREE in description, localStorage override, or household state
+  // When resetToFree is invoked, hhTier === 'FREE' or household.is_premium === false.
+  // Unless the cloud description explicitly contains [TIER:PRO], explicit Free ALWAYS wins!
+  if (parsed.isExplicitFree || hhTier === 'FREE' || codeTier === 'FREE' || household.is_premium === false) {
+    if (!parsed.isPremium) {
+      return {
+        isPremium: false,
+        plan: 'Free Household Plan',
+        sponsor: null,
+      };
+    }
   }
 
-  // 2. Direct explicit PRO tag in description (cloud record)
+  // 2. Direct explicit PRO tag in description (authoritative cloud record)
   if (parsed.isPremium) {
     return {
       isPremium: true,
@@ -203,28 +210,9 @@ export const resolveHouseholdPremiumState = (household, userKey = null, members 
     };
   }
 
-  // 4. Inspect members list for a Pro Owner (cloud record)
-  if (Array.isArray(members) && members.length > 0) {
-    const ownerMember = members.find(m => m.role === 'owner' || (household.created_by && m.user_id === household.created_by));
-    if (ownerMember?.phone && ownerMember.phone.includes('PREMIUM_STATUS:PRO')) {
-      const match = ownerMember.phone.match(/PLAN:([^|]+)/i);
-      const sponsorMatch = ownerMember.phone.match(/SPONSOR:([^|]+)/i);
-      const plan = match ? match[1] : 'TipidLink Premium Plan (₱30/mo)';
-      const sponsor = sponsorMatch && sponsorMatch[1] !== 'none' ? sponsorMatch[1] : null;
-      return {
-        isPremium: true,
-        plan,
-        sponsor,
-      };
-    }
-  }
-
-  // 5. LocalStorage explicit tier override (offline cache & local persistence)
+  // 4. LocalStorage explicit tier override (offline cache & local persistence)
   if (typeof localStorage !== 'undefined' && hhId) {
-    const hhTier = localStorage.getItem(`tipidlink_household_tier_${hhId}`);
     const hhPrem = localStorage.getItem(`tipidlink_household_premium_${hhId}`);
-    const codeTier = household.invite_code ? localStorage.getItem(`tipidlink_code_tier_${household.invite_code}`) : null;
-
     if (hhTier === 'PRO' || hhPrem === 'true' || codeTier === 'PRO') {
       return {
         isPremium: true,
@@ -246,37 +234,25 @@ export const resolveHouseholdPremiumState = (household, userKey = null, members 
         };
       }
     }
-
-    if (hhTier === 'FREE' || codeTier === 'FREE') {
-      return {
-        isPremium: false,
-        plan: 'Free Household Plan',
-        sponsor: null,
-      };
-    }
   }
 
-  // 6. Owner exists in members list and was verified not Pro
+  // 5. Inspect members list for a Pro Owner (cloud record for joined family members)
   if (Array.isArray(members) && members.length > 0) {
     const ownerMember = members.find(m => m.role === 'owner' || (household.created_by && m.user_id === household.created_by));
-    if (ownerMember) {
+    if (ownerMember?.phone && ownerMember.phone.includes('PREMIUM_STATUS:PRO')) {
+      const match = ownerMember.phone.match(/PLAN:([^|]+)/i);
+      const sponsorMatch = ownerMember.phone.match(/SPONSOR:([^|]+)/i);
+      const plan = match ? match[1] : 'TipidLink Premium Plan (₱30/mo)';
+      const sponsor = sponsorMatch && sponsorMatch[1] !== 'none' ? sponsorMatch[1] : null;
       return {
-        isPremium: false,
-        plan: 'Free Household Plan',
-        sponsor: null,
+        isPremium: true,
+        plan,
+        sponsor,
       };
     }
   }
 
-  // 7. Household object was explicitly false
-  if (household.is_premium === false) {
-    return {
-      isPremium: false,
-      plan: 'Free Household Plan',
-      sponsor: null,
-    };
-  }
-
+  // 6. Default to Free
   return {
     isPremium: false,
     plan: 'Free Household Plan',
