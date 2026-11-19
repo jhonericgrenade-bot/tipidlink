@@ -114,13 +114,17 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     setFormLoading(true);
-    await updateHousehold({
+    const result = await updateHousehold({
       name: editName.trim(),
       description: editDesc.trim(),
       clean_description: editDesc.trim(),
       monthly_budget_target: Number(editBudget),
     });
     setFormLoading(false);
+    if (!result?.success) {
+      alert(result?.error || 'Could not save household changes.');
+      return;
+    }
     setIsEditProfileOpen(false);
   };
 
@@ -624,7 +628,8 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
                 type="button"
                 onClick={async () => {
                   if (window.confirm(`Are you sure you want to delete "${currentHousehold.name}"? All shared family transactions and budgets will be permanently deleted.`)) {
-                    await deleteHousehold(currentHousehold.id);
+                    const result = await deleteHousehold(currentHousehold.id);
+                    if (!result?.success) alert(result?.error || 'Could not delete this household.');
                   }
                 }}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition cursor-pointer"

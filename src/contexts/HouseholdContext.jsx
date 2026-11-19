@@ -318,27 +318,6 @@ export const HouseholdProvider = ({ children }) => {
 
       if (memErr) throw memErr;
 
-      // 3. Register invite_code in profile for universal public lookup by other joining family members
-      try {
-        const { data: currentP } = await supabase
-          .from('profiles')
-          .select('phone')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        let entries = currentP?.phone ? currentP.phone.replace(/^INVITES?:/i, '').split('|').filter(Boolean) : [];
-        entries = entries.filter(e => !e.toUpperCase().startsWith(`${invite_code.toUpperCase()}:`));
-        entries.push(`${invite_code.toUpperCase()}:${newId}`);
-        const newPhone = `INVITES:${entries.join('|')}`;
-
-        await supabase
-          .from('profiles')
-          .update({ phone: newPhone })
-          .eq('id', user.id);
-      } catch (pErr) {
-        console.warn('Profile code sync notice:', pErr);
-      }
-
       localStorage.setItem('tipidlink_active_household_id', newId);
       return { success: true, household: newHH };
     } catch (err) {
@@ -1224,19 +1203,18 @@ export const HouseholdProvider = ({ children }) => {
             .eq('user_id', user.id)
             .maybeSingle();
 
-          // 2. Insert membership cleanly without .select() to comply with RLS
+          // 2. Join through the server-side invite RPC.  RLS intentionally
+          // blocks direct self-membership inserts so a client cannot assign
+          // itself an owner/admin role.
           if (!existingMember) {
-            const { error: insertErr } = await supabase
-              .from('household_members')
-              .insert({
-                household_id: SANTOS_UUID,
-                user_id: user.id,
-                role: 'member',
-                nickname: userFullName.split(' ')[0] || 'Member',
-              });
+            const { data: joinResult, error: insertErr } = await supabase.rpc('join_household_by_invite_code', {
+              invite_code_input: 'SANTOS2026',
+              member_nickname: userFullName.split(' ')[0] || 'Member',
+            });
 
-            if (insertErr && insertErr.code !== '23505') {
-              console.warn('Membership insert note:', insertErr.message);
+            if (insertErr || joinResult?.success === false) {
+              console.warn('Membership insert note:', insertErr?.message || joinResult?.error);
+              return { success: false, error: insertErr?.message || joinResult?.error || 'Could not join this household. Please try again.' };
             }
           }
 
@@ -1343,86 +1321,17 @@ export const HouseholdProvider = ({ children }) => {
     }
 
     try {
-      const cleanInput = rawCode.trim();
-      const cleanUpper = cleanInput.toUpperCase().replace(/\s+/g, '');
-      let targetHouseholdId = null;
+      const { data: joinResult, error: joinRpcError } = await supabase.rpc('join_household_by_invite_code', {
+        invite_code_input: rawCode,
+        member_nickname: user?.user_metadata?.full_name || profile?.full_name || user?.email?.split('@')[0] || 'Member',
+      });
 
-      // Step 1: Universal lookup in profiles.phone (INVITES:CODE:UUID|CODE2:UUID2)
-      // This is accessible to all authenticated users and handles both invite_codes and encoded UUIDs
-      const { data: matchedProfiles } = await supabase
-        .from('profiles')
-        .select('phone')
-        .not('phone', 'is', null)
-        .ilike('phone', '%INVITE%');
-
-      for (const p of (matchedProfiles || [])) {
-        if (!p.phone) continue;
-
-        // Strip prefix "INVITES:" or "INVITE:"
-        const cleanPhone = p.phone.replace(/^INVITES?:/i, '');
-        // Split multiple entries by pipe '|'
-        const entries = cleanPhone.split('|');
-
-        for (const entry of entries) {
-          const parts = entry.trim().split(':');
-          if (parts.length >= 2) {
-            const registeredCode = parts[0].trim().toUpperCase();
-            const uuid = parts[1].trim();
-
-            // Match exact invite code (e.g. "KALAB-4211") or without dash ("KALAB4211")
-            if (
-              registeredCode === cleanUpper ||
-              registeredCode.replace(/-/g, '') === cleanUpper.replace(/-/g, '')
-            ) {
-              targetHouseholdId = uuid;
-              break;
-            }
-
-            // Match direct UUID
-            if (uuid.toLowerCase() === cleanInput.toLowerCase()) {
-              targetHouseholdId = uuid;
-              break;
-            }
-
-            // Match Base64 encoded UUID (handles both original case and uppercase)
-            const encoded = encodeHouseholdCode(uuid);
-            if (
-              encoded === cleanInput ||
-              encoded.toUpperCase() === cleanUpper
-            ) {
-              targetHouseholdId = uuid;
-              break;
-            }
-          }
-        }
-        if (targetHouseholdId) break;
+      if (joinRpcError) throw joinRpcError;
+      if (!joinResult?.success || !joinResult?.household_id) {
+        return { success: false, error: joinResult?.error || 'Hindi nahanap ang household code na ito. Pakisuri ang code mula sa household owner.' };
       }
 
-      // Step 2: Direct fallback query in households table
-      if (!targetHouseholdId) {
-        try {
-          const { data: hh } = await supabase
-            .from('households')
-            .select('id, name, invite_code')
-            .ilike('invite_code', cleanInput)
-            .maybeSingle();
-
-          if (hh?.id) {
-            targetHouseholdId = hh.id;
-          }
-        } catch (e) {
-          console.warn('Household lookup notice:', e);
-        }
-      }
-
-      // Step 3: Fallback decodeHouseholdCode only if still not resolved
-      if (!targetHouseholdId) {
-        targetHouseholdId = decodeHouseholdCode(cleanInput);
-      }
-
-      if (!targetHouseholdId) {
-        return { success: false, error: 'Hindi nahanap ang household code na ito (o hindi pa nagagawa). Pakisuri ang tamang invite code mula sa household owner bago magpatuloy.' };
-      }
+      const targetHouseholdId = joinResult.household_id;
 
       // Check if already joined
       const { data: existing } = await supabase
@@ -1450,28 +1359,7 @@ export const HouseholdProvider = ({ children }) => {
         return { success: true, household: joinedHH, message: 'You are already a member of this household.' };
       }
 
-      // Insert membership without .select() to respect RLS
       const memberNickname = user?.user_metadata?.full_name || profile?.full_name || user?.email?.split('@')[0] || 'Member';
-      const { error: joinErr } = await supabase
-        .from('household_members')
-        .insert({
-          household_id: targetHouseholdId,
-          user_id: user.id,
-          role: 'member',
-          nickname: memberNickname,
-        });
-
-      if (joinErr) {
-        if (joinErr.code === '23503' || joinErr.message?.includes('foreign key')) {
-          return {
-            success: false,
-            error: 'Household not found or no longer active with this code. Please verify the invite code with the owner.'
-          };
-        }
-        if (joinErr.code !== '23505') {
-          throw joinErr;
-        }
-      }
 
       localStorage.setItem('tipidlink_active_household_id', targetHouseholdId);
       if (user?.id) {
@@ -1660,21 +1548,30 @@ export const HouseholdProvider = ({ children }) => {
       ? currentHousehold.id
       : (currentHousehold.id === 'hh-santos-family' ? SANTOS_UUID : null);
 
-    if (isSupabaseConfigured && user && targetHhId && Object.keys(dbPayload).length > 0) {
+    if (isDemoMode || !isSupabaseConfigured) {
+      applyLocal();
+      return { success: true };
+    }
+
+    if (!user || !targetHhId) {
+      return { success: false, error: 'A cloud household connection is required to save this change.' };
+    }
+
+    if (Object.keys(dbPayload).length > 0) {
       try {
         const { error: dbErr } = await supabase
           .from('households')
           .update(dbPayload)
           .eq('id', targetHhId);
-        if (dbErr) {
-          console.warn('Supabase household update notice:', dbErr.message);
-        }
+        if (dbErr) throw dbErr;
       } catch (err) {
-        console.warn('Supabase household update notice (applying locally):', err.message);
+        console.error('Supabase household update failed:', err);
+        return { success: false, error: err?.message || 'Could not save household changes. Please try again.' };
       }
     }
 
     applyLocal();
+    await loadHouseholds(targetHhId, true);
     return { success: true };
   };
 
@@ -1691,8 +1588,8 @@ export const HouseholdProvider = ({ children }) => {
       if (targetMember.role === 'owner') {
         return { success: false, error: 'Admins cannot change the household owner.' };
       }
-      if (newRole === 'owner') {
-        return { success: false, error: 'Only owners can assign the owner role.' };
+      if (newRole === 'owner' || newRole === 'admin') {
+        return { success: false, error: 'Only owners can assign owner or admin roles.' };
       }
     }
 
@@ -1704,9 +1601,10 @@ export const HouseholdProvider = ({ children }) => {
           .update({ role: newRole })
           .eq('id', memberId);
 
-        if (error) console.warn('Supabase member role update notice:', error.message);
+        if (error) throw error;
       } catch (err) {
-        console.warn('Supabase member role update notice:', err.message);
+        console.error('Supabase member role update failed:', err);
+        return { success: false, error: err?.message || 'Could not update this member role. Please try again.' };
       }
     }
 
@@ -1738,9 +1636,10 @@ export const HouseholdProvider = ({ children }) => {
           .delete()
           .eq('id', memberId);
 
-        if (error) console.warn('Supabase remove member notice:', error.message);
+        if (error) throw error;
       } catch (err) {
-        console.warn('Supabase remove member notice:', err.message);
+        console.error('Supabase remove member failed:', err);
+        return { success: false, error: err?.message || 'Could not remove this member. Please try again.' };
       }
     }
 

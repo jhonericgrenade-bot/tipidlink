@@ -598,9 +598,8 @@ export const FinanceProvider = ({ children }) => {
       loadHouseholdData(targetHhId, { silent: true });
       return { success: true };
     } catch (err) {
-      console.warn('Update transaction DB note, applying local:', err);
-      applyLocal();
-      return { success: true };
+      console.error('Update transaction failed:', err);
+      return { success: false, error: err?.message || 'Could not update this transaction. Please try again.' };
     }
   };
 
@@ -631,9 +630,8 @@ export const FinanceProvider = ({ children }) => {
       loadHouseholdData(targetHhId, { silent: true });
       return { success: true };
     } catch (err) {
-      console.warn('Delete transaction DB note, applying local:', err);
-      applyLocal();
-      return { success: true };
+      console.error('Delete transaction failed:', err);
+      return { success: false, error: err?.message || 'Could not delete this transaction. Please try again.' };
     }
   };
 
@@ -648,6 +646,13 @@ export const FinanceProvider = ({ children }) => {
     const targetYear = Number(year);
     const targetHhId = resolveCloudHouseholdId(currentHousehold.id);
     const resolvedCatId = resolveCategoryId(category_id) || category_id;
+
+    if (!Number.isFinite(numAmount) || numAmount < 0) {
+      return { success: false, error: 'Enter a valid budget amount.' };
+    }
+    if (!Number.isInteger(targetMonth) || targetMonth < 1 || targetMonth > 12 || !Number.isInteger(targetYear) || targetYear < 2020) {
+      return { success: false, error: 'Choose a valid budget month and year.' };
+    }
 
     const applyLocal = () => {
       const existingIndex = budgets.findIndex(
@@ -741,9 +746,8 @@ export const FinanceProvider = ({ children }) => {
       loadHouseholdData(targetHhId, { silent: true });
       return { success: true };
     } catch (err) {
-      console.warn('Direct Supabase budget save note, applying resilient state update:', err);
-      applyLocal();
-      return { success: true };
+      console.error('Budget save failed:', err);
+      return { success: false, error: err?.message || 'Could not save this budget. Please try again.' };
     }
   };
 
@@ -775,9 +779,8 @@ export const FinanceProvider = ({ children }) => {
       loadHouseholdData(targetHhId, { silent: true });
       return { success: true };
     } catch (err) {
-      console.warn('Delete budget DB note, applying local:', err);
-      applyLocal();
-      return { success: true };
+      console.error('Delete budget failed:', err);
+      return { success: false, error: err?.message || 'Could not delete this budget. Please try again.' };
     }
   };
 
@@ -911,9 +914,8 @@ export const FinanceProvider = ({ children }) => {
       loadHouseholdData(targetHhId, { silent: true });
       return { success: true };
     } catch (err) {
-      console.warn('Update bill DB note, applying local:', err);
-      applyLocal();
-      return { success: true };
+      console.error('Update bill failed:', err);
+      return { success: false, error: err?.message || 'Could not update this bill. Please try again.' };
     }
   };
 
@@ -1082,9 +1084,8 @@ export const FinanceProvider = ({ children }) => {
       loadHouseholdData(targetHhId, { silent: true });
       return { success: true };
     } catch (err) {
-      console.warn('Delete bill DB note, applying local:', err);
-      applyLocal();
-      return { success: true };
+      console.error('Delete bill failed:', err);
+      return { success: false, error: err?.message || 'Could not delete this bill. Please try again.' };
     }
   };
 
@@ -1094,6 +1095,11 @@ export const FinanceProvider = ({ children }) => {
   const addSavingsGoal = async (goalData) => {
     if (!currentHousehold) return { success: false, error: 'No active household' };
     const targetHhId = resolveCloudHouseholdId(currentHousehold.id);
+
+    if (!goalData.title?.trim()) return { success: false, error: 'Enter a savings goal title.' };
+    if (!Number.isFinite(Number(goalData.target_amount)) || Number(goalData.target_amount) <= 0) {
+      return { success: false, error: 'Enter a valid savings target.' };
+    }
 
     const newGoal = {
       household_id: targetHhId || currentHousehold.id,
@@ -1144,14 +1150,8 @@ export const FinanceProvider = ({ children }) => {
       const formatted = { ...data, contributions: [] };
       return applyLocal(formatted);
     } catch (err) {
-      console.warn('Add savings goal DB note, applying local:', err);
-      const createdGoal = {
-        ...newGoal,
-        id: `goal-${Date.now()}`,
-        contributions: [],
-        created_at: new Date().toISOString(),
-      };
-      return applyLocal(createdGoal);
+      console.error('Add savings goal failed:', err);
+      return { success: false, error: err?.message || 'Could not save this savings goal. Please try again.' };
     }
   };
 
@@ -1159,12 +1159,15 @@ export const FinanceProvider = ({ children }) => {
     const contAmount = Number(contribution.amount);
     const targetGoal = savingsGoals.find(g => g.id === goalId);
     if (!targetGoal) return { success: false, error: 'Goal not found' };
+    if (!Number.isFinite(contAmount) || contAmount <= 0) {
+      return { success: false, error: 'Enter a valid contribution amount.' };
+    }
     const targetHhId = resolveCloudHouseholdId(currentHousehold?.id);
 
     const applyLocal = (newContrib) => {
       const updatedContribs = [...(targetGoal.contributions || []), newContrib];
-      const newCurrentAmount = updatedContribs.reduce((acc, c) => acc + c.amount, 0);
-      const isCompleted = newCurrentAmount >= targetGoal.target_amount;
+      const newCurrentAmount = updatedContribs.reduce((acc, c) => acc + Number(c.amount || 0), 0);
+      const isCompleted = newCurrentAmount >= Number(targetGoal.target_amount || 0);
 
       const updatedGoals = savingsGoals.map(g =>
         g.id === goalId
@@ -1195,7 +1198,7 @@ export const FinanceProvider = ({ children }) => {
     }
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('savings_contributions')
         .insert({
           goal_id: goalId,
@@ -1204,27 +1207,18 @@ export const FinanceProvider = ({ children }) => {
           amount: contAmount,
           contribution_date: contribution.contribution_date || new Date().toISOString().split('T')[0],
           notes: contribution.notes || null,
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
-      return applyLocal({
-        id: `sc-${Date.now()}`,
-        goal_id: goalId,
-        amount: contAmount,
-        contribution_date: contribution.contribution_date || new Date().toISOString().split('T')[0],
-        notes: contribution.notes || '',
-      });
+      const result = applyLocal(data);
+      await loadHouseholdData(targetHhId, { silent: true });
+      return result;
     } catch (err) {
-      console.warn('Contribute to goal DB note, applying local:', err);
-      const newContrib = {
-        id: `sc-${Date.now()}`,
-        goal_id: goalId,
-        amount: contAmount,
-        contribution_date: contribution.contribution_date || new Date().toISOString().split('T')[0],
-        notes: contribution.notes || '',
-      };
-      return applyLocal(newContrib);
+      console.error('Savings contribution failed:', err);
+      return { success: false, error: err?.message || 'Could not save this contribution. Please try again.' };
     }
   };
 
@@ -1254,15 +1248,17 @@ export const FinanceProvider = ({ children }) => {
       loadHouseholdData(targetHhId, { silent: true });
       return { success: true };
     } catch (err) {
-      console.warn('Delete savings goal DB note, applying local:', err);
-      applyLocal();
-      return { success: true };
+      console.error('Delete savings goal failed:', err);
+      return { success: false, error: err?.message || 'Could not delete this savings goal. Please try again.' };
     }
   };
 
   // Seed sample Filipino family data button action (works reliably in any browser or account)
   const resetToDemoData = () => {
-    if (!currentHousehold) return;
+    if (!currentHousehold) return { success: false, error: 'No active household.' };
+    if (!isDemoMode) {
+      return { success: false, error: 'Demo reload is only available in local demo mode. It cannot overwrite cloud household records.' };
+    }
 
     const updatedTx = INITIAL_DEMO_DATA.transactions.map(t => ({
       ...t,
@@ -1300,6 +1296,7 @@ export const FinanceProvider = ({ children }) => {
     }));
 
     broadcastSyncEvent('finance_updated', { householdId: currentHousehold.id });
+    return { success: true };
   };
 
   // ----------------------------------------------------------------------------

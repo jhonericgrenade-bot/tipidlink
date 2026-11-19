@@ -146,14 +146,22 @@ export const TransactionsPage = () => {
     if (!selectedTx || !formData.amount || !formData.description) return;
     setFormLoading(true);
 
-    await updateTransaction(selectedTx.id, formData);
+    const result = await updateTransaction(selectedTx.id, formData);
     setFormLoading(false);
+    if (!result?.success) {
+      alert(result?.error || 'Could not update this transaction.');
+      return;
+    }
     setIsEditOpen(false);
   };
 
   const handleDeleteConfirm = async () => {
     if (!selectedTx) return;
-    await deleteTransaction(selectedTx.id);
+    const result = await deleteTransaction(selectedTx.id);
+    if (!result?.success) {
+      alert(result?.error || 'Could not delete this transaction.');
+      return;
+    }
     setIsDeleteOpen(false);
     setSelectedTx(null);
   };

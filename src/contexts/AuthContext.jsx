@@ -146,17 +146,8 @@ export const AuthProvider = ({ children }) => {
             setProfile(parsed);
             setIsDemoMode(true);
 
-            // Establish authenticated session for demo persona so cross-unit queries succeed
-            if (isSupabaseConfigured) {
-              try {
-                await supabase.auth.signInWithPassword({
-                  email: parsed.email || 'maria.santos@tipidlink.ph',
-                  password: 'TipidLink2026!'
-                });
-              } catch (e) {
-                console.warn('Demo background auth note:', e);
-              }
-            }
+            // Demo state remains local-only. Never restore a cloud session
+            // from credentials embedded in the client application.
           } catch {
             localStorage.removeItem('tipidlink_demo_user');
             localStorage.removeItem('tipidlink_demo_active');
@@ -256,6 +247,13 @@ export const AuthProvider = ({ children }) => {
 
   // Sign in directly using Email + 4-Digit Security PIN (Direct / No Password)
   const signInWithPin = async (email, pin) => {
+    return {
+      success: false,
+      error: 'PIN sign-in has been retired for account security. Please sign in with your password or use email password recovery.',
+    };
+
+    /* Legacy implementation retained temporarily for migration compatibility.
+       The server RPC is revoked by migration 004 and this code is unreachable. */
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanPin = (pin || '').trim();
     const isSantos = cleanEmail.endsWith('@tipidlink.ph');
@@ -344,10 +342,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Sign up with Supabase Auth or offline fallback
-  const signUp = async (email, password, fullName, securityPin = '0000') => {
+  const signUp = async (email, password, fullName) => {
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanName = (fullName || '').trim() || cleanEmail.split('@')[0];
-    const cleanPin = (securityPin || '0000').trim() || '0000';
 
     // Immediately clear state and all previous user caches so new account is totally clean
     setUser(null);
@@ -361,7 +358,6 @@ export const AuthProvider = ({ children }) => {
         email: cleanEmail,
         full_name: cleanName,
         avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanName)}`,
-        security_pin: cleanPin,
       };
       setUser({ id: demoProfile.id, email: cleanEmail });
       setProfile(demoProfile);
@@ -376,10 +372,7 @@ export const AuthProvider = ({ children }) => {
         email: cleanEmail,
         password,
         options: {
-          data: {
-            full_name: cleanName,
-            security_pin: cleanPin,
-          },
+          data: { full_name: cleanName },
         },
       });
       if (error) throw error;
@@ -390,7 +383,6 @@ export const AuthProvider = ({ children }) => {
           email: cleanEmail,
           full_name: cleanName,
           avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanName)}`,
-          security_pin: cleanPin,
         };
         setUser(data.user);
         setProfile(newProfile);
@@ -417,16 +409,12 @@ export const AuthProvider = ({ children }) => {
   // Log in immediately as demo user
   const loginAsDemo = async (demoUserKey = 'maria') => {
     let selectedUser;
-    let demoEmail = 'maria.santos@tipidlink.ph';
     if (demoUserKey === 'juan') {
       selectedUser = INITIAL_DEMO_DATA.members[1];
-      demoEmail = 'juan.santos@tipidlink.ph';
     } else if (demoUserKey === 'angela') {
       selectedUser = INITIAL_DEMO_DATA.members[2];
-      demoEmail = 'angela.santos@tipidlink.ph';
     } else {
       selectedUser = INITIAL_DEMO_DATA.profile;
-      demoEmail = 'maria.santos@tipidlink.ph';
     }
 
     const demoProfile = {
@@ -443,16 +431,8 @@ export const AuthProvider = ({ children }) => {
     setProfile(demoProfile);
     setIsDemoMode(true);
 
-    if (isSupabaseConfigured) {
-      try {
-        await supabase.auth.signInWithPassword({
-          email: demoEmail,
-          password: 'TipidLink2026!'
-        });
-      } catch (e) {
-        console.warn('Demo cloud session signin note:', e);
-      }
-    }
+    // Demo is intentionally local-only. A public demo control must never
+    // authenticate to a cloud account using a credential bundled in the app.
 
     return { success: true };
   };
@@ -641,6 +621,13 @@ export const AuthProvider = ({ children }) => {
 
   // Reset Password using 4-digit Security PIN (Zero Email / Zero Localhost)
   const resetPasswordWithPin = async (targetEmail, securityPin, newPassword) => {
+    return {
+      success: false,
+      error: 'PIN password reset has been retired for account security. Request a password-reset email instead.',
+    };
+
+    /* Legacy implementation retained temporarily for migration compatibility.
+       The server RPC is revoked by migration 004 and this code is unreachable. */
     const cleanEmail = (targetEmail || '').trim().toLowerCase();
     const cleanPin = (securityPin || '').trim();
 
@@ -693,6 +680,12 @@ export const AuthProvider = ({ children }) => {
 
   // Update Security PIN for currently logged-in user
   const updateSecurityPin = async (newPin) => {
+    return {
+      success: false,
+      error: 'Security PIN is no longer used for account access. Use a strong password and email recovery instead.',
+    };
+
+    /* Legacy implementation retained temporarily for migration compatibility. */
     const cleanPin = (newPin || '').trim();
     if (!cleanPin || cleanPin.length !== 4 || !/^\d{4}$/.test(cleanPin)) {
       return { success: false, error: 'Ang Security PIN ay dapat 4 na numero (hal. 1234).' };
@@ -730,6 +723,13 @@ export const AuthProvider = ({ children }) => {
 
   // Emergency Recovery via Family Household Code or Master Key (Zero Email / Zero Localhost)
   const recoverAccountWithFamilyKey = async (targetEmail, familyCode, newPassword, newPin = '0000') => {
+    return {
+      success: false,
+      error: 'Family-code account recovery has been retired for account security. Request a password-reset email instead.',
+    };
+
+    /* Legacy implementation retained temporarily for migration compatibility.
+       The server RPC is revoked by migration 004 and this code is unreachable. */
     const cleanEmail = (targetEmail || '').trim().toLowerCase();
     const cleanCode = (familyCode || '').trim();
     const cleanPin = (newPin || '0000').trim() || '0000';

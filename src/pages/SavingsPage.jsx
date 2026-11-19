@@ -108,8 +108,12 @@ export const SavingsPage = () => {
     if (!goalForm.title || !goalForm.target_amount) return;
     setGoalLoading(true);
 
-    await addSavingsGoal(goalForm);
+    const result = await addSavingsGoal(goalForm);
     setGoalLoading(false);
+    if (!result?.success) {
+      alert(result?.error || 'Could not save this savings goal.');
+      return;
+    }
     setIsAddOpen(false);
   };
 
@@ -118,20 +122,28 @@ export const SavingsPage = () => {
     if (!selectedGoal || !contribAmount) return;
     setContribLoading(true);
 
-    await contributeToGoal(selectedGoal.id, {
+    const result = await contributeToGoal(selectedGoal.id, {
       amount: Number(contribAmount),
       contribution_date: contribDate,
       notes: contribNotes.trim(),
     });
 
     setContribLoading(false);
+    if (!result?.success) {
+      alert(result?.error || 'Could not save this contribution.');
+      return;
+    }
     setIsContributeOpen(false);
     setSelectedGoal(null);
   };
 
   const handleDeleteConfirm = async () => {
     if (!selectedGoal) return;
-    await deleteSavingsGoal(selectedGoal.id);
+    const result = await deleteSavingsGoal(selectedGoal.id);
+    if (!result?.success) {
+      alert(result?.error || 'Could not delete this savings goal.');
+      return;
+    }
     setIsDeleteOpen(false);
     setSelectedGoal(null);
   };

@@ -139,7 +139,7 @@ export const BudgetsPage = () => {
     if (!catId || !catAmount) return;
     setLoading(true);
 
-    await setCategoryBudget({
+    const result = await setCategoryBudget({
       id: editingBudgetId,
       category_id: catId,
       month: selectedMonth,
@@ -148,6 +148,10 @@ export const BudgetsPage = () => {
     });
 
     setLoading(false);
+    if (!result?.success) {
+      alert(result?.error || 'Could not save this category budget.');
+      return;
+    }
     setCatId('');
     setCatAmount('');
     setEditingBudgetId(null);

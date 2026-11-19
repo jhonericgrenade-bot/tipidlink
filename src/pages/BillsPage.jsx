@@ -207,7 +207,11 @@ export const BillsPage = () => {
 
   const handleDeleteConfirm = async () => {
     if (!selectedBill) return;
-    await deleteBill(selectedBill.id);
+    const result = await deleteBill(selectedBill.id);
+    if (!result?.success) {
+      alert(result?.error || 'Could not delete this bill.');
+      return;
+    }
     setIsDeleteModalOpen(false);
     setSelectedBill(null);
   };
