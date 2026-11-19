@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 
 export const TransactionsPage = () => {
-  const { transactions, categories, addTransaction, updateTransaction, deleteTransaction } = useFinance();
+  const { ledgerTransactions: transactions, categories, addTransaction, updateTransaction, deleteTransaction } = useFinance();
   const { currentHousehold } = useHousehold();
   const { isPremium, openUpgradeModal } = usePremium();
 
@@ -100,6 +100,10 @@ export const TransactionsPage = () => {
   };
 
   const openEditModal = (tx) => {
+    if (tx.is_bill_payment) {
+      alert('Edit this expense from the Bills page so the payment record and budget stay in sync.');
+      return;
+    }
     setSelectedTx(tx);
     setFormData({
       type: tx.type,
@@ -114,6 +118,10 @@ export const TransactionsPage = () => {
   };
 
   const openDeleteModal = (tx) => {
+    if (tx.is_bill_payment) {
+      alert('Delete or correct this payment from the Bills page so the payment record and budget stay in sync.');
+      return;
+    }
     setSelectedTx(tx);
     setIsDeleteOpen(true);
   };
@@ -400,20 +408,28 @@ export const TransactionsPage = () => {
 
                     <td className="py-3 px-4 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => openEditModal(tx)}
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 active-press transition cursor-pointer"
-                          title="Edit"
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => openDeleteModal(tx)}
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 active-press transition cursor-pointer"
-                          title="Delete"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        {tx.is_bill_payment ? (
+                          <span className="text-[10px] font-semibold text-slate-400" title="Manage this payment from the Bills page">
+                            Bill payment
+                          </span>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => openEditModal(tx)}
+                              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 active-press transition cursor-pointer"
+                              title="Edit"
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => openDeleteModal(tx)}
+                              className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 active-press transition cursor-pointer"
+                              title="Delete"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

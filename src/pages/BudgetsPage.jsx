@@ -24,7 +24,7 @@ export const BudgetsPage = () => {
   const { currentHousehold, updateHousehold, isOwnerOrAdmin, isOwner } = useHousehold();
   const { isPremium, openUpgradeModal } = usePremium();
   const {
-    transactions,
+    ledgerTransactions,
     budgets,
     categories,
     selectedMonth,
@@ -52,7 +52,7 @@ export const BudgetsPage = () => {
       await exportBudgetsPDF({
         budgets,
         categories,
-        transactions,
+        transactions: ledgerTransactions,
         householdName: currentHousehold?.name || 'Household',
         month: selectedMonth,
         year: selectedYear,

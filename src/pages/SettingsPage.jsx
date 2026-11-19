@@ -45,7 +45,7 @@ export const SettingsPage = () => {
   const { user, profile, updatePassword, updateSecurityPin, isDemoMode, signOut } = useAuth();
   const { currentUserRole, currentHousehold } = useHousehold();
   const {
-    transactions,
+    ledgerTransactions: transactions,
     budgets,
     bills,
     savingsGoals,

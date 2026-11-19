@@ -7,9 +7,12 @@ import { broadcastSyncEvent, subscribeToSyncEvents, isMatchingHouseholdId } from
 import {
   matchCategoryId,
   autoDetectBillCategory,
-  doesTransactionMatchCategory,
   MOCK_TO_SUPABASE_CATEGORY_MAP,
 } from '../lib/formatters';
+import {
+  reconcileBillPaymentLedger,
+  resolveBillPaymentCategory,
+} from '../lib/billPaymentLedger';
 
 const isUuid = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
@@ -458,6 +461,14 @@ export const FinanceProvider = ({ children }) => {
   const targetCloudHouseholdId = resolveCloudHouseholdId(currentHousehold?.id);
   const isLocalFinance = !isSupabaseConfigured || !user?.id || !targetCloudHouseholdId;
 
+  // A bill payment is a real expense, even when a legacy/offline client saved
+  // the payment but missed its companion transaction row. All budget-facing
+  // screens and exports use this reconciled ledger to prevent under-counting.
+  const ledgerTransactions = useMemo(
+    () => reconcileBillPaymentLedger(transactions, bills, categories),
+    [transactions, bills, categories]
+  );
+
   // ----------------------------------------------------------------------------
   // TRANSACTIONS CRUD
   // ----------------------------------------------------------------------------
@@ -862,10 +873,18 @@ export const FinanceProvider = ({ children }) => {
       const { data, error } = await supabase
         .from('bills')
         .insert({
-          ...newBill,
+          title: billData.title,
+          biller_name: billData.biller_name || null,
+          account_number: billData.account_number || null,
+          amount: Number(billData.amount),
+          due_date: billData.due_date,
+          status: 'unpaid',
+          is_recurring: Boolean(billData.is_recurring),
+          frequency: billData.frequency || 'monthly',
+          notes: billData.notes || null,
           category_id: dbCatId,
           household_id: targetHhId,
-          created_by: user.id,
+          created_by: user?.id,
         })
         .select(`*, categories:category_id (name, icon, color)`)
         .single();
@@ -880,14 +899,10 @@ export const FinanceProvider = ({ children }) => {
 
       return applyLocal(formatted);
     } catch (err) {
-      console.warn('Add bill DB note, applying local:', err);
-      const createdBill = {
-        ...newBill,
-        id: `bill-${Date.now()}`,
-        payments: [],
-        created_at: new Date().toISOString(),
-      };
-      return applyLocal(createdBill);
+      console.error('Add bill failed:', err);
+      // Do not create a cloud-only phantom bill. It would appear saved but
+      // disappear on refresh because it was never stored in Supabase.
+      return { success: false, error: err?.message || 'Could not save this bill. Please try again.' };
     }
   };
 
@@ -932,21 +947,21 @@ export const FinanceProvider = ({ children }) => {
     const payAmount = Number(payment.amount);
     const targetBill = bills.find(b => b.id === billId);
     if (!targetBill) return { success: false, error: 'Bill not found' };
+    if (!Number.isFinite(payAmount) || payAmount <= 0) {
+      return { success: false, error: 'Enter a valid payment amount.' };
+    }
+
+    const amountAlreadyPaid = (targetBill.payments || [])
+      .reduce((total, existingPayment) => total + Number(existingPayment.amount || 0), 0);
+    const remainingBalance = Math.max(0, Number(targetBill.amount || 0) - amountAlreadyPaid);
+    if (payAmount > remainingBalance + 0.0001) {
+      return { success: false, error: `Payment cannot exceed the remaining balance of ₱${remainingBalance.toFixed(2)}.` };
+    }
+
     const targetHhId = resolveCloudHouseholdId(currentHousehold?.id);
 
-    // Resolve matching category with intelligence
-    let matchedCat = categories.find(c => c.id === targetBill.category_id || matchCategoryId(c.id, targetBill.category_id, categories));
-    if (!matchedCat && targetBill.category_name) {
-      matchedCat = categories.find(c => c.name && c.name.toLowerCase().trim() === targetBill.category_name.toLowerCase().trim());
-    }
-    if (!matchedCat) {
-      matchedCat = autoDetectBillCategory(targetBill.title, targetBill.biller_name, categories);
-    }
-    if (!matchedCat) {
-      matchedCat = categories.find(c => c.type === 'expense' && /utilities|bill/i.test(c.name))
-        || categories.find(c => c.type === 'expense')
-        || { id: 'cat-2', name: 'Utilities & Bills', icon: 'receipt', color: '#F59E0B' };
-    }
+    const matchedCat = resolveBillPaymentCategory(targetBill, categories)
+      || { id: 'cat-2', name: 'Utilities & Bills', icon: 'receipt', color: '#F59E0B' };
 
     const assignedCatId = matchedCat.id || targetBill.category_id || 'cat-2';
     const assignedCatName = matchedCat.name || targetBill.category_name || 'Utilities & Bills';
@@ -968,6 +983,9 @@ export const FinanceProvider = ({ children }) => {
 
       const autoTx = {
         id: `tx-bill-${Date.now()}`,
+        bill_payment_id: newPayment.id,
+        bill_id: billId,
+        is_bill_payment: true,
         household_id: currentHousehold?.id,
         category_id: assignedCatId,
         category_name: assignedCatName,
@@ -1020,6 +1038,18 @@ export const FinanceProvider = ({ children }) => {
     }
 
     try {
+      // Persist the resolved category before the payment is recorded. The
+      // database trigger uses this category to create the linked expense row.
+      const isCatUuid = isUuid(assignedCatId);
+      const dbCatId = isCatUuid ? assignedCatId : (resolveCategoryId(assignedCatId, categories) || null);
+      if (dbCatId && !matchCategoryId(targetBill.category_id, dbCatId, categories)) {
+        const { error: categoryErr } = await supabase
+          .from('bills')
+          .update({ category_id: dbCatId })
+          .eq('id', billId);
+        if (categoryErr) throw categoryErr;
+      }
+
       const { data: payRow, error: payErr } = await supabase
         .from('bill_payments')
         .insert({
@@ -1035,51 +1065,20 @@ export const FinanceProvider = ({ children }) => {
         .select()
         .single();
 
-      if (payErr) console.warn('Supabase bill payment record note:', payErr.message);
+      if (payErr) throw payErr;
 
-      // Resolve valid UUID for transactions table in Supabase
-      const isCatUuid = isUuid(assignedCatId);
-      const dbCatId = isCatUuid ? assignedCatId : (resolveCategoryId(assignedCatId, categories) || null);
-
-      const { error: txErr } = await supabase
-        .from('transactions')
-        .insert({
-          household_id: targetHhId,
-          category_id: dbCatId,
-          user_id: user?.id,
-          type: 'expense',
-          amount: payAmount,
-          description: `Bill Payment: ${targetBill.title}`,
-          transaction_date: paymentDate,
-          payment_method: payment.payment_method || 'gcash',
-          notes: `Ref: ${payment.reference_number || 'N/A'}`,
-        });
-
-      if (txErr) console.warn('Supabase bill transaction insert note:', txErr.message);
-
-      loadHouseholdData(targetHhId, { silent: true });
-
-      return applyLocal(payRow || {
-        id: `bp-${Date.now()}`,
-        bill_id: billId,
-        amount: payAmount,
-        payment_date: paymentDate,
-        payment_method: payment.payment_method || 'gcash',
-        reference_number: payment.reference_number || '',
-        notes: payment.notes || '',
-      });
+      const result = applyLocal(payRow);
+      // The database migration creates a permanent, uniquely linked expense.
+      // Refresh after the optimistic update so the ledger is authoritative on
+      // every browser and remains correct after a page reload.
+      await loadHouseholdData(targetHhId, { silent: true });
+      return result;
     } catch (err) {
-      console.warn('Bill payment DB note, applying local:', err);
-      const newPayment = {
-        id: `bp-${Date.now()}`,
-        bill_id: billId,
-        amount: payAmount,
-        payment_date: paymentDate,
-        payment_method: payment.payment_method || 'gcash',
-        reference_number: payment.reference_number || '',
-        notes: payment.notes || '',
-      };
-      return applyLocal(newPayment);
+      console.error('Bill payment failed:', err);
+      // The local-only branch above remains available for offline/demo mode.
+      // In cloud mode, surface the error instead of showing a payment that
+      // disappears on the next reload.
+      return { success: false, error: err?.message || 'Could not save this bill payment. Please try again.' };
     }
   };
 
@@ -1334,7 +1333,7 @@ export const FinanceProvider = ({ children }) => {
   // ----------------------------------------------------------------------------
   const calculations = useMemo(() => {
     // Filter transactions for selected month/year (robust parsing without UTC drift)
-    const monthlyTransactions = transactions.filter(t => {
+    const monthlyTransactions = ledgerTransactions.filter(t => {
       if (!t.transaction_date) return false;
       let m, y;
       if (typeof t.transaction_date === 'string' && /^\d{4}-\d{2}/.test(t.transaction_date)) {
@@ -1438,12 +1437,13 @@ export const FinanceProvider = ({ children }) => {
       overallSavingsProgress,
       monthlyTransactions,
     };
-  }, [transactions, budgets, bills, savingsGoals, currentHousehold, selectedMonth, selectedYear]);
+  }, [ledgerTransactions, budgets, bills, savingsGoals, currentHousehold, selectedMonth, selectedYear]);
 
   return (
     <FinanceContext.Provider
       value={{
         transactions,
+        ledgerTransactions,
         budgets,
         bills,
         savingsGoals,

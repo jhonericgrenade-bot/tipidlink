@@ -25,6 +25,9 @@ import {
   matchCategoryId,
   autoDetectBillCategory,
 } from '../src/lib/formatters.js';
+import {
+  reconcileBillPaymentLedger,
+} from '../src/lib/billPaymentLedger.js';
 
 test.after(() => {
   // Clean up any temporary PDFs written during test execution
@@ -764,4 +767,49 @@ test('16. Bill Payment Auto-Deduction from Overall Budget and Category Budget', 
   assert.strictEqual(electricityRemaining, 300, 'Electricity remaining deducted from 4,500 to 300');
   const utilizationPercent = (electricitySpent / electricityBudgetLimit) * 100;
   assert.strictEqual(Math.round(utilizationPercent), 93, 'Electricity utilization is 93.3%');
+});
+
+test('17. Bill payments reconcile into every budget-facing ledger without duplicates', () => {
+  const categories = INITIAL_DEMO_DATA.categories;
+  const bills = [
+    {
+      id: 'bill-electricity',
+      title: 'Meralco Electric Bill',
+      biller_name: 'Meralco',
+      category_id: 'cat-2',
+      payments: [{ id: 'payment-existing', amount: 4200, payment_date: '2026-11-19', payment_method: 'gcash' }],
+    },
+    {
+      id: 'bill-water',
+      title: 'Maynilad Water Bill',
+      biller_name: 'Maynilad',
+      category_id: null,
+      payments: [{ id: 'payment-missing-transaction', amount: 1150, payment_date: '2026-11-19', payment_method: 'cash' }],
+    },
+  ];
+
+  // A legacy client already created the electricity expense, while the water
+  // payment was saved without a companion transaction row.
+  const transactions = [{
+    id: 'legacy-electricity-transaction',
+    type: 'expense',
+    amount: 4200,
+    category_id: 'cat-2',
+    transaction_date: '2026-11-19',
+    description: 'Payment for Meralco Electric Bill',
+  }];
+
+  const ledger = reconcileBillPaymentLedger(transactions, bills, categories);
+  const expenses = ledger.filter((transaction) => transaction.type === 'expense');
+
+  assert.strictEqual(expenses.length, 2, 'Legacy payment is not duplicated and missing payment is restored');
+  assert.strictEqual(
+    expenses.reduce((sum, transaction) => sum + Number(transaction.amount), 0),
+    5350,
+    'Both bill payments are included in the overall expense total'
+  );
+
+  const restoredWaterPayment = ledger.find((transaction) => transaction.bill_payment_id === 'payment-missing-transaction');
+  assert.ok(restoredWaterPayment, 'Missing payment is materialized into the ledger');
+  assert.strictEqual(restoredWaterPayment.category_id, 'cat-3', 'Recovered payment is assigned to the Water category budget');
 });

@@ -181,8 +181,12 @@ export const BillsPage = () => {
       }
     }
 
-    await addBill(payload);
+    const result = await addBill(payload);
     setFormLoading(false);
+    if (!result?.success) {
+      alert(result?.error || 'Could not save this bill.');
+      return;
+    }
     setIsAddBillOpen(false);
   };
 
@@ -191,8 +195,12 @@ export const BillsPage = () => {
     if (!selectedBill || !paymentForm.amount) return;
     setPaymentLoading(true);
 
-    await recordBillPayment(selectedBill.id, paymentForm);
+    const result = await recordBillPayment(selectedBill.id, paymentForm);
     setPaymentLoading(false);
+    if (!result?.success) {
+      alert(result?.error || 'Could not record this bill payment.');
+      return;
+    }
     setIsPayModalOpen(false);
     setSelectedBill(null);
   };

@@ -39,7 +39,7 @@ export const DashboardPage = () => {
   const { user, profile, isDemoMode } = useAuth();
   const { isPremium, openUpgradeModal } = usePremium();
   const {
-    transactions,
+    ledgerTransactions,
     budgets,
     bills,
     savingsGoals,
@@ -65,7 +65,7 @@ export const DashboardPage = () => {
     setIsExporting(true);
     try {
       await exportFullFinancialStatementPDF({
-        transactions,
+        transactions: ledgerTransactions,
         budgets,
         bills,
         savingsGoals,
@@ -140,7 +140,7 @@ export const DashboardPage = () => {
     if (!selectedBillForPay || !payAmount) return;
     setPayLoading(true);
 
-    await recordBillPayment(selectedBillForPay.id, {
+    const result = await recordBillPayment(selectedBillForPay.id, {
       amount: Number(payAmount),
       payment_method: payMethod,
       reference_number: payRef.trim(),
@@ -148,6 +148,10 @@ export const DashboardPage = () => {
     });
 
     setPayLoading(false);
+    if (!result?.success) {
+      alert(result?.error || 'Could not record this bill payment.');
+      return;
+    }
     setSelectedBillForPay(null);
     setPayAmount('');
     setPayRef('');
