@@ -49,14 +49,10 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
   const [editBudget, setEditBudget] = useState('0');
   const [formLoading, setFormLoading] = useState(false);
 
-  // Auto-refresh member list periodically while viewing the Family page so newly joined members from mobile or other units appear live!
+  // Refresh member list when opening the Family page
   useEffect(() => {
     if (refreshMembers && currentHousehold?.id) {
       refreshMembers();
-      const interval = setInterval(() => {
-        refreshMembers();
-      }, 4000);
-      return () => clearInterval(interval);
     }
   }, [currentHousehold?.id]);
 

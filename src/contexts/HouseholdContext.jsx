@@ -195,7 +195,7 @@ export const HouseholdProvider = ({ children }) => {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Load households whenever user, demo status, or profile changes
+  // Load households whenever user identity or demo mode changes
   useEffect(() => {
     if (!user) {
       setHouseholds([]);
@@ -206,7 +206,7 @@ export const HouseholdProvider = ({ children }) => {
     }
 
     loadHouseholds();
-  }, [user?.id, isDemoMode, profile?.phone]);
+  }, [user?.id, isDemoMode]);
 
   // Load members whenever current household ID changes
   useEffect(() => {
@@ -827,23 +827,6 @@ export const HouseholdProvider = ({ children }) => {
           localStorage.setItem('tipidlink_active_household_id', found.id);
           if (user?.id) {
             localStorage.setItem(`tipidlink_active_household_${user.id}`, found.id);
-          }
-        }
-
-        // Keep ALL invite_codes in profile.phone in sync for reliable family lookup
-        if (user) {
-          const syncEntries = hhList
-            .filter(h => h.id && h.invite_code)
-            .map(h => `${h.invite_code.toUpperCase().replace(/\s+/g, '')}:${h.id}`);
-          if (syncEntries.length > 0) {
-            supabase
-              .from('profiles')
-              .update({
-                phone: `INVITES:${syncEntries.join('|')}`,
-              })
-              .eq('id', user.id)
-              .then(() => {})
-              .catch(() => {});
           }
         }
       } else {

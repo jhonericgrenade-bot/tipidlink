@@ -40,6 +40,28 @@ export const resolveCategoryId = (catId) => {
   return null;
 };
 
+const areArraysShallowEqual = (a, b) => {
+  if (a === b) return true;
+  if (!Array.isArray(a) || !Array.isArray(b)) return false;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const itemA = a[i];
+    const itemB = b[i];
+    if (
+      itemA?.id !== itemB?.id ||
+      itemA?.amount !== itemB?.amount ||
+      itemA?.updated_at !== itemB?.updated_at ||
+      itemA?.is_paid !== itemB?.is_paid ||
+      itemA?.current_amount !== itemB?.current_amount ||
+      itemA?.target_amount !== itemB?.target_amount ||
+      itemA?.notes !== itemB?.notes
+    ) {
+      return false;
+    }
+  }
+  return true;
+};
+
 // Instant warm-cache hydration on initial page open to prevent data disappearing
 const getInitialFinanceData = () => {
   if (typeof window === 'undefined') return null;
@@ -230,12 +252,12 @@ export const FinanceProvider = ({ children }) => {
             categories: parsed.categories || INITIAL_DEMO_DATA.categories,
           }));
 
-          setTransactions(loadedTx);
-          setBudgets(loadedBudgets);
-          setBills(loadedBills);
-          setSavingsGoals(parsed.savingsGoals || INITIAL_DEMO_DATA.savingsGoals);
-          setCategories(parsed.categories || INITIAL_DEMO_DATA.categories);
-          setLoading(false);
+          setTransactions(prev => areArraysShallowEqual(prev, loadedTx) ? prev : loadedTx);
+          setBudgets(prev => areArraysShallowEqual(prev, loadedBudgets) ? prev : loadedBudgets);
+          setBills(prev => areArraysShallowEqual(prev, loadedBills) ? prev : loadedBills);
+          setSavingsGoals(prev => areArraysShallowEqual(prev, parsed.savingsGoals || INITIAL_DEMO_DATA.savingsGoals) ? prev : (parsed.savingsGoals || INITIAL_DEMO_DATA.savingsGoals));
+          setCategories(prev => areArraysShallowEqual(prev, parsed.categories || INITIAL_DEMO_DATA.categories) ? prev : (parsed.categories || INITIAL_DEMO_DATA.categories));
+          if (!isSilent) setLoading(false);
           return;
         } catch (e) {
           console.error('Failed to parse local finance data:', e);
@@ -243,11 +265,11 @@ export const FinanceProvider = ({ children }) => {
       }
 
       if (householdId === 'hh-santos-family' || isDemoMode) {
-        setTransactions(INITIAL_DEMO_DATA.transactions);
-        setBudgets(INITIAL_DEMO_DATA.budgets);
-        setBills(INITIAL_DEMO_DATA.bills);
-        setSavingsGoals(INITIAL_DEMO_DATA.savingsGoals);
-        setCategories(INITIAL_DEMO_DATA.categories);
+        setTransactions(prev => areArraysShallowEqual(prev, INITIAL_DEMO_DATA.transactions) ? prev : INITIAL_DEMO_DATA.transactions);
+        setBudgets(prev => areArraysShallowEqual(prev, INITIAL_DEMO_DATA.budgets) ? prev : INITIAL_DEMO_DATA.budgets);
+        setBills(prev => areArraysShallowEqual(prev, INITIAL_DEMO_DATA.bills) ? prev : INITIAL_DEMO_DATA.bills);
+        setSavingsGoals(prev => areArraysShallowEqual(prev, INITIAL_DEMO_DATA.savingsGoals) ? prev : INITIAL_DEMO_DATA.savingsGoals);
+        setCategories(prev => areArraysShallowEqual(prev, INITIAL_DEMO_DATA.categories) ? prev : INITIAL_DEMO_DATA.categories);
 
         localStorage.setItem(storageKey, JSON.stringify({
           transactions: INITIAL_DEMO_DATA.transactions,
@@ -264,7 +286,7 @@ export const FinanceProvider = ({ children }) => {
         setCategories(INITIAL_DEMO_DATA.categories);
       }
 
-      setLoading(false);
+      if (!isSilent) setLoading(false);
       return;
     }
 
@@ -377,11 +399,11 @@ export const FinanceProvider = ({ children }) => {
         : formattedGoals;
 
       const categoriesList = (catData && catData.length > 0) ? catData : INITIAL_DEMO_DATA.categories;
-      setCategories(categoriesList);
-      setTransactions(finalTx);
-      setBudgets(finalBudgets);
-      setBills(finalBills);
-      setSavingsGoals(finalGoals);
+      setCategories(prev => areArraysShallowEqual(prev, categoriesList) ? prev : categoriesList);
+      setTransactions(prev => areArraysShallowEqual(prev, finalTx) ? prev : finalTx);
+      setBudgets(prev => areArraysShallowEqual(prev, finalBudgets) ? prev : finalBudgets);
+      setBills(prev => areArraysShallowEqual(prev, finalBills) ? prev : finalBills);
+      setSavingsGoals(prev => areArraysShallowEqual(prev, finalGoals) ? prev : finalGoals);
 
       // Persist to warm cache for instant 0ms load on next visit
       const cacheBlob = JSON.stringify({
@@ -404,15 +426,17 @@ export const FinanceProvider = ({ children }) => {
         try {
           const parsed = JSON.parse(savedData);
           if (Array.isArray(parsed.transactions) && parsed.transactions.length > 0) {
-            setTransactions(parsed.transactions);
-            if (parsed.budgets) setBudgets(parsed.budgets);
-            if (parsed.bills) setBills(parsed.bills);
-            if (parsed.savingsGoals) setSavingsGoals(parsed.savingsGoals);
+            setTransactions(prev => areArraysShallowEqual(prev, parsed.transactions) ? prev : parsed.transactions);
+            if (parsed.budgets) setBudgets(prev => areArraysShallowEqual(prev, parsed.budgets) ? prev : parsed.budgets);
+            if (parsed.bills) setBills(prev => areArraysShallowEqual(prev, parsed.bills) ? prev : parsed.bills);
+            if (parsed.savingsGoals) setSavingsGoals(prev => areArraysShallowEqual(prev, parsed.savingsGoals) ? prev : parsed.savingsGoals);
           }
         } catch {}
       }
     } finally {
-      setLoading(false);
+      if (!isSilent) {
+        setLoading(false);
+      }
     }
   };
 

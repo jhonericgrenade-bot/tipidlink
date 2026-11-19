@@ -136,9 +136,9 @@ export const PremiumProvider = ({ children }) => {
 
     // 1. Resolve household-specific premium status (Pro covers the entire household!)
     const hhTier = resolveHouseholdPremiumState(currentHousehold, userKey, members);
-    setIsPremium(hhTier.isPremium);
-    setPremiumPlan(hhTier.plan);
-    setSponsorDetails(hhTier.sponsor);
+    setIsPremium(prev => prev === hhTier.isPremium ? prev : hhTier.isPremium);
+    setPremiumPlan(prev => prev === hhTier.plan ? prev : hhTier.plan);
+    setSponsorDetails(prev => prev === hhTier.sponsor ? prev : hhTier.sponsor);
   }, [
     user?.id,
     currentHousehold?.id,
@@ -170,9 +170,9 @@ export const PremiumProvider = ({ children }) => {
           const newPlan = payload.plan || (newIsPremium ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan');
           const newSponsor = payload.sponsor || null;
 
-          setIsPremium(newIsPremium);
-          setPremiumPlan(newPlan);
-          setSponsorDetails(newSponsor);
+          setIsPremium(prev => prev === newIsPremium ? prev : newIsPremium);
+          setPremiumPlan(prev => prev === newPlan ? prev : newPlan);
+          setSponsorDetails(prev => prev === newSponsor ? prev : newSponsor);
 
           if (hhId) {
             if (newIsPremium) {
