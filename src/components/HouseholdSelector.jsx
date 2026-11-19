@@ -48,7 +48,7 @@ export const HouseholdSelector = ({ onOpenCreateModal, onOpenJoinModal }) => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 sm:gap-2.5 rounded-xl bg-slate-100/90 px-2 sm:px-3 py-1.5 sm:py-2 text-left text-sm font-semibold text-slate-800 hover:bg-slate-200/80 transition border border-slate-200/60 max-w-[125px] sm:max-w-[260px]"
+        className="flex items-center gap-1.5 sm:gap-2.5 rounded-xl bg-slate-100/90 px-2 sm:px-3 py-1.5 sm:py-2 text-left text-sm font-semibold text-slate-800 hover:bg-slate-200/80 transition border border-slate-200/60 max-w-[125px] sm:max-w-[260px] shrink-0"
       >
         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-xs">
           <Home className="h-4 w-4" />

@@ -393,7 +393,7 @@ export const PremiumUpgradeModal = ({ isOpen, onClose }) => {
 
         {/* Success Toast */}
         {showSuccessToast && (
-          <div className="rounded-xl bg-emerald-600 p-3 text-center text-xs font-bold text-white shadow-lg animate-in fade-in zoom-in-95">
+          <div className="rounded-xl bg-emerald-600 p-3 text-center text-xs font-bold text-white shadow-lg transition-all duration-200">
             🎉 TipidLink Premium successfully activated!
           </div>
         )}

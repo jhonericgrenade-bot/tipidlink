@@ -276,7 +276,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
         </div>
 
         {/* Family Invite Code Box */}
-        <div className="rounded-3xl bg-gradient-to-br from-emerald-800 to-teal-900 p-6 text-white shadow-md flex flex-col justify-between hover-lift-subtle card-interactive">
+        <div className="rounded-3xl bg-gradient-to-br from-emerald-800 to-teal-900 p-5 sm:p-6 text-white shadow-md flex flex-col justify-between hover-lift-subtle card-interactive overflow-hidden">
           <div>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -285,7 +285,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
                   Household Invite Code
                 </span>
               </div>
-              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${
+              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase shrink-0 ${
                 isPremium ? 'bg-amber-400 text-slate-900' : 'bg-white/20 text-emerald-100 border border-white/20'
               }`}>
                 <Crown className="h-3 w-3 fill-current" />
@@ -296,23 +296,23 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
               Share this code with your parents, spouse, or working siblings so they can connect to this shared budget.
             </p>
 
-            <div className="mt-4 flex items-center justify-between rounded-2xl bg-white/10 backdrop-blur-md px-4 py-3 border border-white/20 gap-2">
+            <div className="mt-4 flex items-center justify-between rounded-2xl bg-white/10 backdrop-blur-md px-3.5 sm:px-4 py-3 border border-white/20 gap-2 min-h-[58px]">
               {isCodeUnlocked ? (
-                <span className="font-mono text-xl sm:text-2xl font-black tracking-widest text-white truncate max-w-[240px]" title={displayCode}>
+                <span className="font-mono text-lg sm:text-2xl font-black tracking-widest text-white truncate max-w-[180px] sm:max-w-[240px] min-w-0" title={displayCode}>
                   {displayCode || 'SANTOS2026'}
                 </span>
               ) : (
-                <div className="flex items-center gap-2 text-emerald-200">
+                <div className="flex items-center gap-1.5 sm:gap-2 text-emerald-200 min-w-0">
                   <Lock className="h-4 w-4 text-amber-300 shrink-0" />
-                  <span className="font-mono text-sm sm:text-base font-bold tracking-widest text-amber-200">
-                    LOCKED (₱30 PRO ONLY)
+                  <span className="font-mono text-xs sm:text-sm font-bold tracking-wider sm:tracking-widest text-amber-200 truncate">
+                    LOCKED (₱30 PRO)
                   </span>
                 </div>
               )}
 
               <button
                 onClick={handleCopyCode}
-                className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition cursor-pointer active-press hover-lift shrink-0 ${
+                className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-3 sm:px-3.5 py-2 text-xs font-bold transition cursor-pointer active-press hover-lift shrink-0 whitespace-nowrap ${
                   isCodeUnlocked
                     ? 'bg-white text-emerald-900 hover:bg-emerald-50 shadow-xs'
                     : 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 hover:from-amber-300 hover:to-amber-400 shadow-md ring-2 ring-amber-300/50'
@@ -321,12 +321,12 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
               >
                 {isCodeUnlocked ? (
                   <>
-                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" /> : <Copy className="h-3.5 w-3.5 shrink-0" />}
                     <span>{copied ? 'Copied!' : 'Copy Code'}</span>
                   </>
                 ) : (
                   <>
-                    <Crown className="h-3.5 w-3.5 fill-slate-900 text-slate-900" />
+                    <Crown className="h-3.5 w-3.5 fill-slate-900 text-slate-900 shrink-0" />
                     <span>Unlock (₱30 Pro)</span>
                   </>
                 )}
@@ -336,20 +336,20 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
             {!isCodeUnlocked ? (
               <div
                 onClick={openUpgradeModal}
-                className="mt-3 flex items-center justify-between rounded-xl bg-amber-400/20 border border-amber-300/40 p-2.5 text-[11px] text-amber-200 cursor-pointer hover:bg-amber-400/30 active-press transition group"
+                className="mt-3 flex items-center justify-between rounded-xl bg-amber-400/20 border border-amber-300/40 p-2.5 text-[11px] text-amber-200 cursor-pointer hover:bg-amber-400/30 active-press transition group min-h-[38px]"
               >
-                <span className="flex items-center gap-1.5 font-semibold">
-                  <Crown className="h-3.5 w-3.5 text-amber-300 fill-amber-300" />
-                  ₱30 Pro required to copy and share the invite code
+                <span className="flex items-center gap-1.5 font-semibold min-w-0 truncate">
+                  <Crown className="h-3.5 w-3.5 text-amber-300 fill-amber-300 shrink-0" />
+                  <span className="truncate">₱30 Pro required to copy invite code</span>
                 </span>
-                <span className="font-black underline text-white group-hover:translate-x-0.5 transition-transform">
+                <span className="font-black underline text-white group-hover:translate-x-0.5 transition-transform shrink-0 ml-1">
                   Upgrade &rarr;
                 </span>
               </div>
             ) : (
-              <div className="mt-3 flex items-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-400/30 p-2.5 text-[11px] text-emerald-200">
+              <div className="mt-3 flex items-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-400/30 p-2.5 text-[11px] text-emerald-200 min-h-[38px]">
                 <Crown className="h-3.5 w-3.5 text-amber-300 fill-amber-300 shrink-0" />
-                <span>Invite Code Active • Share with all family members</span>
+                <span className="truncate">Invite Code Active • Share with family</span>
               </div>
             )}
           </div>
@@ -683,10 +683,10 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={formLoading}
               className="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition disabled:opacity-50"
             >
-              {loading ? 'Saving...' : 'Save Changes'}
+              {formLoading ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </form>

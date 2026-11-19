@@ -134,6 +134,23 @@ export const verifyInviteCodeExists = async (code) => {
   };
 };
 
+const isSameHousehold = (a, b) => {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.id === b.id &&
+    a.name === b.name &&
+    a.description === b.description &&
+    Boolean(a.is_premium) === Boolean(b.is_premium) &&
+    Boolean(a.owner_is_pro) === Boolean(b.owner_is_pro) &&
+    Number(a.monthly_budget_target || 0) === Number(b.monthly_budget_target || 0) &&
+    a.invite_code === b.invite_code &&
+    a.user_role === b.user_role &&
+    a.premium_plan === b.premium_plan &&
+    a.sponsor_details === b.sponsor_details
+  );
+};
+
 const HouseholdContext = createContext(null);
 
 export const HouseholdProvider = ({ children }) => {
@@ -191,14 +208,14 @@ export const HouseholdProvider = ({ children }) => {
     loadHouseholds();
   }, [user?.id, isDemoMode, profile?.phone]);
 
-  // Load members whenever current household changes
+  // Load members whenever current household ID changes
   useEffect(() => {
-    if (currentHousehold) {
+    if (currentHousehold?.id) {
       loadMembers(currentHousehold.id);
     } else {
       setMembers([]);
     }
-  }, [currentHousehold]);
+  }, [currentHousehold?.id]);
 
   const generateInviteCode = (name = 'TIPID') => {
     const clean = name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6) || 'TIPID';
@@ -330,8 +347,10 @@ export const HouseholdProvider = ({ children }) => {
     }
   };
 
-  const loadHouseholds = async (forceSelectId = null) => {
-    setLoading(true);
+  const loadHouseholds = async (forceSelectId = null, { silent = false } = {}) => {
+    if (!silent) {
+      setLoading(true);
+    }
 
     if (!isSupabaseConfigured || !user) {
       if (isDemoMode) {
@@ -349,7 +368,12 @@ export const HouseholdProvider = ({ children }) => {
           localStorage.setItem('tipidlink_demo_households', JSON.stringify(hhList));
         }
 
-        setHouseholds(hhList);
+        setHouseholds(prev => {
+          if (Array.isArray(prev) && prev.length === hhList.length && prev.every((h, i) => isSameHousehold(h, hhList[i]))) {
+            return prev;
+          }
+          return hhList;
+        });
         const activeId = forceSelectId || localStorage.getItem('tipidlink_active_household_id');
         let active = hhList.find(h => h.id === activeId) || hhList[0];
         if (active) {
@@ -359,11 +383,11 @@ export const HouseholdProvider = ({ children }) => {
             active = { ...active, monthly_budget_target: Number(customTarget) };
           }
         }
-        setCurrentHousehold(active || null);
+        setCurrentHousehold(prev => isSameHousehold(prev, active) ? prev : (active || null));
         if (active?.id) {
           localStorage.setItem('tipidlink_active_household_id', active.id);
         }
-        setLoading(false);
+        if (!silent) setLoading(false);
         return hhList;
       }
 
@@ -509,20 +533,25 @@ export const HouseholdProvider = ({ children }) => {
         if (!aIsJoined && bIsJoined) return 1;
         return 0;
       });
-      setHouseholds(hhList);
+      setHouseholds(prev => {
+        if (Array.isArray(prev) && prev.length === hhList.length && prev.every((h, i) => isSameHousehold(h, hhList[i]))) {
+          return prev;
+        }
+        return hhList;
+      });
       const joinedHousehold = hhList.find(h => 
         (h.created_by !== user?.id) || (h.user_role === 'member' || h.user_role === 'admin')
       );
       const activeId = forceSelectId || (joinedHousehold ? joinedHousehold.id : null) || localStorage.getItem('tipidlink_active_household_id');
       const active = hhList.find(h => h.id === activeId) || joinedHousehold || hhList[0];
-      setCurrentHousehold(active || null);
+      setCurrentHousehold(prev => isSameHousehold(prev, active) ? prev : (active || null));
       if (active?.id) {
         localStorage.setItem('tipidlink_active_household_id', active.id);
         if (user?.id) {
           localStorage.setItem(`tipidlink_active_household_${user.id}`, active.id);
         }
       }
-      setLoading(false);
+      if (!silent) setLoading(false);
       return hhList;
     }
 
@@ -749,7 +778,12 @@ export const HouseholdProvider = ({ children }) => {
         return 0;
       });
 
-      setHouseholds(hhList);
+      setHouseholds(prev => {
+        if (Array.isArray(prev) && prev.length === hhList.length && prev.every((h, i) => isSameHousehold(h, hhList[i]))) {
+          return prev;
+        }
+        return hhList;
+      });
 
       if (hhList.length > 0) {
         // Identify joined household (where role is admin or member, or created_by is someone else)
@@ -788,7 +822,7 @@ export const HouseholdProvider = ({ children }) => {
         }
 
         const found = hhList.find(h => h.id === activeId) || joinedHousehold || hhList[0];
-        setCurrentHousehold(found);
+        setCurrentHousehold(prev => isSameHousehold(prev, found) ? prev : (found || null));
         if (found?.id) {
           localStorage.setItem('tipidlink_active_household_id', found.id);
           if (user?.id) {
@@ -820,7 +854,9 @@ export const HouseholdProvider = ({ children }) => {
       console.error('Error fetching households:', err);
       return [];
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
@@ -868,7 +904,16 @@ export const HouseholdProvider = ({ children }) => {
             phone: m.profiles?.phone || '',
           }));
 
-          setMembers(formatted);
+          setMembers(prev => {
+            if (
+              Array.isArray(prev) &&
+              prev.length === formatted.length &&
+              prev.every((m, i) => m.id === formatted[i].id && m.role === formatted[i].role && m.nickname === formatted[i].nickname && m.phone === formatted[i].phone)
+            ) {
+              return prev;
+            }
+            return formatted;
+          });
           localStorage.setItem(`tipidlink_members_${householdId}`, JSON.stringify(formatted));
 
           // Check if the household Owner is Pro - keep household Pro state in sync with cloud!
@@ -877,13 +922,24 @@ export const HouseholdProvider = ({ children }) => {
             const isOwnerPro = Boolean(ownerMember.phone && ownerMember.phone.includes('PREMIUM_STATUS:PRO'));
             const descTier = parseHouseholdTier(currentHousehold?.raw_description || currentHousehold?.description);
             const isPro = Boolean(descTier.isPremium || isOwnerPro);
+            const targetPlan = descTier.plan || (isPro ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan');
 
-            setCurrentHousehold(prev => prev ? {
-              ...prev,
-              is_premium: isPro,
-              owner_is_pro: isOwnerPro,
-              premium_plan: descTier.plan || (isPro ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan'),
-            } : prev);
+            setCurrentHousehold(prev => {
+              if (!prev) return prev;
+              if (
+                prev.is_premium === isPro &&
+                prev.owner_is_pro === isOwnerPro &&
+                prev.premium_plan === targetPlan
+              ) {
+                return prev;
+              }
+              return {
+                ...prev,
+                is_premium: isPro,
+                owner_is_pro: isOwnerPro,
+                premium_plan: targetPlan,
+              };
+            });
 
             if (typeof localStorage !== 'undefined') {
               if (isPro) {
@@ -1034,7 +1090,16 @@ export const HouseholdProvider = ({ children }) => {
         phone: m.profiles?.phone || '',
       }));
 
-      setMembers(formatted);
+      setMembers(prev => {
+        if (
+          Array.isArray(prev) &&
+          prev.length === formatted.length &&
+          prev.every((m, i) => m.id === formatted[i].id && m.role === formatted[i].role && m.nickname === formatted[i].nickname && m.phone === formatted[i].phone)
+        ) {
+          return prev;
+        }
+        return formatted;
+      });
 
       // Check if the household Owner is Pro - keep household Pro state in sync with cloud!
       const ownerMember = formatted.find(m => m.role === 'owner');
@@ -1042,13 +1107,24 @@ export const HouseholdProvider = ({ children }) => {
         const isOwnerPro = Boolean(ownerMember.phone && ownerMember.phone.includes('PREMIUM_STATUS:PRO'));
         const descTier = parseHouseholdTier(currentHousehold?.raw_description || currentHousehold?.description);
         const isPro = Boolean(descTier.isPremium || isOwnerPro);
+        const targetPlan = descTier.plan || (isPro ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan');
 
-        setCurrentHousehold(prev => prev ? {
-          ...prev,
-          is_premium: isPro,
-          owner_is_pro: isOwnerPro,
-          premium_plan: descTier.plan || (isPro ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan'),
-        } : prev);
+        setCurrentHousehold(prev => {
+          if (!prev) return prev;
+          if (
+            prev.is_premium === isPro &&
+            prev.owner_is_pro === isOwnerPro &&
+            prev.premium_plan === targetPlan
+          ) {
+            return prev;
+          }
+          return {
+            ...prev,
+            is_premium: isPro,
+            owner_is_pro: isOwnerPro,
+            premium_plan: targetPlan,
+          };
+        });
 
         if (typeof localStorage !== 'undefined') {
           if (isPro) {
@@ -1724,7 +1800,7 @@ export const HouseholdProvider = ({ children }) => {
   useEffect(() => {
     const handleFocus = () => {
       if (document.visibilityState === 'visible' && currentHousehold?.id && user) {
-        loadHouseholds(currentHousehold.id);
+        loadHouseholds(currentHousehold.id, { silent: true });
         loadMembers(currentHousehold.id);
       }
     };
@@ -1759,7 +1835,7 @@ export const HouseholdProvider = ({ children }) => {
             }
           }
         }
-        loadHouseholds(householdId);
+        loadHouseholds(householdId, { silent: true });
       } else if (event === 'household_premium_updated' && matchesCurrent) {
         const isPro = Boolean(payload.isPremium);
         const plan = payload.plan || (isPro ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan');
@@ -1830,7 +1906,7 @@ export const HouseholdProvider = ({ children }) => {
       } else if ((event === 'member_joined' || event === 'member_updated') && matchesCurrent) {
         loadMembers(householdId);
         if (event === 'member_joined') {
-          loadHouseholds(householdId);
+          loadHouseholds(householdId, { silent: true });
         }
       }
     });
@@ -1845,7 +1921,7 @@ export const HouseholdProvider = ({ children }) => {
         pgChannel
           .on('postgres_changes', { event: '*', schema: 'public', table: 'household_members', filter: `household_id=eq.${targetHhId}` }, () => {
             loadMembers(householdId);
-            loadHouseholds(householdId);
+            loadHouseholds(householdId, { silent: true });
           })
           .on('postgres_changes', { event: '*', schema: 'public', table: 'households', filter: `id=eq.${targetHhId}` }, (change) => {
             if (change.new) {
@@ -1900,16 +1976,16 @@ export const HouseholdProvider = ({ children }) => {
                 localStorage.setItem('tipidlink_last_saved_target', targetVal);
               }
             }
-            loadHouseholds(householdId);
+            loadHouseholds(householdId, { silent: true });
           })
           .subscribe();
       }
     }
 
-    // 3. Fast auto-sync heartbeat every 3 seconds so no unit is ever stale
+    // 3. Fast auto-sync heartbeat every 3 seconds so no unit is ever stale (silent to prevent UI flicker)
     const interval = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        loadHouseholds(householdId);
+        loadHouseholds(householdId, { silent: true });
         loadMembers(householdId);
       }
     }, 3000);

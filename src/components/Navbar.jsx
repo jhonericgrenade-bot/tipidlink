@@ -38,12 +38,12 @@ export const Navbar = ({ onOpenCreateHousehold, onOpenJoinHousehold }) => {
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Brand & Household Switcher */}
-        <div className="flex items-center gap-4 sm:gap-6">
-          <NavLink to="/" className="flex items-center gap-2.5 group">
+        <div className="flex items-center gap-2 sm:gap-6 min-w-0">
+          <NavLink to="/" className="flex items-center gap-2.5 group shrink-0">
             <img
               src="/tipidlink-logo.png"
               alt="TipidLink Logo"
-              className="h-10 w-auto object-contain transition-transform group-hover:scale-105"
+              className="h-9 sm:h-10 w-auto object-contain transition-transform group-hover:scale-105"
             />
           </NavLink>
 
@@ -93,19 +93,19 @@ export const Navbar = ({ onOpenCreateHousehold, onOpenJoinHousehold }) => {
             <span>Install App</span>
           </button>
 
-          {/* PHP 30 Premium Plan Button / Active Badge - Compact on mobile */}
+          {/* PHP 30 Premium Plan Button / Active Badge - Compact & stable on mobile */}
           <button
             onClick={openUpgradeModal}
-            className={`inline-flex items-center gap-1 sm:gap-1.5 rounded-full px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-bold transition shadow-xs cursor-pointer ${
+            className={`inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-full px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-bold transition shadow-xs cursor-pointer shrink-0 border ${
               isPremium
-                ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:from-amber-600 hover:to-amber-700'
-                : 'bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100'
+                ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white border-amber-600 hover:from-amber-600 hover:to-amber-700'
+                : 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
             }`}
             title="TipidLink Business Model: ₱30 Premium Plan & Community Access"
           >
-            <Crown className={`h-3.5 w-3.5 ${isPremium ? 'fill-white text-white' : 'text-amber-500 fill-amber-500'}`} />
+            <Crown className={`h-3.5 w-3.5 shrink-0 ${isPremium ? 'fill-white text-white' : 'text-amber-500 fill-amber-500'}`} />
             <span className="hidden sm:inline">{isPremium ? 'Premium Active' : '₱30 Premium'}</span>
-            <span className="sm:hidden">{isPremium ? 'Pro' : '₱30'}</span>
+            <span className="sm:hidden inline-block min-w-[24px] text-center">{isPremium ? 'Pro' : '₱30'}</span>
           </button>
 
           {/* Supabase or Demo Mode badge */}
@@ -124,7 +124,7 @@ export const Navbar = ({ onOpenCreateHousehold, onOpenJoinHousehold }) => {
           {/* Quick Direct Mobile Sign Out Button - 1-tap Logout on Mobile, Zero Swiping Needed */}
           <button
             onClick={signOut}
-            className="sm:hidden inline-flex items-center justify-center h-8 w-8 rounded-xl text-rose-600 hover:bg-rose-50 active:scale-95 transition border border-rose-200/80 bg-rose-50/60 cursor-pointer"
+            className="sm:hidden inline-flex items-center justify-center h-8 w-8 rounded-xl text-rose-600 hover:bg-rose-50 active:scale-95 transition border border-rose-200/80 bg-rose-50/60 cursor-pointer shrink-0"
             title="Sign Out / Mag-log out"
             aria-label="Sign Out"
           >
@@ -132,7 +132,7 @@ export const Navbar = ({ onOpenCreateHousehold, onOpenJoinHousehold }) => {
           </button>
 
           {/* User Profile Dropdown */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
               onClick={() => setProfileOpen(!profileOpen)}
               className="flex items-center gap-1.5 sm:gap-2 rounded-xl p-1 sm:p-1.5 hover:bg-slate-100 transition border border-transparent hover:border-slate-200"
