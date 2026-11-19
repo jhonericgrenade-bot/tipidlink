@@ -60,8 +60,11 @@ export const initGlobalSync = () => {
       .on('broadcast', { event: 'member_updated' }, (msg) => {
         notifyListeners('member_updated', msg.payload);
       })
+      .on('broadcast', { event: 'household_premium_updated' }, (msg) => {
+        notifyListeners('household_premium_updated', msg.payload);
+      })
       .on('broadcast', { event: '*' }, (msg) => {
-        if (msg.event && !['household_updated', 'finance_updated', 'member_joined', 'member_updated'].includes(msg.event)) {
+        if (msg.event && !['household_updated', 'finance_updated', 'member_joined', 'member_updated', 'household_premium_updated'].includes(msg.event)) {
           notifyListeners(msg.event, msg.payload);
         }
       });

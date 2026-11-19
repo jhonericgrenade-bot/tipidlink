@@ -12,6 +12,14 @@ import {
   exportFullFinancialStatementPDF,
   exportToJSON
 } from '../src/lib/exportUtils.js';
+import {
+  parseHouseholdTier,
+  formatHouseholdDescription,
+  resolveHouseholdPremiumState,
+  isSantosHouseholdId,
+  SANTOS_UUID,
+  SANTOS_DEMO_ID
+} from '../src/lib/premiumTier.js';
 
 test.after(() => {
   // Clean up any temporary PDFs written during test execution
@@ -402,4 +410,73 @@ test('13. Pro vs Non-Pro PDF Export Gating & Household Tier Enforcement', () => 
   assert.strictEqual(proTier.pdfExport, true, 'Pro tier allows PDF export');
   assert.strictEqual(proTier.inviteCodeMasked, false, 'Pro tier unmasks code');
   assert.strictEqual(proTier.pricePHP, 30, 'Pro tier is ₱30/month');
+});
+
+test('14. Household-Level Pro Status Sync Across All Family Members', () => {
+  // Test case: Owner upgrades household to Pro
+  const baseDesc = 'Pampamilyang budget ng mga Santos';
+  const proPlan = 'TipidLink Premium Plan (₱30/mo)';
+  const sponsoredPlan = 'Sponsored Community Access';
+  const sponsorName = 'Barangay San Antonio Cooperative';
+
+  // 1. Encoding Pro tier into description
+  const directProDesc = formatHouseholdDescription(baseDesc, true, proPlan, null);
+  assert.ok(directProDesc.includes('[TIER:PRO|PLAN:TipidLink Premium Plan (₱30/mo)]'), 'Encodes direct pro tag');
+
+  const sponsoredDesc = formatHouseholdDescription(baseDesc, true, sponsoredPlan, sponsorName);
+  assert.ok(sponsoredDesc.includes('[TIER:PRO|PLAN:Sponsored Community Access|SPONSOR:Barangay San Antonio Cooperative]'), 'Encodes sponsored pro tag');
+
+  const freeDesc = formatHouseholdDescription(directProDesc, false);
+  assert.strictEqual(freeDesc, baseDesc, 'Strips tier tag when reverting to free');
+
+  // 2. Parsing tier from description
+  const parsedDirect = parseHouseholdTier(directProDesc);
+  assert.strictEqual(parsedDirect.isPremium, true);
+  assert.strictEqual(parsedDirect.plan, proPlan);
+  assert.strictEqual(parsedDirect.sponsor, null);
+  assert.strictEqual(parsedDirect.cleanDescription, baseDesc);
+
+  const parsedSponsored = parseHouseholdTier(sponsoredDesc);
+  assert.strictEqual(parsedSponsored.isPremium, true);
+  assert.strictEqual(parsedSponsored.plan, sponsoredPlan);
+  assert.strictEqual(parsedSponsored.sponsor, sponsorName);
+  assert.strictEqual(parsedSponsored.cleanDescription, baseDesc);
+
+  const parsedFree = parseHouseholdTier(freeDesc);
+  assert.strictEqual(parsedFree.isPremium, false);
+  assert.strictEqual(parsedFree.plan, 'Free Household Plan');
+  assert.strictEqual(parsedFree.sponsor, null);
+
+  // 3. Resolving household-level Pro status for members
+  // A newly created member account (e.g. child or spouse) with no personal subscription
+  // views a Pro household. They MUST resolve to isPremium: true!
+  const proHousehold = {
+    id: 'hh-family-123',
+    name: 'Santos Family',
+    description: directProDesc,
+    created_by: 'owner-uuid-maria',
+  };
+  const memberResolution = resolveHouseholdPremiumState(proHousehold, 'member-uuid-pedro');
+  assert.strictEqual(memberResolution.isPremium, true, 'Member inherits household Pro status');
+  assert.strictEqual(memberResolution.plan, proPlan);
+
+  // When household reverts to free:
+  const freeHousehold = {
+    id: 'hh-family-123',
+    name: 'Santos Family',
+    description: freeDesc,
+    created_by: 'owner-uuid-maria',
+  };
+  const memberFreeResolution = resolveHouseholdPremiumState(freeHousehold, 'member-uuid-pedro');
+  assert.strictEqual(memberFreeResolution.isPremium, false, 'Member reverts to free when household reverts');
+
+  // When Owner restores Pro:
+  const restoredHousehold = {
+    id: 'hh-family-123',
+    name: 'Santos Family',
+    description: formatHouseholdDescription(baseDesc, true, proPlan, null),
+    created_by: 'owner-uuid-maria',
+  };
+  const memberRestoredResolution = resolveHouseholdPremiumState(restoredHousehold, 'member-uuid-pedro');
+  assert.strictEqual(memberRestoredResolution.isPremium, true, 'Member gets Pro back when Owner restores household Pro');
 });

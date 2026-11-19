@@ -3,6 +3,13 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { INITIAL_DEMO_DATA } from '../lib/mockData';
 import { broadcastSyncEvent, subscribeToSyncEvents, isMatchingHouseholdId } from '../lib/realtimeSync';
+import {
+  parseHouseholdTier,
+  formatHouseholdDescription,
+  isSantosHouseholdId,
+  SANTOS_UUID,
+  SANTOS_DEMO_ID
+} from '../lib/premiumTier';
 
 // Safe Base64URL encoder/decoder for household share codes
 export const encodeHouseholdCode = (uuid) => {
@@ -407,18 +414,37 @@ export const HouseholdProvider = ({ children }) => {
 
       if (hasJoinedSantos) {
         let directCloudTarget = null;
+        let directCloudDesc = null;
         if (isSupabaseConfigured) {
           try {
             const { data: directHh } = await supabase
               .from('households')
-              .select('monthly_budget_target')
+              .select('monthly_budget_target, description')
               .eq('id', '0d37e235-c9dd-4876-a54a-9acb36516599')
               .maybeSingle();
             if (directHh && directHh.monthly_budget_target !== undefined && directHh.monthly_budget_target !== null) {
               directCloudTarget = Number(directHh.monthly_budget_target);
             }
+            if (directHh?.description) {
+              directCloudDesc = directHh.description;
+            }
           } catch (e) {}
         }
+
+        const santosTier = parseHouseholdTier(directCloudDesc || INITIAL_DEMO_DATA.household.description);
+        const cachedSantosPremium = (typeof localStorage !== 'undefined' && (
+          localStorage.getItem('tipidlink_household_premium_0d37e235-c9dd-4876-a54a-9acb36516599') === 'true' ||
+          localStorage.getItem('tipidlink_household_premium_hh-santos-family') === 'true'
+        ));
+        const santosIsPro = santosTier.isPremium || cachedSantosPremium;
+        const santosPlan = santosTier.plan || (typeof localStorage !== 'undefined' ? (
+          localStorage.getItem('tipidlink_household_plan_0d37e235-c9dd-4876-a54a-9acb36516599') ||
+          localStorage.getItem('tipidlink_household_plan_hh-santos-family')
+        ) : null) || (santosIsPro ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan');
+        const santosSponsor = santosTier.sponsor || (typeof localStorage !== 'undefined' ? (
+          localStorage.getItem('tipidlink_household_sponsor_0d37e235-c9dd-4876-a54a-9acb36516599') ||
+          localStorage.getItem('tipidlink_household_sponsor_hh-santos-family')
+        ) : null);
 
         const savedSantosTarget = localStorage.getItem('tipidlink_household_target_0d37e235-c9dd-4876-a54a-9acb36516599')
           || localStorage.getItem('tipidlink_household_target_hh-santos-family')
@@ -431,8 +457,14 @@ export const HouseholdProvider = ({ children }) => {
           ...INITIAL_DEMO_DATA.household,
           id: '0d37e235-c9dd-4876-a54a-9acb36516599',
           name: 'Santos Family Household',
+          description: santosTier.cleanDescription || 'Shared budget and expenses for the Santos family home in Pasig City',
+          clean_description: santosTier.cleanDescription || 'Shared budget and expenses for the Santos family home in Pasig City',
+          raw_description: directCloudDesc || INITIAL_DEMO_DATA.household.description,
           monthly_budget_target: initialSantosTarget,
           invite_code: 'SANTOS2026',
+          is_premium: santosIsPro,
+          premium_plan: santosPlan,
+          sponsor_details: santosSponsor,
           user_role: user?.email?.startsWith('maria.santos') ? 'owner' : (user?.email?.startsWith('juan.santos') ? 'admin' : 'member'),
         };
 
@@ -445,8 +477,13 @@ export const HouseholdProvider = ({ children }) => {
           hhList[existingSantosIndex] = {
             ...hhList[existingSantosIndex],
             name: hhList[existingSantosIndex].name || 'Santos Family Household',
+            description: santosTier.cleanDescription || hhList[existingSantosIndex].description,
+            clean_description: santosTier.cleanDescription || hhList[existingSantosIndex].description,
             monthly_budget_target: currentTarget,
             invite_code: 'SANTOS2026',
+            is_premium: santosIsPro,
+            premium_plan: santosPlan,
+            sponsor_details: santosSponsor,
             user_role: hhList[existingSantosIndex].user_role || santosWithRole.user_role,
           };
           localStorage.setItem('tipidlink_household_target_0d37e235-c9dd-4876-a54a-9acb36516599', String(currentTarget));
@@ -506,8 +543,27 @@ export const HouseholdProvider = ({ children }) => {
       let hhList = (memberRows || [])
         .map(row => {
           if (!row.households) return null;
+          const tier = parseHouseholdTier(row.households.description);
+          const hhId = row.households.id;
+          const cachedPremium = typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_premium_${hhId}`) : null;
+          const isPro = tier.isPremium || cachedPremium === 'true';
+          const plan = tier.plan || (typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_plan_${hhId}`) : null) || (isPro ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan');
+          const sponsor = tier.sponsor || (typeof localStorage !== 'undefined' ? localStorage.getItem(`tipidlink_household_sponsor_${hhId}`) : null);
+
+          if (isPro && typeof localStorage !== 'undefined') {
+            localStorage.setItem(`tipidlink_household_premium_${hhId}`, 'true');
+            localStorage.setItem(`tipidlink_household_plan_${hhId}`, plan);
+            if (sponsor) localStorage.setItem(`tipidlink_household_sponsor_${hhId}`, sponsor);
+          }
+
           return {
             ...row.households,
+            description: tier.cleanDescription || row.households.description,
+            clean_description: tier.cleanDescription || row.households.description,
+            raw_description: row.households.description,
+            is_premium: isPro,
+            premium_plan: plan,
+            sponsor_details: sponsor,
             user_role: row.role || (row.households.created_by === user.id ? 'owner' : 'member'),
           };
         })
@@ -522,18 +578,37 @@ export const HouseholdProvider = ({ children }) => {
 
       if (hasJoinedSantos) {
         let directCloudTarget = null;
+        let directCloudDesc = null;
         if (isSupabaseConfigured) {
           try {
             const { data: directHh } = await supabase
               .from('households')
-              .select('monthly_budget_target')
+              .select('monthly_budget_target, description')
               .eq('id', '0d37e235-c9dd-4876-a54a-9acb36516599')
               .maybeSingle();
             if (directHh && directHh.monthly_budget_target !== undefined && directHh.monthly_budget_target !== null) {
               directCloudTarget = Number(directHh.monthly_budget_target);
             }
+            if (directHh?.description) {
+              directCloudDesc = directHh.description;
+            }
           } catch (e) {}
         }
+
+        const santosTier = parseHouseholdTier(directCloudDesc || INITIAL_DEMO_DATA.household.description);
+        const cachedSantosPremium = (typeof localStorage !== 'undefined' && (
+          localStorage.getItem('tipidlink_household_premium_0d37e235-c9dd-4876-a54a-9acb36516599') === 'true' ||
+          localStorage.getItem('tipidlink_household_premium_hh-santos-family') === 'true'
+        ));
+        const santosIsPro = santosTier.isPremium || cachedSantosPremium;
+        const santosPlan = santosTier.plan || (typeof localStorage !== 'undefined' ? (
+          localStorage.getItem('tipidlink_household_plan_0d37e235-c9dd-4876-a54a-9acb36516599') ||
+          localStorage.getItem('tipidlink_household_plan_hh-santos-family')
+        ) : null) || (santosIsPro ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan');
+        const santosSponsor = santosTier.sponsor || (typeof localStorage !== 'undefined' ? (
+          localStorage.getItem('tipidlink_household_sponsor_0d37e235-c9dd-4876-a54a-9acb36516599') ||
+          localStorage.getItem('tipidlink_household_sponsor_hh-santos-family')
+        ) : null);
 
         const savedSantosTarget = localStorage.getItem('tipidlink_household_target_0d37e235-c9dd-4876-a54a-9acb36516599')
           || localStorage.getItem('tipidlink_household_target_hh-santos-family')
@@ -546,8 +621,14 @@ export const HouseholdProvider = ({ children }) => {
           ...INITIAL_DEMO_DATA.household,
           id: '0d37e235-c9dd-4876-a54a-9acb36516599',
           name: 'Santos Family Household',
+          description: santosTier.cleanDescription || 'Shared budget and expenses for the Santos family home in Pasig City',
+          clean_description: santosTier.cleanDescription || 'Shared budget and expenses for the Santos family home in Pasig City',
+          raw_description: directCloudDesc || INITIAL_DEMO_DATA.household.description,
           monthly_budget_target: initialSantosTarget,
           invite_code: 'SANTOS2026',
+          is_premium: santosIsPro,
+          premium_plan: santosPlan,
+          sponsor_details: santosSponsor,
           user_role: user?.email?.startsWith('maria.santos') ? 'owner' : (user?.email?.startsWith('juan.santos') ? 'admin' : 'member'),
         };
 
@@ -560,8 +641,13 @@ export const HouseholdProvider = ({ children }) => {
           hhList[existingSantosIndex] = {
             ...hhList[existingSantosIndex],
             name: hhList[existingSantosIndex].name || 'Santos Family Household',
+            description: santosTier.cleanDescription || hhList[existingSantosIndex].description,
+            clean_description: santosTier.cleanDescription || hhList[existingSantosIndex].description,
             monthly_budget_target: currentTarget,
             invite_code: 'SANTOS2026',
+            is_premium: santosIsPro,
+            premium_plan: santosPlan,
+            sponsor_details: santosSponsor,
             user_role: hhList[existingSantosIndex].user_role || santosWithRole.user_role,
           };
           localStorage.setItem('tipidlink_household_target_0d37e235-c9dd-4876-a54a-9acb36516599', String(currentTarget));
@@ -1207,6 +1293,33 @@ export const HouseholdProvider = ({ children }) => {
   const updateHousehold = async (updates) => {
     if (!currentHousehold) return { success: false, error: 'No active household' };
 
+    // Prepare clean database payload (only real table columns)
+    const dbPayload = {};
+    if (updates.name !== undefined) dbPayload.name = updates.name;
+    if (updates.currency !== undefined) dbPayload.currency = updates.currency;
+    if (updates.monthly_budget_target !== undefined) dbPayload.monthly_budget_target = Number(updates.monthly_budget_target);
+    if (updates.invite_code !== undefined) dbPayload.invite_code = updates.invite_code;
+
+    // Handle tier tags in description
+    if (updates.description !== undefined || updates.is_premium !== undefined) {
+      const isPro = updates.is_premium !== undefined ? updates.is_premium : Boolean(currentHousehold.is_premium);
+      const plan = updates.premium_plan || currentHousehold.premium_plan;
+      const sponsor = updates.sponsor_details !== undefined ? updates.sponsor_details : currentHousehold.sponsor_details;
+      const cleanDesc = (updates.clean_description || updates.description || currentHousehold.clean_description || currentHousehold.description || '')
+        .replace(/\[TIER:[^\]]*\]/gi, '')
+        .replace(/\[PRO[^\]]*\]/gi, '')
+        .trim();
+
+      const formattedDesc = formatHouseholdDescription(cleanDesc, isPro, plan, sponsor);
+      dbPayload.description = formattedDesc;
+      updates.description = cleanDesc;
+      updates.clean_description = cleanDesc;
+      updates.raw_description = formattedDesc;
+      updates.is_premium = isPro;
+      updates.premium_plan = plan;
+      updates.sponsor_details = sponsor;
+    }
+
     // Apply update locally and to persistent caches immediately
     const applyLocal = () => {
       const updated = { ...currentHousehold, ...updates, updated_at: new Date().toISOString() };
@@ -1219,9 +1332,30 @@ export const HouseholdProvider = ({ children }) => {
           localStorage.setItem(`tipidlink_household_target_${currentHousehold.id}`, String(updates.monthly_budget_target));
           localStorage.setItem('tipidlink_last_saved_target', String(updates.monthly_budget_target));
           if (currentHousehold.id === 'hh-santos-family') {
-            localStorage.setItem('tipidlink_household_target_0d37e235-c9dd-4876-a54a-9acb36516599', String(updates.monthly_budget_target));
-          } else if (currentHousehold.id === '0d37e235-c9dd-4876-a54a-9acb36516599') {
+            localStorage.setItem(`tipidlink_household_target_${SANTOS_UUID}`, String(updates.monthly_budget_target));
+          } else if (currentHousehold.id === SANTOS_UUID) {
             localStorage.setItem('tipidlink_household_target_hh-santos-family', String(updates.monthly_budget_target));
+          }
+        }
+        if (updates.is_premium !== undefined) {
+          if (updates.is_premium) {
+            localStorage.setItem(`tipidlink_household_premium_${currentHousehold.id}`, 'true');
+            localStorage.setItem(`tipidlink_household_plan_${currentHousehold.id}`, updates.premium_plan || 'TipidLink Premium Plan (₱30/mo)');
+            if (updates.sponsor_details) {
+              localStorage.setItem(`tipidlink_household_sponsor_${currentHousehold.id}`, updates.sponsor_details);
+            }
+            if (isSantosHouseholdId(currentHousehold.id)) {
+              localStorage.setItem(`tipidlink_household_premium_${SANTOS_UUID}`, 'true');
+              localStorage.setItem(`tipidlink_household_premium_${SANTOS_DEMO_ID}`, 'true');
+            }
+          } else {
+            localStorage.removeItem(`tipidlink_household_premium_${currentHousehold.id}`);
+            localStorage.removeItem(`tipidlink_household_plan_${currentHousehold.id}`);
+            localStorage.removeItem(`tipidlink_household_sponsor_${currentHousehold.id}`);
+            if (isSantosHouseholdId(currentHousehold.id)) {
+              localStorage.removeItem(`tipidlink_household_premium_${SANTOS_UUID}`);
+              localStorage.removeItem(`tipidlink_household_premium_${SANTOS_DEMO_ID}`);
+            }
           }
         }
         const savedHH = localStorage.getItem('tipidlink_demo_households');
@@ -1248,17 +1382,27 @@ export const HouseholdProvider = ({ children }) => {
         inviteCode: currentHousehold.invite_code,
         updates,
       });
+
+      if (updates.is_premium !== undefined) {
+        broadcastSyncEvent('household_premium_updated', {
+          householdId: currentHousehold.id,
+          inviteCode: currentHousehold.invite_code,
+          isPremium: updates.is_premium,
+          plan: updates.premium_plan,
+          sponsor: updates.sponsor_details,
+        });
+      }
     };
 
     const targetHhId = (typeof currentHousehold.id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentHousehold.id))
       ? currentHousehold.id
-      : (currentHousehold.id === 'hh-santos-family' ? '0d37e235-c9dd-4876-a54a-9acb36516599' : null);
+      : (currentHousehold.id === 'hh-santos-family' ? SANTOS_UUID : null);
 
-    if (isSupabaseConfigured && user && targetHhId) {
+    if (isSupabaseConfigured && user && targetHhId && Object.keys(dbPayload).length > 0) {
       try {
         const { error: dbErr } = await supabase
           .from('households')
-          .update(updates)
+          .update(dbPayload)
           .eq('id', targetHhId);
         if (dbErr) {
           console.warn('Supabase household update notice:', dbErr.message);
@@ -1487,13 +1631,60 @@ export const HouseholdProvider = ({ children }) => {
             localStorage.setItem(`tipidlink_household_target_${householdId}`, targetVal);
             localStorage.setItem('tipidlink_last_saved_target', targetVal);
             if (householdId === 'hh-santos-family') {
-              localStorage.setItem('tipidlink_household_target_0d37e235-c9dd-4876-a54a-9acb36516599', targetVal);
-            } else if (householdId === '0d37e235-c9dd-4876-a54a-9acb36516599') {
+              localStorage.setItem(`tipidlink_household_target_${SANTOS_UUID}`, targetVal);
+            } else if (householdId === SANTOS_UUID) {
               localStorage.setItem('tipidlink_household_target_hh-santos-family', targetVal);
             }
           }
         }
         loadHouseholds(householdId);
+      } else if (event === 'household_premium_updated' && matchesCurrent) {
+        const isPro = Boolean(payload.isPremium);
+        const plan = payload.plan || (isPro ? 'TipidLink Premium Plan (₱30/mo)' : 'Free Household Plan');
+        const sponsor = payload.sponsor || null;
+
+        setCurrentHousehold(prev => prev ? {
+          ...prev,
+          is_premium: isPro,
+          premium_plan: plan,
+          sponsor_details: sponsor,
+        } : prev);
+
+        setHouseholds(prev => prev.map(h => {
+          if (isMatchingHouseholdId(h.id, payload.householdId, h.invite_code, payload.inviteCode)) {
+            return {
+              ...h,
+              is_premium: isPro,
+              premium_plan: plan,
+              sponsor_details: sponsor,
+            };
+          }
+          return h;
+        }));
+
+        if (isPro) {
+          localStorage.setItem(`tipidlink_household_premium_${householdId}`, 'true');
+          localStorage.setItem(`tipidlink_household_plan_${householdId}`, plan);
+          if (sponsor) localStorage.setItem(`tipidlink_household_sponsor_${householdId}`, sponsor);
+          if (isSantosHouseholdId(householdId)) {
+            localStorage.setItem(`tipidlink_household_premium_${SANTOS_UUID}`, 'true');
+            localStorage.setItem(`tipidlink_household_premium_${SANTOS_DEMO_ID}`, 'true');
+            localStorage.setItem(`tipidlink_household_plan_${SANTOS_UUID}`, plan);
+            localStorage.setItem(`tipidlink_household_plan_${SANTOS_DEMO_ID}`, plan);
+          }
+        } else {
+          localStorage.removeItem(`tipidlink_household_premium_${householdId}`);
+          localStorage.removeItem(`tipidlink_household_plan_${householdId}`);
+          localStorage.removeItem(`tipidlink_household_sponsor_${householdId}`);
+          if (isSantosHouseholdId(householdId)) {
+            localStorage.removeItem(`tipidlink_household_premium_${SANTOS_UUID}`);
+            localStorage.removeItem(`tipidlink_household_premium_${SANTOS_DEMO_ID}`);
+            localStorage.removeItem(`tipidlink_household_plan_${SANTOS_UUID}`);
+            localStorage.removeItem(`tipidlink_household_plan_${SANTOS_DEMO_ID}`);
+            localStorage.removeItem(`tipidlink_household_sponsor_${SANTOS_UUID}`);
+            localStorage.removeItem(`tipidlink_household_sponsor_${SANTOS_DEMO_ID}`);
+          }
+        }
       } else if ((event === 'member_joined' || event === 'member_updated') && matchesCurrent) {
         loadMembers(householdId);
         if (event === 'member_joined') {
@@ -1516,7 +1707,40 @@ export const HouseholdProvider = ({ children }) => {
           })
           .on('postgres_changes', { event: '*', schema: 'public', table: 'households', filter: `id=eq.${targetHhId}` }, (change) => {
             if (change.new) {
-              setCurrentHousehold(prev => prev ? { ...prev, ...change.new } : change.new);
+              const tier = parseHouseholdTier(change.new.description);
+              const isPro = tier.isPremium;
+              const plan = tier.plan;
+              const sponsor = tier.sponsor;
+
+              setCurrentHousehold(prev => prev ? {
+                ...prev,
+                ...change.new,
+                description: tier.cleanDescription || change.new.description,
+                clean_description: tier.cleanDescription || change.new.description,
+                raw_description: change.new.description,
+                is_premium: isPro,
+                premium_plan: plan,
+                sponsor_details: sponsor,
+              } : {
+                ...change.new,
+                description: tier.cleanDescription || change.new.description,
+                clean_description: tier.cleanDescription || change.new.description,
+                raw_description: change.new.description,
+                is_premium: isPro,
+                premium_plan: plan,
+                sponsor_details: sponsor,
+              });
+
+              if (isPro) {
+                localStorage.setItem(`tipidlink_household_premium_${targetHhId}`, 'true');
+                localStorage.setItem(`tipidlink_household_plan_${targetHhId}`, plan);
+                if (sponsor) localStorage.setItem(`tipidlink_household_sponsor_${targetHhId}`, sponsor);
+              } else {
+                localStorage.removeItem(`tipidlink_household_premium_${targetHhId}`);
+                localStorage.removeItem(`tipidlink_household_plan_${targetHhId}`);
+                localStorage.removeItem(`tipidlink_household_sponsor_${targetHhId}`);
+              }
+
               if (change.new.monthly_budget_target !== undefined) {
                 const targetVal = String(change.new.monthly_budget_target);
                 localStorage.setItem(`tipidlink_household_target_${targetHhId}`, targetVal);

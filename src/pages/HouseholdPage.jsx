@@ -63,7 +63,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
   useEffect(() => {
     if (currentHousehold) {
       setEditName(currentHousehold.name || '');
-      setEditDesc(currentHousehold.description || '');
+      setEditDesc(currentHousehold.clean_description || currentHousehold.description || '');
       setEditBudget(String(currentHousehold.monthly_budget_target || 0));
     }
   }, [currentHousehold]);
@@ -121,6 +121,7 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
     await updateHousehold({
       name: editName.trim(),
       description: editDesc.trim(),
+      clean_description: editDesc.trim(),
       monthly_budget_target: Number(editBudget),
     });
     setFormLoading(false);
@@ -208,9 +209,21 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
                 <Home className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="text-xl font-black text-slate-900">{currentHousehold?.name}</h3>
-                <p className="text-xs text-slate-500">
-                  {currentHousehold?.description || 'Shared family home'}
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-xl font-black text-slate-900">{currentHousehold?.name}</h3>
+                  {isPremium ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 border border-amber-300 font-extrabold px-2.5 py-0.5 text-[11px] shadow-2xs">
+                      <Crown className="h-3 w-3 fill-slate-900 text-slate-900" />
+                      <span>Pro Household</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200 font-medium px-2.5 py-0.5 text-[11px]">
+                      <span>Free Household Tier</span>
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {currentHousehold?.clean_description || currentHousehold?.description || 'Shared family home'}
                 </p>
               </div>
             </div>
