@@ -78,6 +78,10 @@ export const FinanceProvider = ({ children }) => {
   const [selectedYear, setSelectedYear] = useState(2026);
 
   const prevHouseholdIdRef = useRef(currentHousehold?.id);
+  // Background sync, browser focus, and an explicit post-save reload can all
+  // overlap. Only the newest response may update the visible ledger, so an
+  // earlier request can never hide a transaction that was just saved.
+  const householdDataLoadVersionRef = useRef(0);
   // Load financial records when current household changes (non-destructive)
   useEffect(() => {
     if (!currentHousehold) {
@@ -185,6 +189,9 @@ export const FinanceProvider = ({ children }) => {
 
   const loadHouseholdData = async (householdId, options = {}) => {
     if (!householdId) return;
+
+    const loadVersion = ++householdDataLoadVersionRef.current;
+    const isLatestLoad = () => loadVersion === householdDataLoadVersionRef.current;
 
     const isSilent = options.silent === true;
     if (!isSilent && transactions.length === 0) {
@@ -381,6 +388,8 @@ export const FinanceProvider = ({ children }) => {
         : formattedGoals;
 
       const categoriesList = (catData && catData.length > 0) ? catData : INITIAL_DEMO_DATA.categories;
+      if (!isLatestLoad()) return;
+
       setCategories(prev => areFinancialRecordArraysEqual(prev, categoriesList) ? prev : categoriesList);
       setTransactions(prev => areFinancialRecordArraysEqual(prev, finalTx) ? prev : finalTx);
       setBudgets(prev => areFinancialRecordArraysEqual(prev, finalBudgets) ? prev : finalBudgets);
@@ -402,6 +411,7 @@ export const FinanceProvider = ({ children }) => {
       }
     } catch (err) {
       console.error('Error fetching household financial data:', err);
+      if (!isLatestLoad()) return;
       // Graceful fallback: do NOT wipe existing transactions on network drop!
       const savedData = localStorage.getItem(storageKey);
       if (savedData) {
@@ -416,7 +426,7 @@ export const FinanceProvider = ({ children }) => {
         } catch {}
       }
     } finally {
-      if (!isSilent) {
+      if (!isSilent && isLatestLoad()) {
         setLoading(false);
       }
     }
@@ -496,6 +506,10 @@ export const FinanceProvider = ({ children }) => {
     }
 
     try {
+      // Invalidate any background read before awaiting the write. Without this,
+      // a request started just before Save can return stale rows and replace
+      // the optimistic transaction in the visible list.
+      householdDataLoadVersionRef.current += 1;
       const { data, error } = await supabase
         .from('transactions')
         .insert({
