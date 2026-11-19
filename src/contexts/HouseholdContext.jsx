@@ -410,7 +410,6 @@ export const HouseholdProvider = ({ children }) => {
 
       // A user only has Santos Family if in demo mode OR explicitly joined via code SANTOS2026
       const hasJoinedSantos = isDemoMode
-        || (user?.email && user.email.endsWith('@tipidlink.ph'))
         || (user?.id && localStorage.getItem(`tipidlink_user_joined_santos_${user.id}`) === 'true')
         || (user?.user_metadata?.joined_santos === true)
         || (profile?.phone && profile.phone.includes('JOINED:SANTOS2026'));
@@ -636,7 +635,6 @@ export const HouseholdProvider = ({ children }) => {
 
       // A user only has Santos Family if in demo mode OR explicitly joined via code SANTOS2026
       const hasJoinedSantos = isDemoMode
-        || (user?.email && user.email.endsWith('@tipidlink.ph'))
         || (user?.id && localStorage.getItem(`tipidlink_user_joined_santos_${user.id}`) === 'true')
         || (user?.user_metadata?.joined_santos === true)
         || (profile?.phone && profile.phone.includes('JOINED:SANTOS2026'));
@@ -824,7 +822,7 @@ export const HouseholdProvider = ({ children }) => {
 
         // Fallback default: if user belongs to a joined household (admin/member), default to it!
         const santosHh = hhList.find(h => h.id === '0d37e235-c9dd-4876-a54a-9acb36516599' || h.invite_code === 'SANTOS2026');
-        if ((isDemoMode || user?.email?.endsWith('@tipidlink.ph')) && santosHh) {
+        if (isDemoMode && santosHh) {
           activeId = santosHh.id;
         } else if (!activeId) {
           activeId = joinedHousehold ? joinedHousehold.id : hhList[0].id;
@@ -1996,25 +1994,19 @@ export const HouseholdProvider = ({ children }) => {
   // First: use the member record's role if found
   let resolvedRole = currentMember?.role;
 
-  // Second: fallback heuristics when member matching fails (async load, demo data, etc.)
+  // Second: use only the server-provided membership/creator details. A name or
+  // email must never imply an owner or admin role.
   if (!resolvedRole) {
     if (currentHousehold?.user_role) {
       resolvedRole = currentHousehold.user_role;
     } else if (currentHousehold?.created_by === user?.id) {
       resolvedRole = 'owner';
     } else {
-      const userEmail = (user?.email || profile?.email || '').toLowerCase();
-      if (userEmail === 'maria.santos@tipidlink.ph' || userEmail.includes('maria')) {
-        resolvedRole = 'owner';
-      } else if (userEmail === 'juan.santos@tipidlink.ph' || userEmail.includes('juan')) {
-        resolvedRole = 'admin';
-      } else {
-        resolvedRole = 'member';
-      }
+      resolvedRole = 'member';
     }
   }
 
-  const currentUserRole = resolvedRole || 'owner';
+  const currentUserRole = resolvedRole || 'member';
   const isOwner = currentUserRole === 'owner';
   const isAdmin = currentUserRole === 'admin';
   const isMember = currentUserRole === 'member';

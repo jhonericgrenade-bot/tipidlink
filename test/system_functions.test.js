@@ -29,6 +29,7 @@ import {
   areFinancialRecordArraysEqual,
   reconcileBillPaymentLedger,
 } from '../src/lib/billPaymentLedger.js';
+import { resolveSessionMode } from '../src/lib/sessionMode.js';
 
 test.after(() => {
   // Clean up any temporary PDFs written during test execution
@@ -64,6 +65,21 @@ test('1. INITIAL_DEMO_DATA structure and integrity', () => {
   const incomeCats = data.categories.filter(c => c.type === 'income');
   assert.ok(expenseCats.length > 0, 'Expense categories must exist');
   assert.ok(incomeCats.length > 0, 'Income categories must exist');
+});
+
+test('1a. A real cloud session cannot be redirected into local demo mode', () => {
+  assert.strictEqual(
+    resolveSessionMode({
+      hasCloudSession: true,
+      demoActive: 'true',
+      savedDemoUser: JSON.stringify({ email: 'maria.santos@tipidlink.ph' }),
+    }),
+    'cloud'
+  );
+  assert.strictEqual(
+    resolveSessionMode({ hasCloudSession: false, demoActive: 'true', savedDemoUser: '{}' }),
+    'demo'
+  );
 });
 
 test('2. Financial Dashboard Math: Income, Expenses, and Net Savings', () => {

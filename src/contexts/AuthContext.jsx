@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { INITIAL_DEMO_DATA } from '../lib/mockData';
+import { resolveSessionMode } from '../lib/sessionMode';
 
 export const clearStaleSessionData = () => {
   if (typeof window === 'undefined') return;
@@ -48,7 +49,10 @@ export const AuthProvider = ({ children }) => {
     const resolvedName = authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'Family Member';
     const fallbackAvatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(resolvedName)}`;
 
-    if (!isSupabaseConfigured || isDemoMode) {
+    // An authenticated Supabase session is always a real cloud account. Demo
+    // mode is entered only through the explicit local demo control, never from
+    // an email address or a previously cached flag.
+    if (!isSupabaseConfigured) {
       const fallback = {
         id: userId,
         email: authUser.email,
@@ -118,16 +122,12 @@ export const AuthProvider = ({ children }) => {
           const { data: { session }, error } = await supabase.auth.getSession();
           if (error) throw error;
 
-          if (session?.user) {
-            // Check if this session is one of the demo users (maria, juan, angela)
-            const isSantosDemo = session.user.email?.endsWith('@tipidlink.ph');
-            if (isSantosDemo) {
-              setIsDemoMode(true);
-            } else {
-              localStorage.removeItem('tipidlink_demo_user');
-              localStorage.removeItem('tipidlink_demo_active');
-              setIsDemoMode(false);
-            }
+          if (resolveSessionMode({ hasCloudSession: Boolean(session?.user) }) === 'cloud') {
+            // A real session must never be redirected into local demo data.
+            // Some legitimate accounts use the previous @tipidlink.ph domain.
+            localStorage.removeItem('tipidlink_demo_user');
+            localStorage.removeItem('tipidlink_demo_active');
+            setIsDemoMode(false);
             setUser(session.user);
             await fetchUserProfile(session.user);
             setLoading(false);
@@ -139,7 +139,11 @@ export const AuthProvider = ({ children }) => {
         const demoActive = localStorage.getItem('tipidlink_demo_active');
         const savedDemoUser = localStorage.getItem('tipidlink_demo_user');
 
-        if (demoActive === 'true' && savedDemoUser) {
+        if (resolveSessionMode({
+          hasCloudSession: false,
+          demoActive,
+          savedDemoUser,
+        }) === 'demo') {
           try {
             const parsed = JSON.parse(savedDemoUser);
             setUser({ id: parsed.id, email: parsed.email });
@@ -175,8 +179,7 @@ export const AuthProvider = ({ children }) => {
         if (session?.user) {
           localStorage.removeItem('tipidlink_demo_user');
           localStorage.removeItem('tipidlink_demo_active');
-          const isSantos = session.user.email?.endsWith('@tipidlink.ph');
-          setIsDemoMode(Boolean(isSantos));
+          setIsDemoMode(false);
           setUser(session.user);
           await fetchUserProfile(session.user);
         } else if (!localStorage.getItem('tipidlink_demo_active')) {
@@ -197,15 +200,14 @@ export const AuthProvider = ({ children }) => {
   // Sign in with Supabase Auth or offline fallback
   const signIn = async (email, password) => {
     const cleanEmail = (email || '').trim().toLowerCase();
-    const isSantos = cleanEmail.endsWith('@tipidlink.ph');
 
     // Clear any previous demo state
     localStorage.removeItem('tipidlink_demo_user');
     localStorage.removeItem('tipidlink_demo_active');
-    if (localStorage.getItem('tipidlink_active_household_id') === 'hh-santos-family' && !isSantos) {
+    if (localStorage.getItem('tipidlink_active_household_id') === 'hh-santos-family') {
       localStorage.removeItem('tipidlink_active_household_id');
     }
-    setIsDemoMode(isSantos);
+    setIsDemoMode(false);
 
     if (!isSupabaseConfigured) {
       const fallbackName = cleanEmail.split('@')[0];
@@ -228,7 +230,7 @@ export const AuthProvider = ({ children }) => {
       if (error) throw error;
 
       if (data?.user) {
-        setIsDemoMode(isSantos);
+        setIsDemoMode(false);
         setUser(data.user);
         await fetchUserProfile(data.user);
       }
