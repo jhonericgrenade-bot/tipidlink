@@ -5,9 +5,18 @@ import { X } from 'lucide-react';
 export const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-lg' }) => {
   const titleId = useId();
   const closeButtonRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+
+  // Inline callbacks change while controlled form fields are typed. Store the
+  // newest callback separately so a keystroke never restarts the open-dialog
+  // effect and steals focus from the active input.
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onCloseRef.current?.();
     };
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -18,7 +27,7 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-lg' 
       document.body.style.overflow = 'unset';
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
