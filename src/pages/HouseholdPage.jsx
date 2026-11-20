@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePremium } from '../contexts/PremiumContext';
 import { StatusBadge } from '../components/StatusBadge';
 import { Modal } from '../components/Modal';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { formatPHP } from '../lib/formatters';
 import {
   Home,
@@ -48,6 +49,9 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
   const [editDesc, setEditDesc] = useState('');
   const [editBudget, setEditBudget] = useState('0');
   const [formLoading, setFormLoading] = useState(false);
+  const [confirmation, setConfirmation] = useState(null);
+
+  const requestConfirmation = (config) => setConfirmation(config);
 
   // Refresh member list when opening the Family page
   useEffect(() => {
@@ -127,34 +131,56 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
   };
 
   const handleRoleChange = async (memberId, targetName, newRole) => {
-    let confirmMsg = '';
+    let confirmationCopy = null;
     if (newRole === 'owner') {
-      confirmMsg = `WARNING: TRANSFERRING HOUSEHOLD OWNERSHIP\n\nAre you sure you want to designate "${targetName}" as the new OWNER?\n\nPERMISSION NOTICE:\n• Only the current Owner can perform this action.\n• The Owner has exclusive authority to delete the household and manage Admins.\n\nDo you want to proceed?`;
+      confirmationCopy = {
+        title: 'Transfer Household Ownership?',
+        description: `Make ${targetName} the new household owner?`,
+        details: 'The new owner can manage admins and delete the household. This action changes who has full control.',
+        confirmLabel: 'Transfer Ownership',
+        variant: 'warning',
+      };
     } else if (newRole === 'admin') {
-      confirmMsg = `ADMIN DESIGNATION NOTICE:\n\nYou are assigning "${targetName}" as an ADMIN.\n\nPERMISSION GRANTED:\n• Authority to modify the Household Monthly Target\n• Authority to remove standard Members\n• Notice: Admins cannot remove or demote the Owner.\n\nDo you want to proceed?`;
+      confirmationCopy = {
+        title: 'Make Household Admin?',
+        description: `Give ${targetName} admin access?`,
+        details: 'Admins can update the monthly target and remove standard members. They cannot manage the owner.',
+        confirmLabel: 'Make Admin',
+        variant: 'warning',
+      };
     } else if (newRole === 'member') {
-      confirmMsg = `MEMBER DEMOTION NOTICE:\n\nYou are setting "${targetName}" as a standard MEMBER.\n\nPERMISSION RESTRICTION:\n• They will no longer be able to modify budget targets or manage members.\n• They can continue recording daily transactions, bills, and savings.\n\nDo you want to proceed?`;
+      confirmationCopy = {
+        title: 'Change to Member?',
+        description: `Remove ${targetName}'s admin access?`,
+        details: 'They can still record transactions, bills, and savings, but cannot manage members or the budget target.',
+        confirmLabel: 'Change Role',
+        variant: 'warning',
+      };
     }
 
-    if (confirmMsg && !window.confirm(confirmMsg)) {
-      return;
-    }
-
-    const res = await updateMemberRole(memberId, newRole);
-    if (res && !res.success) {
-      alert(`Failed to update role: ${res.error}`);
+    if (confirmationCopy) {
+      requestConfirmation({
+        ...confirmationCopy,
+        action: async () => {
+          const res = await updateMemberRole(memberId, newRole);
+          if (res && !res.success) alert(`Failed to update role: ${res.error}`);
+        },
+      });
     }
   };
 
   const handleRemoveMember = async (memberId, targetName, targetRole) => {
-    const confirmMsg = `WARNING: REMOVING HOUSEHOLD MEMBER\n\nAre you sure you want to remove "${targetName}" (${targetRole.toUpperCase()}) from this household?\n\nPERMISSION POLICY:\n• Only Owners and Admins have permission to remove members.\n• This user will immediately lose access to all shared financial records, budgets, and bills.\n\nDo you want to proceed?`;
-
-    if (window.confirm(confirmMsg)) {
-      const res = await removeMember(memberId);
-      if (res && !res.success) {
-        alert(`Failed to remove member: ${res.error}`);
-      }
-    }
+    requestConfirmation({
+      title: 'Remove Family Member?',
+      description: `Remove ${targetName} (${targetRole}) from this household?`,
+      details: 'They will immediately lose access to the shared records, budgets, bills, and savings for this household.',
+      confirmLabel: 'Remove Member',
+      variant: 'danger',
+      action: async () => {
+        const res = await removeMember(memberId);
+        if (res && !res.success) alert(`Failed to remove member: ${res.error}`);
+      },
+    });
   };
 
   if (loading && !currentHousehold) {
@@ -217,11 +243,14 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
                       </span>
                       {isOwnerOrAdmin && (
                         <button
-                          onClick={async () => {
-                            if (window.confirm('Sigurado ka bang ibabalik sa Free ang household? Mawawala ang Pro features sa lahat ng sumali.')) {
-                              await resetToFree();
-                            }
-                          }}
+                          onClick={() => requestConfirmation({
+                            title: 'Return Household to Free?',
+                            description: 'Remove Premium access for everyone in this household?',
+                            details: 'Premium-only features, including PDF export, will no longer be available to joined members.',
+                            confirmLabel: 'Return to Free',
+                            variant: 'warning',
+                            action: resetToFree,
+                          })}
                           className="text-[10px] text-slate-400 hover:text-rose-600 underline font-semibold cursor-pointer"
                           title="Reset household to Free Tier"
                         >
@@ -624,12 +653,17 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
             {currentUserRole === 'owner' ? (
               <button
                 type="button"
-                onClick={async () => {
-                  if (window.confirm(`Are you sure you want to delete "${currentHousehold.name}"? All shared family transactions and budgets will be permanently deleted.`)) {
+                onClick={() => requestConfirmation({
+                  title: 'Delete Household Permanently?',
+                  description: `Delete “${currentHousehold.name}” and its shared records?`,
+                  details: 'This permanently deletes the household, transactions, budgets, bills, and savings records. This cannot be undone.',
+                  confirmLabel: 'Delete Household',
+                  variant: 'danger',
+                  action: async () => {
                     const result = await deleteHousehold(currentHousehold.id);
                     if (!result?.success) alert(result?.error || 'Could not delete this household.');
-                  }
-                }}
+                  },
+                })}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition cursor-pointer"
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -638,11 +672,14 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
             ) : (
               <button
                 type="button"
-                onClick={async () => {
-                  if (window.confirm(`Are you sure you want to leave "${currentHousehold.name}"?`)) {
-                    await leaveHousehold(currentHousehold.id);
-                  }
-                }}
+                onClick={() => requestConfirmation({
+                  title: 'Leave Household?',
+                  description: `Leave “${currentHousehold.name}”?`,
+                  details: 'You will lose access to this household’s shared records until an owner invites you again.',
+                  confirmLabel: 'Leave Household',
+                  variant: 'warning',
+                  action: () => leaveHousehold(currentHousehold.id),
+                })}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
               >
                 Leave Household
@@ -717,6 +754,16 @@ export const HouseholdPage = ({ onOpenCreate, onOpenJoin }) => {
           </div>
         </form>
       </Modal>
+      <ConfirmDialog
+        isOpen={Boolean(confirmation)}
+        onClose={() => setConfirmation(null)}
+        onConfirm={confirmation?.action}
+        title={confirmation?.title}
+        description={confirmation?.description}
+        details={confirmation?.details}
+        confirmLabel={confirmation?.confirmLabel}
+        variant={confirmation?.variant}
+      />
     </div>
   );
 };

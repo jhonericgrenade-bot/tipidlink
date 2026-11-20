@@ -5,6 +5,7 @@ import { usePremium } from '../contexts/PremiumContext';
 import { formatPHP, matchCategoryId, doesTransactionMatchCategory } from '../lib/formatters';
 import { exportBudgetsPDF } from '../lib/exportUtils';
 import { Modal } from '../components/Modal';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import {
   Plus,
   AlertTriangle,
@@ -41,6 +42,7 @@ export const BudgetsPage = () => {
   const [isOverallModalOpen, setIsOverallModalOpen] = useState(false);
   // Export PDF state (₱30 Pro Feature)
   const [isExporting, setIsExporting] = useState(false);
+  const [budgetPendingDeletion, setBudgetPendingDeletion] = useState(null);
 
   const handleExportPDF = async () => {
     if (!isPremium) {
@@ -441,11 +443,7 @@ export const BudgetsPage = () => {
                           <Edit className="h-3.5 w-3.5" />
                         </button>
                         <button
-                          onClick={() => {
-                            if (window.confirm(`Are you sure you want to remove the budget limit for "${b.categoryName}"?`)) {
-                              deleteBudget(b.id);
-                            }
-                          }}
+                          onClick={() => setBudgetPendingDeletion(b)}
                           className="rounded-lg p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 active-press transition cursor-pointer"
                           title="Remove budget"
                         >
@@ -608,6 +606,16 @@ export const BudgetsPage = () => {
           </div>
         </form>
       </Modal>
+      <ConfirmDialog
+        isOpen={Boolean(budgetPendingDeletion)}
+        onClose={() => setBudgetPendingDeletion(null)}
+        title="Remove Budget Limit?"
+        description={budgetPendingDeletion ? `Remove the budget limit for “${budgetPendingDeletion.categoryName}”?` : ''}
+        details="The category remains available, but it will no longer have a monthly budget limit for this period."
+        confirmLabel="Remove Budget"
+        variant="danger"
+        onConfirm={() => deleteBudget(budgetPendingDeletion.id)}
+      />
     </div>
   );
 };

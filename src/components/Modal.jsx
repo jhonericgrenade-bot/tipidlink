@@ -1,8 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 export const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-lg' }) => {
+  const titleId = useId();
+  const closeButtonRef = useRef(null);
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') onClose();
@@ -10,6 +12,7 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-lg' 
     if (isOpen) {
       document.body.style.overflow = 'hidden';
       window.addEventListener('keydown', handleKeyDown);
+      requestAnimationFrame(() => closeButtonRef.current?.focus());
     }
     return () => {
       document.body.style.overflow = 'unset';
@@ -20,7 +23,7 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-lg' 
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] overflow-y-auto">
+    <div className="fixed inset-0 z-[100] overflow-y-auto overscroll-contain">
       {/* Backdrop */}
       <div 
         className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity animate-fade-in" 
@@ -31,11 +34,15 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-lg' 
         <div 
           className={`relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all my-4 sm:my-8 w-full ${maxWidth} border border-slate-100 animate-modal-pop z-10 flex flex-col`}
           onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5 sm:px-6 sm:py-4 bg-white sticky top-0 z-10">
-            <h3 className="text-base sm:text-lg font-bold text-slate-900">{title}</h3>
+            <h3 id={titleId} className="text-base sm:text-lg font-bold text-slate-900">{title}</h3>
             <button
+              ref={closeButtonRef}
               onClick={onClose}
               className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition cursor-pointer"
               aria-label="Close dialog"

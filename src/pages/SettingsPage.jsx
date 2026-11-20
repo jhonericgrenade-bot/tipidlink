@@ -38,6 +38,7 @@ import {
   Apple,
   LogOut,
 } from 'lucide-react';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 export const SettingsPage = () => {
   const { user, profile, updatePassword, signOut } = useAuth();
@@ -56,6 +57,7 @@ export const SettingsPage = () => {
 
   const [exportLoading, setExportLoading] = useState(false);
   const [exportStatus, setExportStatus] = useState('');
+  const [isClearCacheConfirmOpen, setIsClearCacheConfirmOpen] = useState(false);
 
   const createExecutiveStatement = () => exportFullFinancialStatementPDF({
     household: currentHousehold,
@@ -110,11 +112,10 @@ export const SettingsPage = () => {
     }
   };
 
-  const handleClearLocal = () => {
-    if (window.confirm('Are you sure you want to clear locally cached data?')) {
-      localStorage.clear();
-      window.location.reload();
-    }
+  const handleClearLocal = () => setIsClearCacheConfirmOpen(true);
+  const confirmClearLocal = () => {
+    localStorage.clear();
+    window.location.reload();
   };
 
   return (
@@ -921,6 +922,16 @@ export const SettingsPage = () => {
           </div>
         </div>
       </div>
+      <ConfirmDialog
+        isOpen={isClearCacheConfirmOpen}
+        onClose={() => setIsClearCacheConfirmOpen(false)}
+        onConfirm={confirmClearLocal}
+        title="Clear Device Data?"
+        description="Clear this device’s saved session and cached data?"
+        details="Your cloud records will not be deleted, but you will be signed out and need to log in again."
+        confirmLabel="Clear & Sign Out"
+        variant="warning"
+      />
     </div>
   );
 };
