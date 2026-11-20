@@ -49,6 +49,22 @@ const isRecordInPeriod = (dateValue, month, year) => {
     && date.getFullYear() === Number(year);
 };
 
+// Keep every report visually balanced on A4. Explicit table widths prevent
+// jspdf-autotable from squeezing columns beyond the printable area, while
+// these helpers centre cards and tables instead of leaving spare page space
+// only on the right.
+const PDF_PAGE_MARGIN = 14;
+
+const getCenteredTableMargin = (doc, tableWidth, bottom = 16) => {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const side = Math.max(PDF_PAGE_MARGIN, (pageWidth - tableWidth) / 2);
+  return { left: side, right: side, bottom };
+};
+
+const centerTextInBox = (doc, text, x, width, y, options = {}) => {
+  doc.text(String(text), x + (width / 2), y, { align: 'center', ...options });
+};
+
 /**
  * Universal PDF Action Modal / Bottom Sheet
  * Provides instant Open/View, Download, Share, and Print for all devices.
@@ -449,12 +465,12 @@ const renderPDFHeader = (doc, { title, subtitle, householdName }) => {
 
   // Sub-header Banner
   doc.setFillColor(241, 245, 249);
-  doc.rect(0, 26, pageWidth, 14, 'F');
+  doc.rect(0, 26, pageWidth, 16, 'F');
 
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.text(title, 14, 35);
+  doc.text(title, pageWidth / 2, 33, { align: 'center' });
 
   const dateStr = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
@@ -464,7 +480,7 @@ const renderPDFHeader = (doc, { title, subtitle, householdName }) => {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(100, 116, 139);
-  doc.text(`Generated: ${dateStr}${subtitle ? `  |  ${subtitle}` : ''}`, pageWidth - 14, 35, { align: 'right' });
+  doc.text(`Generated: ${dateStr}${subtitle ? `  |  ${subtitle}` : ''}`, pageWidth / 2, 38, { align: 'center' });
 };
 
 /**
@@ -523,19 +539,19 @@ export const exportTransactionsPDF = async (transactions = [], householdName = '
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(100, 116, 139);
-  doc.text('TOTAL INCOME', 18, 50);
-  doc.text('TOTAL EXPENSES', 80, 50);
-  doc.text('NET CASHFLOW', 142, 50);
+  centerTextInBox(doc, 'TOTAL INCOME', 14, 58, 50);
+  centerTextInBox(doc, 'TOTAL EXPENSES', 76, 58, 50);
+  centerTextInBox(doc, 'NET CASHFLOW', 138, 58, 50);
 
   doc.setFontSize(9.5);
   doc.setTextColor(5, 150, 105);
-  doc.text(`+ ${formatPDFMoney(totalIncome)}`, 18, 56);
+  centerTextInBox(doc, `+ ${formatPDFMoney(totalIncome)}`, 14, 58, 56);
 
   doc.setTextColor(225, 29, 72);
-  doc.text(`- ${formatPDFMoney(totalExpense)}`, 80, 56);
+  centerTextInBox(doc, `- ${formatPDFMoney(totalExpense)}`, 76, 58, 56);
 
   doc.setTextColor(netCashflow >= 0 ? 15 : 225, netCashflow >= 0 ? 23 : 29, netCashflow >= 0 ? 42 : 72);
-  doc.text(formatPDFMoney(netCashflow), 142, 56);
+  centerTextInBox(doc, formatPDFMoney(netCashflow), 138, 58, 56);
 
   // Table
   const tableData = transactions.length > 0
@@ -561,10 +577,13 @@ export const exportTransactionsPDF = async (transactions = [], householdName = '
       textColor: 255,
       fontStyle: 'bold',
       fontSize: 8,
+      halign: 'center',
+      valign: 'middle',
     },
     bodyStyles: {
       fontSize: 7.5,
       textColor: [30, 41, 59],
+      valign: 'middle',
     },
     alternateRowStyles: {
       fillColor: [248, 250, 252],
@@ -578,7 +597,8 @@ export const exportTransactionsPDF = async (transactions = [], householdName = '
       5: { cellWidth: 28, halign: 'right', fontStyle: 'bold' },
       6: { cellWidth: 22 },
     },
-    margin: { left: 14, right: 14, bottom: 16 },
+    tableWidth: 182,
+    margin: getCenteredTableMargin(doc, 182),
   });
 
   renderPDFFooters(doc);
@@ -666,23 +686,23 @@ export const exportBudgetsPDF = async ({
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(100, 116, 139);
-  doc.text('MONTHLY TARGET', 17, 50);
-  doc.text('ACTUAL SPENT', 63, 50);
-  doc.text('REMAINING BUDGET', 109, 50);
-  doc.text('OVERALL USAGE', 155, 50);
+  centerTextInBox(doc, 'MONTHLY TARGET', 14, 42, 50);
+  centerTextInBox(doc, 'ACTUAL SPENT', 60, 42, 50);
+  centerTextInBox(doc, 'REMAINING BUDGET', 106, 42, 50);
+  centerTextInBox(doc, 'OVERALL USAGE', 152, 44, 50);
 
   doc.setFontSize(8.5);
   doc.setTextColor(15, 23, 42);
-  doc.text(formatPDFMoney(overallLimit), 17, 56);
+  centerTextInBox(doc, formatPDFMoney(overallLimit), 14, 42, 56);
 
   doc.setTextColor(225, 29, 72);
-  doc.text(formatPDFMoney(totalSpent), 63, 56);
+  centerTextInBox(doc, formatPDFMoney(totalSpent), 60, 42, 56);
 
   doc.setTextColor(overallRemaining >= 0 ? 5 : 225, overallRemaining >= 0 ? 150 : 29, overallRemaining >= 0 ? 105 : 72);
-  doc.text(formatPDFMoney(overallRemaining), 109, 56);
+  centerTextInBox(doc, formatPDFMoney(overallRemaining), 106, 42, 56);
 
   doc.setTextColor(overallPct > 100 ? 225 : 15, overallPct > 100 ? 29 : 23, overallPct > 100 ? 72 : 42);
-  doc.text(`${overallPct}% ${overallPct > 100 ? '(EXCEEDED)' : '(HEALTHY)'}`, 155, 56);
+  centerTextInBox(doc, `${overallPct}% ${overallPct > 100 ? '(EXCEEDED)' : '(HEALTHY)'}`, 152, 44, 56);
 
   const tableData = rows.map(r => [
     r.name,
@@ -720,12 +740,12 @@ export const exportBudgetsPDF = async ({
       fillColor: [248, 250, 252],
     },
     columnStyles: {
-      0: { cellWidth: 50, fontStyle: 'bold' },
-      1: { cellWidth: 32, halign: 'right' },
-      2: { cellWidth: 32, halign: 'right' },
-      3: { cellWidth: 32, halign: 'right' },
-      4: { cellWidth: 18, halign: 'center' },
-      5: { cellWidth: 26, halign: 'center', fontStyle: 'bold' },
+      0: { cellWidth: 48, fontStyle: 'bold' },
+      1: { cellWidth: 30, halign: 'right' },
+      2: { cellWidth: 30, halign: 'right' },
+      3: { cellWidth: 30, halign: 'right' },
+      4: { cellWidth: 16, halign: 'center' },
+      5: { cellWidth: 22, halign: 'center', fontStyle: 'bold' },
     },
     didParseCell: (data) => {
       if (data.row.index === tableData.length - 1) {
@@ -737,7 +757,8 @@ export const exportBudgetsPDF = async ({
         data.cell.styles.textColor = [225, 29, 72];
       }
     },
-    margin: { left: 14, right: 14, bottom: 16 },
+    tableWidth: 176,
+    margin: getCenteredTableMargin(doc, 176),
   });
 
   renderPDFFooters(doc);
@@ -813,19 +834,19 @@ export const exportBillsPDF = async (bills = [], householdName = 'Household') =>
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(100, 116, 139);
-  doc.text('TOTAL BILLED', 18, 50);
-  doc.text('TOTAL PAID RECORDED', 80, 50);
-  doc.text('OVERDUE BALANCE', 142, 50);
+  centerTextInBox(doc, 'TOTAL BILLED', 14, 58, 50);
+  centerTextInBox(doc, 'TOTAL PAID RECORDED', 76, 58, 50);
+  centerTextInBox(doc, 'OVERDUE BALANCE', 138, 58, 50);
 
   doc.setFontSize(9.5);
   doc.setTextColor(15, 23, 42);
-  doc.text(formatPDFMoney(totalBilled), 18, 56);
+  centerTextInBox(doc, formatPDFMoney(totalBilled), 14, 58, 56);
 
   doc.setTextColor(5, 150, 105);
-  doc.text(formatPDFMoney(totalPaid), 80, 56);
+  centerTextInBox(doc, formatPDFMoney(totalPaid), 76, 58, 56);
 
   doc.setTextColor(totalOverdue > 0 ? 225 : 5, totalOverdue > 0 ? 29 : 150, totalOverdue > 0 ? 72 : 105);
-  doc.text(formatPDFMoney(totalOverdue), 142, 56);
+  centerTextInBox(doc, formatPDFMoney(totalOverdue), 138, 58, 56);
 
   autoTable(doc, {
     startY: 65,
@@ -836,23 +857,26 @@ export const exportBillsPDF = async (bills = [], householdName = 'Household') =>
       textColor: 255,
       fontStyle: 'bold',
       fontSize: 8,
+      halign: 'center',
+      valign: 'middle',
     },
     bodyStyles: {
       fontSize: 7.5,
       textColor: [30, 41, 59],
+      valign: 'middle',
     },
     alternateRowStyles: {
       fillColor: [248, 250, 252],
     },
     columnStyles: {
-      0: { cellWidth: 35, fontStyle: 'bold' },
-      1: { cellWidth: 30 },
-      2: { cellWidth: 22 },
-      3: { cellWidth: 24, halign: 'right' },
-      4: { cellWidth: 22, halign: 'right' },
-      5: { cellWidth: 24, halign: 'right', fontStyle: 'bold' },
-      6: { cellWidth: 20, halign: 'center' },
-      7: { cellWidth: 18, halign: 'center', fontStyle: 'bold' },
+      0: { cellWidth: 30, fontStyle: 'bold' },
+      1: { cellWidth: 27 },
+      2: { cellWidth: 20 },
+      3: { cellWidth: 21, halign: 'right' },
+      4: { cellWidth: 20, halign: 'right' },
+      5: { cellWidth: 21, halign: 'right', fontStyle: 'bold' },
+      6: { cellWidth: 18, halign: 'center' },
+      7: { cellWidth: 16, halign: 'center', fontStyle: 'bold' },
     },
     didParseCell: (data) => {
       if (data.column.index === 7) {
@@ -861,7 +885,8 @@ export const exportBillsPDF = async (bills = [], householdName = 'Household') =>
         if (data.cell.raw === 'UNPAID') data.cell.styles.textColor = [217, 119, 6];
       }
     },
-    margin: { left: 14, right: 14, bottom: 16 },
+    tableWidth: 173,
+    margin: getCenteredTableMargin(doc, 173),
   });
 
   renderPDFFooters(doc);
@@ -904,23 +929,23 @@ export const exportSavingsPDF = async (savingsGoals = [], householdName = 'House
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(100, 116, 139);
-  doc.text('TOTAL TARGET', 17, 50);
-  doc.text('TOTAL ACCUMULATED', 63, 50);
-  doc.text('REMAINING TO SAVE', 109, 50);
-  doc.text('OVERALL PROGRESS', 155, 50);
+  centerTextInBox(doc, 'TOTAL TARGET', 14, 42, 50);
+  centerTextInBox(doc, 'TOTAL ACCUMULATED', 60, 42, 50);
+  centerTextInBox(doc, 'REMAINING TO SAVE', 106, 42, 50);
+  centerTextInBox(doc, 'OVERALL PROGRESS', 152, 44, 50);
 
   doc.setFontSize(8.5);
   doc.setTextColor(15, 23, 42);
-  doc.text(formatPDFMoney(totalTarget), 17, 56);
+  centerTextInBox(doc, formatPDFMoney(totalTarget), 14, 42, 56);
 
   doc.setTextColor(5, 150, 105);
-  doc.text(formatPDFMoney(totalSaved), 63, 56);
+  centerTextInBox(doc, formatPDFMoney(totalSaved), 60, 42, 56);
 
   doc.setTextColor(100, 116, 139);
-  doc.text(formatPDFMoney(totalRemaining), 109, 56);
+  centerTextInBox(doc, formatPDFMoney(totalRemaining), 106, 42, 56);
 
   doc.setTextColor(5, 150, 105);
-  doc.text(`${overallProgress}% COMPLETED`, 155, 56);
+  centerTextInBox(doc, `${overallProgress}% COMPLETED`, 152, 44, 56);
 
   const tableData = savingsGoals.map(g => {
     const target = Number(g.target_amount) || 0;
@@ -950,23 +975,26 @@ export const exportSavingsPDF = async (savingsGoals = [], householdName = 'House
       textColor: 255,
       fontStyle: 'bold',
       fontSize: 8,
+      halign: 'center',
+      valign: 'middle',
     },
     bodyStyles: {
       fontSize: 7.5,
       textColor: [30, 41, 59],
+      valign: 'middle',
     },
     alternateRowStyles: {
       fillColor: [248, 250, 252],
     },
     columnStyles: {
-      0: { cellWidth: 42, fontStyle: 'bold' },
-      1: { cellWidth: 24 },
-      2: { cellWidth: 26, halign: 'right' },
-      3: { cellWidth: 26, halign: 'right' },
-      4: { cellWidth: 26, halign: 'right' },
-      5: { cellWidth: 18, halign: 'center', fontStyle: 'bold' },
-      6: { cellWidth: 22, halign: 'center' },
-      7: { cellWidth: 24, halign: 'center', fontStyle: 'bold' },
+      0: { cellWidth: 35, fontStyle: 'bold' },
+      1: { cellWidth: 20 },
+      2: { cellWidth: 23, halign: 'right' },
+      3: { cellWidth: 23, halign: 'right' },
+      4: { cellWidth: 23, halign: 'right' },
+      5: { cellWidth: 15, halign: 'center', fontStyle: 'bold' },
+      6: { cellWidth: 20, halign: 'center' },
+      7: { cellWidth: 18, halign: 'center', fontStyle: 'bold' },
     },
     didParseCell: (data) => {
       if (data.column.index === 7) {
@@ -974,7 +1002,8 @@ export const exportSavingsPDF = async (savingsGoals = [], householdName = 'House
         else data.cell.styles.textColor = [79, 70, 229];
       }
     },
-    margin: { left: 14, right: 14, bottom: 16 },
+    tableWidth: 177,
+    margin: getCenteredTableMargin(doc, 177),
   });
 
   renderPDFFooters(doc);
@@ -1038,32 +1067,32 @@ export const exportFullFinancialStatementPDF = async ({
 
   doc.setFontSize(7);
   doc.setTextColor(100, 116, 139);
-  doc.text('TOTAL MONTHLY INCOME', 18, 56);
-  doc.text('TOTAL MONTHLY EXPENSES', 80, 56);
-  doc.text('NET SAVINGS / SURPLUS', 142, 56);
+  centerTextInBox(doc, 'TOTAL MONTHLY INCOME', 14, 58, 56);
+  centerTextInBox(doc, 'TOTAL MONTHLY EXPENSES', 76, 58, 56);
+  centerTextInBox(doc, 'NET SAVINGS / SURPLUS', 138, 58, 56);
 
-  doc.text('MONTHLY BUDGET TARGET', 18, 75);
-  doc.text('REMAINING BUDGET POOL', 80, 75);
-  doc.text('OVERDUE BILLS BALANCE', 142, 75);
+  centerTextInBox(doc, 'MONTHLY BUDGET TARGET', 14, 58, 75);
+  centerTextInBox(doc, 'REMAINING BUDGET POOL', 76, 58, 75);
+  centerTextInBox(doc, 'OVERDUE BILLS BALANCE', 138, 58, 75);
 
   doc.setFontSize(9);
   doc.setTextColor(5, 150, 105);
-  doc.text(`+ ${formatPDFMoney(totalIncome)}`, 18, 62);
+  centerTextInBox(doc, `+ ${formatPDFMoney(totalIncome)}`, 14, 58, 62);
 
   doc.setTextColor(225, 29, 72);
-  doc.text(`- ${formatPDFMoney(totalExpenses)}`, 80, 62);
+  centerTextInBox(doc, `- ${formatPDFMoney(totalExpenses)}`, 76, 58, 62);
 
   doc.setTextColor(netSavings >= 0 ? 5 : 225, netSavings >= 0 ? 150 : 29, netSavings >= 0 ? 105 : 72);
-  doc.text(formatPDFMoney(netSavings), 142, 62);
+  centerTextInBox(doc, formatPDFMoney(netSavings), 138, 58, 62);
 
   doc.setTextColor(15, 23, 42);
-  doc.text(formatPDFMoney(budgetTarget), 18, 81);
+  centerTextInBox(doc, formatPDFMoney(budgetTarget), 14, 58, 81);
 
   doc.setTextColor(remainingBudget >= 0 ? 5 : 225, remainingBudget >= 0 ? 150 : 29, remainingBudget >= 0 ? 105 : 72);
-  doc.text(formatPDFMoney(remainingBudget), 80, 81);
+  centerTextInBox(doc, formatPDFMoney(remainingBudget), 76, 58, 81);
 
   doc.setTextColor(overdueTotal > 0 ? 225 : 5, overdueTotal > 0 ? 29 : 150, overdueTotal > 0 ? 72 : 105);
-  doc.text(formatPDFMoney(overdueTotal), 142, 81);
+  centerTextInBox(doc, formatPDFMoney(overdueTotal), 138, 58, 81);
 
   // Section 2: Budget Breakdown Table
   let currentY = 92;
@@ -1105,7 +1134,8 @@ export const exportFullFinancialStatementPDF = async ({
       3: { cellWidth: 32, halign: 'right' },
       4: { cellWidth: 26, halign: 'center' },
     },
-    margin: { left: 14, right: 14 },
+    tableWidth: 182,
+    margin: getCenteredTableMargin(doc, 182),
   });
 
   // Section 3: Bills & Obligations
@@ -1146,15 +1176,16 @@ export const exportFullFinancialStatementPDF = async ({
     headStyles: { fillColor: [5, 150, 105], textColor: 255, fontSize: 8 },
     bodyStyles: { fontSize: 7.5 },
     columnStyles: {
-      0: { cellWidth: 45, fontStyle: 'bold' },
-      1: { cellWidth: 35 },
-      2: { cellWidth: 26, halign: 'right' },
-      3: { cellWidth: 24, halign: 'right' },
-      4: { cellWidth: 24, halign: 'right', fontStyle: 'bold' },
-      5: { cellWidth: 20, halign: 'center' },
-      6: { cellWidth: 18, halign: 'center' },
+      0: { cellWidth: 41, fontStyle: 'bold' },
+      1: { cellWidth: 31 },
+      2: { cellWidth: 24, halign: 'right' },
+      3: { cellWidth: 22, halign: 'right' },
+      4: { cellWidth: 22, halign: 'right', fontStyle: 'bold' },
+      5: { cellWidth: 19, halign: 'center' },
+      6: { cellWidth: 16, halign: 'center' },
     },
-    margin: { left: 14, right: 14 },
+    tableWidth: 175,
+    margin: getCenteredTableMargin(doc, 175),
   });
 
   // Section 4: Savings Goals
@@ -1190,14 +1221,15 @@ export const exportFullFinancialStatementPDF = async ({
     headStyles: { fillColor: [5, 150, 105], textColor: 255, fontSize: 8 },
     bodyStyles: { fontSize: 7.5 },
     columnStyles: {
-      0: { cellWidth: 55, fontStyle: 'bold' },
-      1: { cellWidth: 32, halign: 'right' },
-      2: { cellWidth: 32, halign: 'right' },
-      3: { cellWidth: 32, halign: 'right' },
-      4: { cellWidth: 20, halign: 'center' },
-      5: { cellWidth: 21, halign: 'center' },
+      0: { cellWidth: 48, fontStyle: 'bold' },
+      1: { cellWidth: 29, halign: 'right' },
+      2: { cellWidth: 29, halign: 'right' },
+      3: { cellWidth: 29, halign: 'right' },
+      4: { cellWidth: 18, halign: 'center' },
+      5: { cellWidth: 19, halign: 'center' },
     },
-    margin: { left: 14, right: 14 },
+    tableWidth: 172,
+    margin: getCenteredTableMargin(doc, 172),
   });
 
   renderPDFFooters(doc);
