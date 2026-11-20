@@ -35,7 +35,7 @@ export const BillsPage = () => {
     }
     setIsExporting(true);
     try {
-      await exportBillsPDF(bills, currentHousehold?.name || 'Household');
+      await exportBillsPDF(filteredBills, currentHousehold?.name || 'Household');
     } catch (err) {
       console.error('Bills PDF export failed:', err);
       alert(`Could not export bills PDF: ${err.message}`);

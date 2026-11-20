@@ -33,7 +33,7 @@ export const SavingsPage = () => {
     }
     setIsExporting(true);
     try {
-      await exportSavingsPDF(savingsGoals, currentHousehold?.name || 'Household');
+      await exportSavingsPDF(displayedGoals, currentHousehold?.name || 'Household');
     } catch (err) {
       console.error('Savings PDF export failed:', err);
       alert(`Could not export savings PDF: ${err.message}`);

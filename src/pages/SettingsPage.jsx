@@ -6,7 +6,6 @@ import { usePremium } from '../contexts/PremiumContext';
 import { isSupabaseConfigured, getSupabaseConfig } from '../lib/supabase';
 import {
   exportToJSON,
-  printFinancialStatement,
   exportFullFinancialStatementPDF,
   exportTransactionsPDF,
   exportBudgetsPDF,
@@ -57,6 +56,20 @@ export const SettingsPage = () => {
 
   const [exportLoading, setExportLoading] = useState(false);
   const [exportStatus, setExportStatus] = useState('');
+
+  const createExecutiveStatement = () => exportFullFinancialStatementPDF({
+    household: currentHousehold,
+    calculations,
+    transactions: calculations.monthlyTransactions,
+    budgets: budgets.filter(
+      (budget) => budget.month === Number(selectedMonth) && budget.year === Number(selectedYear)
+    ),
+    bills,
+    savingsGoals,
+    categories,
+    month: selectedMonth,
+    year: selectedYear,
+  });
 
   // Password Management State
   const [newPassword, setNewPassword] = useState('');
@@ -328,17 +341,7 @@ export const SettingsPage = () => {
                 }
                 setExportLoading(true);
                 try {
-                  await exportFullFinancialStatementPDF({
-                    household: currentHousehold,
-                    calculations,
-                    transactions,
-                    budgets,
-                    bills,
-                    savingsGoals,
-                    categories,
-                    month: selectedMonth,
-                    year: selectedYear,
-                  });
+                  await createExecutiveStatement();
                   setExportStatus('Executive PDF generated!');
                   setTimeout(() => setExportStatus(''), 4000);
                 } catch (err) {
@@ -371,19 +374,27 @@ export const SettingsPage = () => {
                 <span>Print / Save as PDF</span>
               </div>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Opens your browser or device print dialog to print directly to paper or save as a local PDF document.
+                Generates the verified Executive Statement, then lets you print or save that exact PDF document.
               </p>
             </div>
             <button
-              onClick={() => {
+              onClick={async () => {
                 if (!isPremium) {
                   openUpgradeModal();
                   return;
                 }
-                printFinancialStatement();
-                setExportStatus('Print dialog opened');
+                setExportLoading(true);
+                try {
+                  await createExecutiveStatement();
+                  setExportStatus('Executive PDF ready — choose Print in the PDF options.');
+                } catch (err) {
+                  alert(`PDF error: ${err.message}`);
+                } finally {
+                  setExportLoading(false);
+                }
                 setTimeout(() => setExportStatus(''), 4000);
               }}
+              disabled={exportLoading}
               className={`inline-flex items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-xs font-bold shadow-xs active-press transition cursor-pointer ${
                 isPremium
                   ? 'border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-50'

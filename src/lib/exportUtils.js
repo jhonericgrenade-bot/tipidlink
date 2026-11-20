@@ -33,6 +33,22 @@ const safeAlert = (message) => {
   }
 };
 
+// Date-only values from the database must be matched as calendar dates. Using
+// `new Date('YYYY-MM-DD')` can shift the date in some time zones and put a
+// record in the wrong monthly export.
+const isRecordInPeriod = (dateValue, month, year) => {
+  if (!dateValue) return false;
+  if (typeof dateValue === 'string' && /^\d{4}-\d{2}/.test(dateValue)) {
+    const [recordYear, recordMonth] = dateValue.slice(0, 10).split('-').map(Number);
+    return recordMonth === Number(month) && recordYear === Number(year);
+  }
+
+  const date = new Date(dateValue);
+  return !Number.isNaN(date.getTime())
+    && date.getMonth() + 1 === Number(month)
+    && date.getFullYear() === Number(year);
+};
+
 /**
  * Universal PDF Action Modal / Bottom Sheet
  * Provides instant Open/View, Download, Share, and Print for all devices.
@@ -599,16 +615,17 @@ export const exportBudgetsPDF = async ({
     householdName,
   });
 
-  const monthlyExpenses = transactions.filter(t => {
-    if (t.type !== 'expense') return false;
-    const d = new Date(t.transaction_date);
-    return d.getMonth() + 1 === Number(month) && d.getFullYear() === Number(year);
-  });
+  const periodBudgets = budgets.filter(
+    (budget) => Number(budget.month) === Number(month) && Number(budget.year) === Number(year)
+  );
+  const monthlyExpenses = transactions.filter(
+    (transaction) => transaction.type === 'expense' && isRecordInPeriod(transaction.transaction_date, month, year)
+  );
 
   const rows = categories
     .filter(c => c.name && c.name.toLowerCase() !== 'income')
     .map(cat => {
-      const budgetObj = budgets.find(b => b.category_id === cat.id || matchCategoryId(b.category_id, cat.id, categories));
+      const budgetObj = periodBudgets.find(b => b.category_id === cat.id || matchCategoryId(b.category_id, cat.id, categories));
       const allocated = budgetObj ? Number(budgetObj.amount) : 0;
       const spent = monthlyExpenses
         .filter(t => doesTransactionMatchCategory(t, cat.id, cat, categories))
@@ -919,7 +936,7 @@ export const exportSavingsPDF = async (savingsGoals = [], householdName = 'House
       formatPDFMoney(current),
       formatPDFMoney(remaining),
       `${progress}%`,
-      g.target_date || 'No Deadline',
+      g.deadline || g.target_date || 'No Deadline',
       isCompleted ? 'COMPLETED' : 'IN PROGRESS',
     ];
   });
@@ -1055,13 +1072,19 @@ export const exportFullFinancialStatementPDF = async ({
   doc.setTextColor(15, 23, 42);
   doc.text('2. CATEGORY BUDGET LIMITS & UTILIZATION', 14, currentY);
 
+  const periodBudgets = budgets.filter(
+    (budget) => Number(budget.month) === Number(month) && Number(budget.year) === Number(year)
+  );
+  const periodTransactions = transactions.filter(
+    (transaction) => isRecordInPeriod(transaction.transaction_date, month, year)
+  );
   const budgetRows = categories
     .filter(c => c.name && c.name.toLowerCase() !== 'income')
     .slice(0, 10)
     .map(cat => {
-      const bObj = budgets.find(b => b.category_id === cat.id || matchCategoryId(b.category_id, cat.id, categories));
+      const bObj = periodBudgets.find(b => b.category_id === cat.id || matchCategoryId(b.category_id, cat.id, categories));
       const allocated = bObj ? Number(bObj.amount) : 0;
-      const spent = transactions
+      const spent = periodTransactions
         .filter(t => t.type === 'expense' && doesTransactionMatchCategory(t, cat.id, cat, categories))
         .reduce((s, t) => s + Number(t.amount || 0), 0);
       const remaining = allocated > 0 ? allocated - spent : 0;
@@ -1097,10 +1120,14 @@ export const exportFullFinancialStatementPDF = async ({
   doc.setTextColor(15, 23, 42);
   doc.text('3. HOUSEHOLD BILLS & PAYMENT OBLIGATIONS', 14, currentY);
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const billRows = bills.slice(0, 8).map(b => {
     const amount = Number(b.amount) || 0;
     const paid = (b.payments || []).reduce((acc, p) => acc + Number(p.amount), 0);
     const balance = Math.max(0, amount - paid);
+    const dueDate = b.due_date ? new Date(`${String(b.due_date).slice(0, 10)}T00:00:00`) : null;
+    const isOverdue = balance > 0 && dueDate && !Number.isNaN(dueDate.getTime()) && dueDate < today;
     return [
       b.title || 'Bill',
       b.biller_name || 'Biller',
@@ -1108,7 +1135,7 @@ export const exportFullFinancialStatementPDF = async ({
       formatPDFMoney(paid),
       formatPDFMoney(balance),
       b.due_date || '-',
-      balance <= 0 ? 'PAID' : (b.isOverdue ? 'OVERDUE' : 'UNPAID'),
+      balance <= 0 ? 'PAID' : (isOverdue ? 'OVERDUE' : (paid > 0 ? 'PARTIAL' : 'UNPAID')),
     ];
   });
 
@@ -1277,18 +1304,21 @@ export const exportBudgetsCSV = async ({
   const filename = `tipidlink_budgets_${safeName}_${dateStr}.csv`;
 
   const headers = ['Category', 'Allocated Budget (PHP)', 'Actual Spent (PHP)', 'Remaining (PHP)', 'Utilization (%)', 'Status'];
-  const monthlyExpenses = transactions.filter(t => {
-    if (t.type !== 'expense') return false;
-    const d = new Date(t.transaction_date);
-    return d.getMonth() + 1 === Number(month) && d.getFullYear() === Number(year);
-  });
+  const periodBudgets = budgets.filter(
+    (budget) => Number(budget.month) === Number(month) && Number(budget.year) === Number(year)
+  );
+  const monthlyExpenses = transactions.filter(
+    (transaction) => transaction.type === 'expense' && isRecordInPeriod(transaction.transaction_date, month, year)
+  );
 
   const rows = categories
     .filter(c => c.name && c.name.toLowerCase() !== 'income')
     .map(cat => {
-      const budgetObj = budgets.find(b => b.category_id === cat.id);
+      const budgetObj = periodBudgets.find(b => b.category_id === cat.id || matchCategoryId(b.category_id, cat.id, categories));
       const allocated = budgetObj ? Number(budgetObj.amount) : 0;
-      const spent = monthlyExpenses.filter(t => t.category_id === cat.id).reduce((sum, t) => sum + Number(t.amount), 0);
+      const spent = monthlyExpenses
+        .filter(t => doesTransactionMatchCategory(t, cat.id, cat, categories))
+        .reduce((sum, t) => sum + Number(t.amount), 0);
       const remaining = allocated > 0 ? allocated - spent : 0;
       const utilization = allocated > 0 ? ((spent / allocated) * 100).toFixed(1) : (spent > 0 ? '100.0' : '0.0');
       let status = 'No Limit Set';
@@ -1354,12 +1384,12 @@ export const exportSavingsCSV = async (savingsGoals = [], householdName = 'House
     const isCompleted = current >= target && target > 0;
 
     return [
-      g.name || 'Savings Goal',
+      g.title || g.name || 'Savings Goal',
       target,
       current,
       remaining,
       `${progress}%`,
-      g.target_date || 'No Deadline',
+      g.deadline || g.target_date || 'No Deadline',
       g.category || 'General',
       isCompleted ? 'COMPLETED' : 'IN PROGRESS'
     ];
