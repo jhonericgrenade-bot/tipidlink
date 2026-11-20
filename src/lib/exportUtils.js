@@ -913,7 +913,7 @@ export const exportSavingsPDF = async (savingsGoals = [], householdName = 'House
     const isCompleted = current >= target && target > 0;
 
     return [
-      g.name || 'Savings Goal',
+      g.title || g.name || 'Savings Goal',
       g.category || 'General',
       formatPDFMoney(target),
       formatPDFMoney(current),
@@ -1152,7 +1152,7 @@ export const exportFullFinancialStatementPDF = async ({
       formatPDFMoney(current),
       formatPDFMoney(Math.max(0, target - current)),
       `${pct}%`,
-      g.target_date || 'Ongoing',
+      g.deadline || g.target_date || 'Ongoing',
     ];
   });
 

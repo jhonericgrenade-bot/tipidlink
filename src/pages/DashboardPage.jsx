@@ -63,18 +63,20 @@ export const DashboardPage = () => {
     setIsExporting(true);
     try {
       await exportFullFinancialStatementPDF({
-        transactions: ledgerTransactions,
-        budgets,
+        household: currentHousehold,
+        calculations,
+        // Keep every report section on the same selected month and year as
+        // the dashboard summary. Passing the full ledger made the category
+        // table disagree with the executive totals.
+        transactions: calculations.monthlyTransactions,
+        budgets: budgets.filter(
+          (budget) => budget.month === Number(selectedMonth) && budget.year === Number(selectedYear)
+        ),
         bills,
         savingsGoals,
         categories,
-        householdName: currentHousehold?.name || 'Household',
         month: selectedMonth,
         year: selectedYear,
-        totalIncome: calculations.totalIncome,
-        totalExpenses: calculations.totalExpenses,
-        netSavings: calculations.netSavings,
-        activeBudgetTarget: calculations.activeBudgetTarget,
       });
     } catch (err) {
       console.error('PDF export failed:', err);
