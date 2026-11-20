@@ -424,8 +424,8 @@ export const SavingsPage = () => {
               </label>
               <input
                 type="number"
-                step="500"
-                min="500"
+                min="0.01"
+                step="0.01"
                 required
                 placeholder="e.g. 50000"
                 value={goalForm.target_amount}
@@ -511,8 +511,8 @@ export const SavingsPage = () => {
             </label>
             <input
               type="number"
-              step="50"
-              min="1"
+                min="0.01"
+                step="0.01"
               required
               placeholder="e.g. 2000"
               value={contribAmount}
